@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcSnap — Workflow Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Top Navigation Bar -->
+        <header class="topbar">
+            <div class="brand">
+                <button id="toggleSidebarBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; margin-right: 8px; height: 32px; display: inline-flex; align-items: center; gap: 4px;" title="Toggle Left Sidebar">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                </button>
+                <div class="brand-mark">P</div>
+                <div>
+                    <h1 class="brand-name">ProcSnap</h1>
+                    <div class="brand-subtitle">Workflow Studio</div>
+                </div>
+                <div class="developer-signature" title="ProcSnap Engine — Designed & Developed by MRV">Developed by <strong>MRV</strong></div>
+            </div>
+            <div class="top-actions">
+                <span id="apiStatus" class="api-status online" style="background: rgba(99, 102, 241, 0.12); color: #818cf8;">Connecting…</span>
+                <span id="aiStatus" class="api-status offline" title="Ollama local AI status (Optional)">AI Offline</span>
+                <button id="startOllamaBtn" class="btn btn-secondary btn-sm hidden" style="padding: 4px 8px; font-size: 12px;">Start Ollama</button>
+                <div id="aiErrorBanner" class="ai-error-banner hidden">
+                    <span id="aiErrorText"></span>
+                    <button id="dismissAiErrorBtn" class="dismiss-btn" title="Dismiss error">✕</button>
+                </div>
+                <button id="refreshBtn" class="btn btn-secondary">
+                    <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                    Refresh
+                </button>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <!-- Left Sidebar Library -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <div class="eyebrow">Local Library</div>
+                    <div class="search-box">
+                        <input id="searchInput" type="search" placeholder="Search workflows..." class="search-input">
+                    </div>
+                </div>
+                <div id="workflowList" class="workflow-list">
+                    <div class="loading">Loading library...</div>
+                </div>
+            </aside>
+
+            <!-- Main Studio Workspace -->
+            <main class="studio">
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state">
+                    <div class="empty-icon">T</div>
+                    <h2>Select a Workflow</h2>
+                    <p>Choose a workflow from the library sidebar to view, edit, annotate, or export as a standard operating procedure (SOP).</p>
+                </div>
+
+                <!-- Studio Workspace -->
+                <div id="studioView" class="studio-workspace hidden">
+                    <!-- Workflow Info Header -->
+                    <div class="workflow-header">
+                        <div class="wf-title-section">
+                            <span id="detailApplication" class="application-badge">Chrome</span>
+                            <h2 id="detailName" class="workflow-name-display" contenteditable="true" title="Click to rename">Untitled Workflow</h2>
+                            <div id="detailMeta" class="detail-meta">0 steps • Completed</div>
+                        </div>
+                        <div class="header-actions">
+                            <button id="captureDesktopBtn" class="btn btn-secondary" title="Capture full Windows Desktop screen (Excel, SAP, Word, etc.)" style="padding: 6px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                                🖥️ Capture Desktop Screen
+                            </button>
+                            <button id="deleteBtn" class="btn btn-danger">
+                                <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tabs Bar -->
+                    <nav class="tabs">
+                        <button class="tab active" data-tab="guide">Guide &amp; Annotations</button>
+                        <button class="tab" data-tab="steps">Step List Editor</button>
+                        <button class="tab" data-tab="play">Slideshow Playback</button>
+                        <button class="tab" data-tab="export">Export SOP</button>
+                    </nav>
+
+                    <!-- Tab panels -->
+                    <!-- 1. Guide Tab (Canvas Editor) -->
+                    <section id="tab-guide" class="tab-panel">
+                        <div class="guide-layout">
+                            <!-- Right: Canvas and Annotations (MAIN area - full width) -->
+                            <div class="canvas-workspace">
+                                <!-- Canvas Toolbar -->
+                                <div class="canvas-toolbar">
+                                    <div class="tool-group">
+                                        <button id="prevBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 32px; padding: 0 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;">← Prev</button>
+                                        <span id="stepProgress" class="step-progress-label" style="font-size: 12px; font-weight: 700; min-width: 80px; text-align: center; white-space: nowrap;">Step 1 of 1</span>
+                                        <button id="nextBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 32px; padding: 0 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;">Next →</button>
+                                        <button id="deleteCurrentStepBtn" class="btn btn-danger btn-sm" style="white-space: nowrap; height: 32px; padding: 0 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;" title="Permanently delete current step">
+                                            <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                            Delete Step
+                                        </button>
+                                        <span class="tool-divider"></span>
+                                        <button class="tool-btn active" id="tool-select" title="Select & Move (V)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M13.64 21.97c-.2-.07-.36-.25-.43-.46l-2.43-6.85-4.8 4.8c-.3.3-.77.34-1.12.1a.8.8 0 0 1-.29-.61V3.2c0-.44.36-.8.8-.8.21 0 .42.08.57.23l15 15c.31.31.31.82 0 1.13-.23.23-.58.28-.87.12l-5.18-2.5 2.53 7.14c.07.2-.01.43-.18.57l-3.32 1.34c-.1.05-.28.09-.41.07z"/></svg>
+                                        </button>
+                                        <button class="tool-btn" id="tool-pan" title="Drag & Move Screenshot (Hand Tool)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10 9a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2.5a.5.5 0 0 0 1 0V4a1 1 0 0 1 2 0v7.5a.5.5 0 0 0 1 0V6a1 1 0 0 1 2 0v7a8 8 0 0 1-16 0V9a1 1 0 0 1 2 0v4.5a.5.5 0 0 0 1 0V3a1 1 0 0 1 2 0v6z"/></svg>
+                                        </button>
+                                        <span class="tool-divider"></span>
+                                        <button class="tool-btn" id="tool-circle" title="Numbered Circle (C)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                                        </button>
+                                        <button class="tool-btn" id="tool-arrow" title="Arrow Pointer (A)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M5 3l3.057-3 11.943 12-11.943 12-3.057-3 9-9z"/></svg>
+                                        </button>
+                                        <button class="tool-btn" id="tool-rect" title="Rectangle Overlay (R)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 3v18h18V3H3zm16 16H5V5h14v14z"/></svg>
+                                        </button>
+                                        <button class="tool-btn" id="tool-highlight" title="Highlight Marker (H)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                                        </button>
+                                        <!-- Text tool with dropdown -->
+                                        <div class="tool-text-wrapper" id="textToolWrapper">
+                                            <button class="tool-btn" id="tool-text" title="Text Callout (T)">
+                                                <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12.5 4v16h-2V4H4V2h15v2h-6.5z"/></svg>
+                                            </button>
+                                            <button class="tool-text-caret" id="tool-text-caret" title="Choose text style">▾</button>
+                                        </div>
+                                        <button class="tool-btn" id="tool-blur" title="Blur / Redact (B)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8c1.5 0 2.9.41 4.11 1.13L5.13 16.11A7.95 7.95 0 0 1 4 12c0-4.41 3.59-8 8-8 1.63 0 3.13.49 4.39 1.33l-10 10A7.88 7.88 0 0 1 12 20zm5.87-4.13A7.95 7.95 0 0 1 20 12c0-4.41-3.59-8-8-8-1.5 0-2.9.41-4.11 1.13l11.98 11.98A7.88 7.88 0 0 1 17.87 15.87z"/></svg>
+                                        </button>
+                                        <span class="tool-divider"></span>
+                                        <!-- Color Palette Toggle -->
+                                        <button class="tool-btn" id="tool-color-picker" title="Toggle Color Palette">
+                                            <div id="currentColorIndicator" style="width: 14px; height: 14px; border-radius: 50%; background-color: #ef4444; border: 2px solid var(--text-muted);"></div>
+                                        </button>
+                                        <!-- Crop Tool -->
+                                        <button class="tool-btn" id="tool-crop" title="Crop Screenshot (K)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M17 15h2V7c0-1.1-.9-2-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10c0 1.1.9 2 2 2h10v4h2v-4h4v-2H7z"/></svg>
+                                        </button>
+                                        <!-- Spotlight Toggle (Off by default) -->
+                                        <button class="tool-btn" id="tool-spotlight-toggle" title="Toggle Auto-Spotlight (highlights clicked element)" style="position: relative;">
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+                                            <span style="position:absolute;bottom:2px;right:2px;width:6px;height:6px;border-radius:50%;background:#6366f1;" id="spotlightIndicator"></span>
+                                        </button>
+                                    </div>
+                                    <div class="tool-group">
+                                        <button class="btn btn-secondary btn-sm" id="clearAnnotationsBtn">Clear</button>
+                                        <button class="btn btn-secondary btn-sm" id="recalcHighlightBtn">Reset Focus</button>
+                                        <label class="approve-checkbox-label" style="text-transform: none; margin-left: 8px; font-weight: 600;">
+                                            <input type="checkbox" id="snapToGridCheckbox"> Snap
+                                        </label>
+                                        <!-- Undo / Redo -->
+                                        <div class="tool-divider"></div>
+                                        <button class="tool-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+                                        </button>
+                                        <button class="tool-btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
+                                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+                                        </button>
+                                        <!-- Zoom Controls -->
+                                        <div class="tool-divider"></div>
+                                        <button id="zoomOutBtn" class="btn btn-secondary btn-sm" style="padding: 2px 8px; height: 26px; min-width: 24px;" title="Zoom Out">-</button>
+                                        <span id="zoomLabel" style="font-size: 11px; font-weight: 700; min-width: 32px; text-align: center; color: var(--text-muted);">Fit</span>
+                                        <button id="zoomInBtn" class="btn btn-secondary btn-sm" style="padding: 2px 8px; height: 26px; min-width: 24px;" title="Zoom In">+</button>
+                                        <button id="zoomFitBtn" class="btn btn-secondary btn-sm" style="padding: 2px 6px; height: 26px; font-size: 10px;" title="Fit to screen">Reset</button>
+                                        <!-- Steps drawer toggle -->
+                                        <div class="tool-divider"></div>
+                                        <button class="btn btn-secondary btn-sm steps-toggle-btn" id="stepsDrawerToggle">
+                                            <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                                            Steps
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Text Style Picker Dropdown -->
+                                <div class="text-style-picker hidden" id="textStylePicker">
+                                    <div class="text-style-header">Choose Callout Style</div>
+                                    <div class="text-style-grid">
+                                        <button class="text-style-btn" data-style="callout-purple" data-color="#7c3aed" data-bg="#7c3aed" data-text="#ffffff">
+                                            <span class="style-preview" style="background:#7c3aed;color:#fff;border-radius:4px;">Aa</span>
+                                            <span>Callout</span>
+                                        </button>
+                                        <button class="text-style-btn" data-style="note-yellow" data-color="#d97706" data-bg="#fef3c7" data-text="#92400e">
+                                            <span class="style-preview" style="background:#fef3c7;color:#92400e;border:1.5px solid #d97706;border-radius:4px;">Aa</span>
+                                            <span>Note</span>
+                                        </button>
+                                        <button class="text-style-btn" data-style="badge-red" data-color="#ef4444" data-bg="#ef4444" data-text="#ffffff">
+                                            <span class="style-preview" style="background:#ef4444;color:#fff;border-radius:4px;">Aa</span>
+                                            <span>Alert</span>
+                                        </button>
+                                        <button class="text-style-btn" data-style="minimal-dark" data-color="#1e293b" data-bg="#ffffff" data-text="#0f172a">
+                                            <span class="style-preview" style="background:#fff;color:#0f172a;border:1.5px solid #1e293b;border-radius:4px;">Aa</span>
+                                            <span>Clean</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Dynamic Palette Bar (Hidden by default, opens on Color Picker click) -->
+                                <div class="canvas-palette-bar hidden" id="canvasPaletteBar">
+                                    <div class="palette-group" id="group-color-presets">
+                                        <label>Colors</label>
+                                        <div class="color-presets">
+                                            <div class="color-dot active" data-color="#ef4444" style="background-color: #ef4444;"></div>
+                                            <div class="color-dot" data-color="#6366f1" style="background-color: #6366f1;"></div>
+                                            <div class="color-dot" data-color="#10b981" style="background-color: #10b981;"></div>
+                                            <div class="color-dot" data-color="#eab308" style="background-color: #eab308;"></div>
+                                            <div class="color-dot" data-color="#3b82f6" style="background-color: #3b82f6;"></div>
+                                            <div class="color-dot" data-color="#ec4899" style="background-color: #ec4899;"></div>
+                                            <div class="color-dot" data-color="#000000" style="background-color: #000000;"></div>
+                                            <div class="color-dot" data-color="#ffffff" style="background-color: #ffffff; border: 1px solid var(--light-border);"></div>
+                                            <input type="color" id="customColorPicker" value="#ef4444" title="Custom color picker" style="width: 22px; height: 22px; padding: 0; border: none; border-radius: 50%; cursor: pointer;">
+                                        </div>
+                                    </div>
+
+                                    <div class="palette-group" id="group-line-width">
+                                        <label>Line Thickness</label>
+                                        <input type="range" id="lineWidthSlider" min="1" max="10" value="3">
+                                        <span id="lineWidthVal" class="val-label">3px</span>
+                                    </div>
+
+                                    <div class="palette-group" id="group-opacity">
+                                        <label>Opacity</label>
+                                        <input type="range" id="opacitySlider" min="10" max="100" value="100">
+                                        <span id="opacityVal" class="val-label">100%</span>
+                                    </div>
+
+                                    <div class="palette-group" id="group-text-size">
+                                        <label>Text Size</label>
+                                        <input type="range" id="textSizeSlider" min="10" max="28" value="12">
+                                        <span id="textSizeVal" class="val-label">12px</span>
+                                    </div>
+
+                                    <div class="palette-group" id="group-font-family">
+                                        <label>Font</label>
+                                        <select id="fontFamilySelect" class="font-select">
+                                            <option value="Inter">Inter</option>
+                                            <option value="Arial">Arial</option>
+                                            <option value="Georgia">Georgia</option>
+                                            <option value="Courier New">Monospace</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Image / Drawing Canvas Area -->
+                                <div class="screenshot-stage" id="screenshotStage">
+                                    <div class="screenshot-canvas-wrapper" id="canvasWrapper">
+                                        <img id="guideImg" src="" alt="SOP Screenshot">
+                                        <canvas id="annotationCanvas"></canvas>
+                                    </div>
+                                    <div id="noScreenshot" class="no-screenshot-message hidden">
+                                        No screenshot was recorded for this step.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step Detail Side Drawer (slides in from right) -->
+                            <div class="step-detail-drawer" id="stepDetailDrawer">
+                                <div class="drawer-handle" id="drawerCloseBtn" title="Close panel">
+                                    <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                                </div>
+                                <div class="guide-card-header">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <div class="step-badge" id="guideStepBadge">Step 1</div>
+                                        <label class="approve-checkbox-label">
+                                            <input type="checkbox" id="guideStepChecked"> Approved
+                                        </label>
+                                    </div>
+                                    <h3 id="guideStepTitle" contenteditable="true" placeholder="Step Title">Step Title</h3>
+                                    <p id="guideStepDesc" contenteditable="true" placeholder="Enter instructions here..." class="step-desc-edit"></p>
+                                </div>
+                                <div class="guide-card-body">
+                                    <div class="field-group">
+                                        <label>Expected Result</label>
+                                        <textarea id="guideStepExpected" placeholder="What should happen after this step?"></textarea>
+                                    </div>
+                                    <div class="field-group">
+                                        <label>Instructor Notes</label>
+                                        <textarea id="guideStepNote" placeholder="Additional hints, security warnings, tips..."></textarea>
+                                    </div>
+                                    <div class="field-group">
+                                        <label>Voiceover Narration</label>
+                                        <textarea id="guideStepVoiceover" placeholder="Custom text to speak during voiceover narration (optional)..."></textarea>
+                                    </div>
+                                    <div class="step-meta-info">
+                                        <div class="meta-item">
+                                            <span class="meta-label">Action:</span>
+                                            <span id="guideMetaAction" class="meta-val">—</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="meta-label">Value:</span>
+                                            <span id="guideMetaValue" class="meta-val">—</span>
+                                        </div>
+                                        <div class="meta-item span-2">
+                                            <span class="meta-label">CSS Selector:</span>
+                                            <code id="guideMetaSelector" class="meta-val-code">—</code>
+                                        </div>
+                                        <div class="meta-item span-2">
+                                            <span class="meta-label">XPath:</span>
+                                            <code id="guideMetaXpath" class="meta-val-code">—</code>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="guide-card-footer" style="flex-wrap: wrap; gap: 8px;">
+                                    <button id="saveEditsBtn" class="btn btn-primary btn-sm">Save Details</button>
+                                    <button id="aiEnhanceStepBtn" class="btn btn-secondary btn-sm" title="AI Auto-write titles/descriptions">✨ AI Enhance</button>
+                                    <button id="hideStepBtn" class="btn btn-secondary btn-sm">Hide Step</button>
+                                    <label class="btn btn-secondary btn-sm" style="cursor: pointer; margin: 0; display: inline-flex; align-items: center; gap: 4px;">
+                                        📷 Replace Image
+                                        <input type="file" id="replaceScreenshotInput" accept="image/*" style="display: none;">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Steps Drawer (Bottom, collapsible) -->
+                        <div class="steps-bottom-drawer" id="stepsBottomDrawer">
+                            <div class="steps-drawer-header" id="stepsDrawerHeader">
+                                <div class="steps-drawer-title">
+                                    <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                                    Steps Grid
+                                    <span id="stepsDrawerCount" class="steps-drawer-count">0 steps</span>
+                                </div>
+                                <button class="steps-drawer-collapse" id="stepsDrawerCollapse" title="Collapse steps">
+                                    <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                                </button>
+                            </div>
+                            <div class="steps-drawer-body" id="stepsDrawerBody">
+                                <div id="thumbnailsStrip" class="thumbnails-strip"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 2. Step Editor Tab -->
+                    <section id="tab-steps" class="tab-panel hidden">
+                        <div class="editor-workspace">
+                            <div class="editor-header-bar">
+                                <p>Drag and drop steps to reorder, insert new steps, delete steps or bulk hide steps from the output.</p>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="aiPolishBtn" class="btn btn-secondary btn-sm" title="AI Polish descriptions of all steps">🤖 AI Polish SOP</button>
+                                    <button id="addNewStepBtn" class="btn btn-primary btn-sm">+ Insert Manual Step</button>
+                                </div>
+                            </div>
+                            <div id="stepListContainer" class="step-list-rows"></div>
+                        </div>
+                    </section>
+
+                    <!-- 3. Playback Tab (PPT Presenter Deck View) -->
+                    <section id="tab-play" class="tab-panel hidden">
+                        <div class="ppt-presenter-layout">
+                            <!-- Left: Previous Slide Preview Card -->
+                            <div id="pptPrevCard" class="ppt-side-card ppt-prev-card" title="Click to go to Previous Slide">
+                                <div class="ppt-card-label">◀ Previous Slide</div>
+                                <div class="ppt-thumb-frame">
+                                    <img id="pptPrevImg" src="" alt="Previous Slide">
+                                    <div id="pptPrevBadge" class="ppt-mini-badge">—</div>
+                                </div>
+                                <div id="pptPrevTitle" class="ppt-card-title">—</div>
+                            </div>
+
+                            <!-- Center: Current Main Active Slide -->
+                            <div class="playback-card">
+                                <div class="playback-header">
+                                    <h2 id="playStepTitle">Step Title</h2>
+                                    <div class="playback-badge" id="playStepBadge">1</div>
+                                </div>
+                                <div class="voice-over-controls" style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.02); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--light-border);">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <button id="playVoiceBtn" class="btn btn-primary btn-sm" style="display:flex; align-items:center; gap:6px;">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                                Play Voiceover
+                                            </button>
+                                            <select id="voiceSelect" class="form-control" style="width: auto; padding: 4px; font-size: 12px; height: 28px;">
+                                                <optgroup label="🇺🇸 American English">
+                                                    <option value="en-US-AriaNeural">Aria (Female, Warm)</option>
+                                                    <option value="en-US-JennyNeural">Jenny (Female, Friendly)</option>
+                                                    <option value="en-US-MichelleNeural">Michelle (Female, Clear)</option>
+                                                    <option value="en-US-GuyNeural">Guy (Male, Authoritative)</option>
+                                                    <option value="en-US-DavisNeural">Davis (Male, Casual)</option>
+                                                    <option value="en-US-ChristopherNeural">Christopher (Male, News)</option>
+                                                </optgroup>
+                                                <optgroup label="🇬🇧 British English">
+                                                    <option value="en-GB-SoniaNeural">Sonia (Female, British)</option>
+                                                    <option value="en-GB-LibbyNeural">Libby (Female, Bright)</option>
+                                                    <option value="en-GB-RyanNeural">Ryan (Male, British)</option>
+                                                </optgroup>
+                                                <optgroup label="🇦🇺 Australian English">
+                                                    <option value="en-AU-NatashaNeural">Natasha (Female, Australian)</option>
+                                                    <option value="en-AU-WilliamNeural">William (Male, Australian)</option>
+                                                </optgroup>
+                                                <optgroup label="🇮🇳 Indian English">
+                                                    <option value="en-IN-NeerjaNeural">Neerja (Female, Indian)</option>
+                                                    <option value="en-IN-PrabhatNeural">Prabhat (Male, Indian)</option>
+                                                </optgroup>
+                                                <optgroup label="🇨🇦 Canadian English">
+                                                    <option value="en-CA-ClaraNeural">Clara (Female, Canadian)</option>
+                                                    <option value="en-CA-LiamNeural">Liam (Male, Canadian)</option>
+                                                </optgroup>
+                                            </select>
+                                        </div>
+                                        <audio id="ttsAudioPlayer" style="display: none;"></audio>
+                                    </div>
+                                    <textarea id="playVoiceText" placeholder="Custom voiceover text for this slide..." style="width: 100%; height: 50px; font-size: 12px; padding: 6px; border-radius: var(--radius-sm); border: 1px solid var(--light-border); resize: vertical;"></textarea>
+                                </div>
+                                <p id="playStepDesc" class="playback-desc">Step description details...</p>
+                                <div id="playStepNotesBox" class="playback-notes hidden">
+                                    <strong>Important Note:</strong> <span id="playStepNoteText"></span>
+                                </div>
+                                <div class="playback-image-container">
+                                    <img id="playImg" src="" alt="SOP Slideshow image">
+                                </div>
+                                <div class="playback-controls">
+                                    <button id="playPrevBtn" class="btn btn-secondary">← Previous</button>
+                                    <span id="playProgress" class="playback-progress">Step 1 of 1</span>
+                                    <button id="playNextBtn" class="btn btn-primary">Next →</button>
+                                </div>
+                            </div>
+
+                            <!-- Right: Next Slide Preview Card -->
+                            <div id="pptNextCard" class="ppt-side-card ppt-next-card" title="Click to go to Next Slide">
+                                <div class="ppt-card-label">Next Slide ▶</div>
+                                <div class="ppt-thumb-frame">
+                                    <img id="pptNextImg" src="" alt="Next Slide">
+                                    <div id="pptNextBadge" class="ppt-mini-badge">—</div>
+                                </div>
+                                <div id="pptNextTitle" class="ppt-card-title">—</div>
+                            </div>
+                        </div>
+                        <div id="pptDeckFilmstrip" class="ppt-deck-filmstrip"></div>
+                    </section>
+
+                    <!-- 4. Export Tab -->
+                    <section id="tab-export" class="tab-panel hidden">
+                        <div class="export-grid">
+                            <div class="export-card">
+                                <div class="export-card-icon">📁</div>
+                                <h3>Self-Contained HTML</h3>
+                                <p>Creates a single, highly readable SOP guide with all screenshots embedded as offline base64. Ideal for printing to PDF or sharing over email.</p>
+                                <button id="exportHtmlBtn" class="btn btn-primary">Export HTML</button>
+                            </div>
+                            <div class="export-card">
+                                <div class="export-card-icon">📝</div>
+                                <h3>Markdown Document</h3>
+                                <p>Export as clean Github Flavored Markdown. Perfect for copying directly into Confluence, Notion, Github, or your internal knowledge base.</p>
+                                <button id="exportMarkdownBtn" class="btn btn-secondary">Export Markdown</button>
+                            </div>
+                            <div class="export-card">
+                                <div class="export-card-icon">⚡</div>
+                                <h3>Confluence Markup</h3>
+                                <p>Saves the SOP as Confluence wiki Storage Format markup for clean, formatted page templates on your wiki systems.</p>
+                                <button id="exportConfluenceBtn" class="btn btn-secondary">Confluence Format</button>
+                            </div>
+                            <div class="export-card">
+                                <div class="export-card-icon">📊</div>
+                                <h3>Structured CSV</h3>
+                                <p>Export all actions, timings, values, selectors, and descriptions into a spreadsheet table format for audits or CSV logs.</p>
+                                <button id="exportCsvBtn" class="btn btn-secondary">Export CSV</button>
+                            </div>
+                            <div class="export-card">
+                                <div class="export-card-icon">🖨️</div>
+                                <h3>Print or Save PDF</h3>
+                                <p>Format the document specifically for physical printers or browser PDF printer drivers. Includes automatic page breaks between steps.</p>
+                                <button id="exportPdfBtn" class="btn btn-secondary">Print / PDF</button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Global Toast Notifications -->
+    <div id="toast" class="toast">Action completed successfully</div>
+
+    <!-- Annotation Context Menu -->
+    <div id="annotationContextMenu" class="context-menu hidden">
+        <div class="context-menu-item" id="menu-duplicate">📋 Duplicate</div>
+        <div class="context-menu-item" id="menu-front">🔼 Bring to Front</div>
+        <div class="context-menu-item" id="menu-back">🔽 Send to Back</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item text-danger" id="menu-delete">🗑 Delete</div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         Desktop Screenshot Capture Modal
+         ══════════════════════════════════════════════════════════ -->
+    <div id="desktopCaptureModal" class="dc-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dcModalTitle">
+
+        <div class="dc-modal">
+            <div class="dc-modal-header">
+                <div class="dc-modal-icon">🖥️</div>
+                <div>
+                    <h2 id="dcModalTitle" class="dc-modal-title">Desktop Screenshot Capture</h2>
+                    <p class="dc-modal-subtitle">Capture any screen — Excel, SAP, Word, or the full desktop</p>
+                </div>
+                <button id="dcModalClose" class="dc-close-btn" title="Close" aria-label="Close">&times;</button>
+            </div>
+
+            <div class="dc-modal-body">
+                <!-- Monitor Selector -->
+                <div class="dc-field">
+                    <label class="dc-label" for="dcMonitorSelect">📺 Monitor</label>
+                    <div class="dc-select-wrapper">
+                        <select id="dcMonitorSelect" class="dc-select">
+                            <option value="1">Loading monitors…</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Step Title -->
+                <div class="dc-field">
+                    <label class="dc-label" for="dcStepTitle">📝 Step Title</label>
+                    <input id="dcStepTitle" type="text" class="dc-input" placeholder="e.g. Open SAP Login Screen" maxlength="120" />
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="dc-actions">
+                    <button id="dcCaptureNativeBtn" class="dc-btn dc-btn-primary">
+                        <span class="dc-btn-icon">📸</span>
+                        <span>
+                            <strong>Capture Natively</strong>
+                            <small>Instant &amp; 100% reliable</small>
+                        </span>
+                    </button>
+                    <button id="dcCapturePickerBtn" class="dc-btn dc-btn-secondary">
+                        <span class="dc-btn-icon">🌐</span>
+                        <span>
+                            <strong>Browser Screen Picker</strong>
+                            <small>Choose a specific window</small>
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Status / Progress -->
+                <div id="dcStatus" class="dc-status hidden"></div>
+
+                <!-- Countdown overlay (shown during browser picker countdown) -->
+                <div id="dcCountdown" class="dc-countdown hidden">
+                    <div class="dc-countdown-inner">
+                        <div id="dcCountdownNum" class="dc-countdown-num">3</div>
+                        <div class="dc-countdown-label">Capturing in…<br><small>Switch to your target window now!</small></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dc-modal-footer">
+                <span class="dc-tip">💡 <em>Native capture uses Python mss — no browser permissions needed.</em></span>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    /* ── Desktop Capture Modal ──────────────────────────────────── */
+    .dc-modal-overlay {
+        position: fixed; inset: 0; z-index: 9999;
+        background: rgba(0,0,0,0.65);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        animation: dcFadeIn 0.18s ease;
+    }
+    .dc-modal-overlay.hidden { display: none; }
+    @keyframes dcFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .dc-modal {
+        background: #1a1d2e;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 18px;
+        width: min(520px, 94vw);
+        box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.15);
+        overflow: hidden;
+        animation: dcSlideUp 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes dcSlideUp {
+        from { transform: translateY(40px) scale(0.96); opacity: 0; }
+        to   { transform: translateY(0) scale(1);       opacity: 1; }
+    }
+
+    .dc-modal-header {
+        display: flex; align-items: flex-start; gap: 14px;
+        padding: 24px 24px 0;
+    }
+    .dc-modal-icon { font-size: 32px; line-height: 1; flex-shrink: 0; }
+    .dc-modal-title {
+        font-size: 18px; font-weight: 700; color: #e5e7eb; margin: 0 0 3px;
+    }
+    .dc-modal-subtitle { font-size: 13px; color: #6b7280; margin: 0; }
+    .dc-close-btn {
+        margin-left: auto; background: none; border: none;
+        color: #6b7280; font-size: 22px; cursor: pointer; padding: 0 4px;
+        border-radius: 6px; transition: color 0.15s, background 0.15s;
+        line-height: 1;
+    }
+    .dc-close-btn:hover { color: #e5e7eb; background: rgba(255,255,255,0.06); }
+
+    .dc-modal-body { padding: 20px 24px; }
+    .dc-field { margin-bottom: 16px; }
+    .dc-label {
+        display: block; font-size: 12px; font-weight: 600;
+        color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em;
+        margin-bottom: 6px;
+    }
+    .dc-select-wrapper { position: relative; }
+    .dc-select, .dc-input {
+        width: 100%; padding: 10px 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 10px; color: #e5e7eb;
+        font-family: inherit; font-size: 14px;
+        outline: none; box-sizing: border-box;
+        transition: border-color 0.2s;
+    }
+    .dc-select { appearance: none; cursor: pointer; }
+    .dc-select:focus, .dc-input:focus { border-color: #6366f1; }
+    .dc-select-wrapper::after {
+        content: "▾"; position: absolute; right: 14px; top: 50%;
+        transform: translateY(-50%); color: #6b7280; pointer-events: none;
+    }
+
+    .dc-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+    .dc-btn {
+        display: flex; align-items: center; gap: 14px;
+        padding: 14px 18px; border-radius: 12px; border: none;
+        cursor: pointer; text-align: left; width: 100%;
+        font-family: inherit; transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    .dc-btn:active { transform: scale(0.98); }
+    .dc-btn-icon { font-size: 26px; flex-shrink: 0; }
+    .dc-btn span:last-child { display: flex; flex-direction: column; gap: 2px; }
+    .dc-btn strong { font-size: 14px; font-weight: 700; display: block; }
+    .dc-btn small { font-size: 12px; opacity: 0.72; display: block; }
+
+    .dc-btn-primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff;
+        box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    }
+    .dc-btn-primary:hover {
+        background: linear-gradient(135deg, #4f52e8, #7c3aed);
+        box-shadow: 0 6px 28px rgba(99,102,241,0.55);
+    }
+    .dc-btn-secondary {
+        background: rgba(255,255,255,0.06);
+        color: #d1d5db;
+        border: 1px solid rgba(255,255,255,0.10);
+    }
+    .dc-btn-secondary:hover {
+        background: rgba(255,255,255,0.10);
+        border-color: rgba(255,255,255,0.18);
+    }
+
+    .dc-status {
+        margin-top: 14px; padding: 10px 14px;
+        background: rgba(99,102,241,0.10);
+        border: 1px solid rgba(99,102,241,0.25);
+        border-radius: 8px; font-size: 13px; color: #a5b4fc;
+        text-align: center;
+    }
+    .dc-status.dc-error {
+        background: rgba(239,68,68,0.10);
+        border-color: rgba(239,68,68,0.3);
+        color: #fca5a5;
+    }
+    .dc-status.dc-success {
+        background: rgba(16,185,129,0.10);
+        border-color: rgba(16,185,129,0.3);
+        color: #6ee7b7;
+    }
+
+    .dc-countdown {
+        position: absolute; inset: 0; border-radius: 18px;
+        background: rgba(10,11,20,0.92);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 10;
+    }
+    .dc-countdown.hidden { display: none; }
+    .dc-modal { position: relative; }
+    .dc-countdown-inner { text-align: center; }
+    .dc-countdown-num {
+        font-size: 90px; font-weight: 800;
+        background: linear-gradient(135deg, #6366f1, #a78bfa);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1;
+        animation: dcPulse 1s ease infinite;
+    }
+    @keyframes dcPulse {
+        0%, 100% { transform: scale(1); }
+        50%       { transform: scale(1.08); }
+    }
+    .dc-countdown-label { color: #9ca3af; font-size: 15px; margin-top: 10px; }
+    .dc-countdown-label small { font-size: 12px; color: #6b7280; }
+
+    .dc-modal-footer {
+        padding: 12px 24px 20px;
+        border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .dc-tip { font-size: 12px; color: #6b7280; }
+    </style>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
+

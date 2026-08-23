@@ -1,0 +1,43 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/.venv/
+.venv/
+env/
+venv/
+ENV/
+
+# Database & Storage
+*.db
+*.sqlite3
+backend/storage/
+storage/
+backend/screenshots/
+screenshots/
+backend/media/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# Portable ZIP & Temp
+ProcSnap_Portable.zip
+*.zip
+*.log
+scratch_*.py
+test_*.png
+test_*.html
+test_*.js
+debug.html

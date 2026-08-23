@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ProcSnap</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="brand">
+                <span class="logo-mark">P</span>
+                <span class="logo-text">ProcSnap</span>
+            </div>
+            <div id="api-status-pill" class="api-status offline">API Offline</div>
+        </header>
+
+        <!-- Setup Form (shown when not recording) -->
+        <div id="setup-panel" class="panel">
+            <div class="field">
+                <label for="workflow-name">Workflow Name</label>
+                <input type="text" id="workflow-name" placeholder="e.g. How to Approve Expense Report" value="">
+            </div>
+            <div class="field">
+                <label for="application-name">Application / System</label>
+                <input type="text" id="application-name" placeholder="e.g. Chrome, Salesforce, Jira" value="Chrome">
+            </div>
+            <button id="start" class="btn btn-primary">Start Capture</button>
+        </div>
+
+        <!-- Active Session Panel (shown when recording) -->
+        <div id="active-panel" class="panel hidden">
+            <div class="status-box">
+                <div id="pulse-dot" class="pulse-dot"></div>
+                <div class="status-content">
+                    <span id="active-status-title" class="status-title">Capturing...</span>
+                    <span id="step-counter" class="status-subtitle">0 steps recorded</span>
+                </div>
+                <div id="step-count-badge" class="step-badge-hero">0</div>
+            </div>
+            <div class="active-wf-info">
+                <div class="wf-label">Active Workflow</div>
+                <div id="active-wf-name" class="wf-val">Untitled Workflow</div>
+            </div>
+            <div class="action-buttons-group">
+                <button id="pause" class="btn btn-secondary">Pause Capture</button>
+                <button id="capture-manual" class="btn btn-secondary">Instant Capture</button>
+            </div>
+            <button id="stop" class="btn btn-danger">Complete Capture</button>
+        </div>
+
+        <footer class="footer">
+            <a href="http://127.0.0.1:8000/dashboard/dashboard.html" target="_blank" class="dashboard-link">
+                <svg class="icon" viewBox="0 0 24 24" width="14" height="14">
+                    <path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+                Open Studio
+            </a>
+            <button id="popout-btn" class="popout-btn" title="Pop out into separate window so it stays open">📌 Pin Window</button>
+            <div class="version">v0.2.0</div>
+        </footer>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
