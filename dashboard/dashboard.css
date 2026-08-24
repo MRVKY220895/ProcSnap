@@ -1,16 +1,27 @@
 :root {
     --primary: #6366f1;
     --primary-hover: #4f46e5;
-    --primary-subtle: #e0e7ff;
-    --dark-main: #0f172a;
-    --dark-surface: #1e293b;
-    --dark-border: #334155;
-    --light-bg: #f8fafc;
-    --light-surface: #ffffff;
-    --light-border: #e2e8f0;
-    --text-main: #0f172a;
+    --primary-subtle: rgba(99, 102, 241, 0.15);
+    
+    /* Semantic Design Tokens (Dark Mode by Default) */
+    --bg-app: #0b0f19;
+    --bg-surface: #0f172a;
+    --bg-surface-elevated: #1e293b;
+    --bg-surface-hover: rgba(255, 255, 255, 0.05);
+    --border-color: rgba(255, 255, 255, 0.09);
+    --border-hover: rgba(99, 102, 241, 0.4);
+    
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
     --text-muted: #64748b;
-    --text-light: #f8fafc;
+    
+    --input-bg: rgba(15, 23, 42, 0.7);
+    --input-border: rgba(255, 255, 255, 0.12);
+    --input-text: #f8fafc;
+    
+    --code-bg: rgba(0, 0, 0, 0.4);
+    --code-text: #a5b4fc;
+    
     --danger: #ef4444;
     --danger-hover: #dc2626;
     --success: #10b981;
@@ -23,6 +34,26 @@
     --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
+[data-theme="light"] {
+    --bg-app: #f1f5f9;
+    --bg-surface: #ffffff;
+    --bg-surface-elevated: #f8fafc;
+    --bg-surface-hover: #f1f5f9;
+    --border-color: #e2e8f0;
+    --border-hover: #6366f1;
+    
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    
+    --input-bg: #ffffff;
+    --input-border: #cbd5e1;
+    --input-text: #0f172a;
+    
+    --code-bg: #f1f5f9;
+    --code-text: #4338ca;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -31,8 +62,8 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: var(--text-main);
-    background-color: var(--light-bg);
+    color: var(--text-primary);
+    background-color: var(--bg-app);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -283,14 +314,15 @@ svg {
 
 .search-input {
     width: 100%;
-    background-color: var(--dark-surface);
-    border: 1px solid var(--dark-border);
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: 8px;
     padding: 8px 12px;
-    color: var(--text-light);
+    color: var(--input-text);
     font-size: 13px;
     outline: none;
     font-family: inherit;
+    transition: border-color 0.2s ease;
 }
 
 .search-input:focus {
@@ -304,43 +336,56 @@ svg {
 }
 
 .workflow-card {
-    padding: 12px;
-    border-radius: 8px;
+    padding: 11px 13px;
+    border-radius: 10px;
     cursor: pointer;
-    margin-bottom: 4px;
-    transition: background-color 0.2s ease;
-    border: 1px solid transparent;
+    margin-bottom: 6px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-surface-elevated);
 }
 
 .workflow-card:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--bg-surface-hover);
+    border-color: var(--border-hover);
 }
 
 .workflow-card.selected {
-    background-color: rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.3);
+    background-color: rgba(99, 102, 241, 0.15) !important;
+    border-color: var(--primary) !important;
 }
 
 .workflow-name {
     font-size: 13px;
-    font-weight: 600;
-    color: var(--text-light);
+    font-weight: 700;
+    color: var(--text-primary);
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 175px;
 }
 
 .workflow-meta {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.workflow-meta small {
     color: var(--text-muted);
 }
 
 .status {
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
+    font-size: 9.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
 }
 
 .status.recording {
@@ -2304,78 +2349,93 @@ svg {
 /* =========================================================
    LIGHT THEME (data-theme="light")
 ========================================================= */
-[data-theme="light"] .topbar,
-[data-theme="light"] .sidebar,
-[data-theme="light"] .studio,
-[data-theme="light"] .canvas-toolbar,
-[data-theme="light"] .step-detail-drawer,
-[data-theme="light"] .guide-card-header,
-[data-theme="light"] .guide-card-body,
-[data-theme="light"] .steps-bottom-drawer {
-    background-color: #f1f5f9 !important;
-    color: #0f172a !important;
-}
+/* =========================================================
+   LIGHT THEME (data-theme="light") OVERRIDES
+========================================================= */
 [data-theme="light"] .topbar {
-    background: #fff !important;
+    background: #ffffff !important;
     border-bottom: 1px solid #e2e8f0 !important;
 }
-[data-theme="light"] .brand-name,
-[data-theme="light"] .brand-subtitle,
-[data-theme="light"] h1, [data-theme="light"] h2,
-[data-theme="light"] h3, [data-theme="light"] p,
-[data-theme="light"] label, [data-theme="light"] span,
-[data-theme="light"] .workflow-name-display,
-[data-theme="light"] .detail-meta,
-[data-theme="light"] .step-progress-label,
-[data-theme="light"] .meta-label, [data-theme="light"] .meta-val,
-[data-theme="light"] .sidebar-header {
-    color: #0f172a !important;
-}
 [data-theme="light"] .sidebar {
-    background: #fff !important;
+    background: #ffffff !important;
     border-right: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .studio {
+    background: #f1f5f9 !important;
+}
+[data-theme="light"] .workflow-header {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .tabs {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .canvas-toolbar {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
 }
 [data-theme="light"] .workflow-card {
     background: #f8fafc !important;
     border-color: #e2e8f0 !important;
-    color: #0f172a !important;
+}
+[data-theme="light"] .workflow-card:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
 }
 [data-theme="light"] .workflow-card.selected {
-    background: #e0e7ff !important;
+    background: #eef2ff !important;
     border-color: #6366f1 !important;
 }
-[data-theme="light"] .canvas-toolbar {
-    background: #fff !important;
-    border-bottom: 1px solid #e2e8f0 !important;
+[data-theme="light"] .workflow-card .workflow-name {
+    color: #0f172a !important;
+}
+[data-theme="light"] .workflow-card .workflow-meta {
+    color: #475569 !important;
+}
+[data-theme="light"] .workflow-card .workflow-meta small {
+    color: #64748b !important;
 }
 [data-theme="light"] .tool-btn {
     background: #f8fafc !important;
     color: #0f172a !important;
     border-color: #e2e8f0 !important;
 }
+[data-theme="light"] .tool-btn:hover {
+    background: #f1f5f9 !important;
+}
 [data-theme="light"] .tool-btn.active {
     background: #e0e7ff !important;
     color: #6366f1 !important;
+    border-color: #6366f1 !important;
 }
-[data-theme="light"] .step-detail-drawer,
-[data-theme="light"] .guide-card-header {
-    background: #fff !important;
+[data-theme="light"] .step-detail-drawer {
+    background: #ffffff !important;
     border-left: 1px solid #e2e8f0 !important;
 }
-[data-theme="light"] .step-jump-input,
-[data-theme="light"] .form-control,
-[data-theme="light"] textarea,
-[data-theme="light"] input[type="text"],
-[data-theme="light"] input[type="number"] {
+[data-theme="light"] .guide-card-header {
     background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .drawer-step-title,
+[data-theme="light"] .guide-step-title {
     color: #0f172a !important;
-    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .drawer-step-desc,
+[data-theme="light"] .guide-step-desc {
+    color: #475569 !important;
 }
 [data-theme="light"] .screenshot-stage {
     background: #e2e8f0 !important;
 }
-[data-theme="light"] .app-layout {
-    background: #f1f5f9 !important;
+[data-theme="light"] .btn-secondary {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .btn-secondary:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
 }
 
 /* =========================================================
@@ -2574,9 +2634,14 @@ svg {
     font-weight: 600;
     padding: 1px 6px;
     border-radius: 4px;
-    background: rgba(99, 102, 241, 0.12);
-    color: #818cf8;
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+[data-theme="light"] .wf-tag-badge {
+    background: #e0e7ff !important;
+    color: #4338ca !important;
+    border-color: #c7d2fe !important;
 }
 
 /* Workflow header tag editor */
@@ -3097,32 +3162,37 @@ svg {
 
 .drawer-accordion-card {
     background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+.drawer-accordion-card {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     margin-bottom: 10px;
     overflow: hidden;
-    transition: border-color 0.2s ease;
+    transition: all 0.2s ease;
 }
 .drawer-accordion-card:hover {
-    border-color: rgba(99, 102, 241, 0.3);
+    border-color: rgba(99, 102, 241, 0.4);
 }
 .drawer-accordion-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.04);
     cursor: pointer;
     user-select: none;
     transition: background 0.15s ease;
 }
 .drawer-accordion-header:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.08);
 }
 .drawer-acc-title {
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 700;
-    color: #f8fafc;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 .drawer-acc-chevron {
     font-size: 11px;
@@ -3134,7 +3204,8 @@ svg {
 }
 .drawer-accordion-content {
     padding: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: #0f172a;
 }
 .drawer-accordion-content.hidden {
     display: none;
@@ -3143,7 +3214,7 @@ svg {
 /* Light Theme Accordion Adjustments */
 [data-theme="light"] .drawer-accordion-card {
     background: #ffffff !important;
-    border-color: #e2e8f0 !important;
+    border: 1px solid #e2e8f0 !important;
 }
 [data-theme="light"] .drawer-accordion-header {
     background: #f8fafc !important;
@@ -3153,6 +3224,9 @@ svg {
 }
 [data-theme="light"] .drawer-acc-title {
     color: #0f172a !important;
+}
+[data-theme="light"] .drawer-acc-chevron {
+    color: #475569 !important;
 }
 [data-theme="light"] .drawer-accordion-content {
     border-top-color: #e2e8f0 !important;
@@ -3167,10 +3241,10 @@ svg {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 6px;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.25);
     padding: 8px 10px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.06);
 }
 .stat-item {
     display: flex;
@@ -3203,62 +3277,27 @@ svg {
     color: #64748b !important;
 }
 
-/* Sidebar Workflow Cards Fix */
-.workflow-card {
-    padding: 11px 13px !important;
-    border-radius: 10px !important;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+/* Right Inspector Form Controls */
+.field-group label,
+.coord-field label {
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
-.workflow-card .workflow-name {
-    max-width: 175px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    font-weight: 700 !important;
-}
-.workflow-card .status {
-    padding: 2px 6px !important;
-    border-radius: 4px !important;
-    font-size: 9.5px !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.03em !important;
-    text-transform: uppercase !important;
-    flex-shrink: 0 !important;
-}
-.workflow-card .status.completed {
-    background: rgba(16, 185, 129, 0.12) !important;
-    color: #10b981 !important;
-}
-[data-theme="light"] .workflow-card .status.completed {
-    background: #ecfdf5 !important;
-    color: #059669 !important;
-    border: 1px solid #a7f3d0 !important;
+.form-control,
+.coord-input,
+textarea {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-size: 12px;
 }
 
-/* Right Inspector High-Contrast Form Inputs in Light Mode */
-[data-theme="light"] .step-detail-drawer {
-    background: #ffffff !important;
-    border-left-color: #e2e8f0 !important;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.04) !important;
-}
-[data-theme="light"] .guide-card-header {
-    background: #f8fafc !important;
-    border-bottom-color: #e2e8f0 !important;
-}
-[data-theme="light"] .guide-card-body {
-    background: #ffffff !important;
-}
-[data-theme="light"] .guide-card-footer {
-    background: #f8fafc !important;
-    border-top-color: #e2e8f0 !important;
-}
 [data-theme="light"] .field-group label,
 [data-theme="light"] .coord-field label {
     color: #475569 !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.03em !important;
 }
 [data-theme="light"] .form-control,
 [data-theme="light"] .coord-input,
@@ -3266,7 +3305,6 @@ svg {
     background: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
     color: #0f172a !important;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 [data-theme="light"] .form-control:focus,
 [data-theme="light"] .coord-input:focus,
@@ -3285,6 +3323,49 @@ svg {
     color: #4338ca !important;
     border: 1px solid #e2e8f0 !important;
 }
+[data-theme="light"] #btnOpenVideoImportModal {
+    background: #f5f3ff !important;
+    border-color: #ddd6fe !important;
+    color: #7c3aed !important;
+}
+
+/* Video Import Drop Zone */
+.video-drop-zone {
+    border: 2px dashed rgba(168, 85, 247, 0.4);
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+    background: rgba(168, 85, 247, 0.04);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.video-drop-zone:hover {
+    border-color: #a855f7;
+    background: rgba(168, 85, 247, 0.08);
+}
+.video-drop-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.video-drop-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+[data-theme="light"] .video-drop-zone {
+    border-color: #c084fc !important;
+    background: #faf5ff !important;
+}
+[data-theme="light"] .video-drop-title {
+    color: #0f172a !important;
+}
+[data-theme="light"] .video-drop-sub {
+    color: #475569 !important;
+}
+
 
 
 
