@@ -6979,6 +6979,67 @@ function initDrawerVoiceoverAndAiDiff() {
     const btnPlay = $("btnPlayStepVoiceover");
     const btnDraft = $("btnAiDraftVoiceover");
     const btnAiEnhance = $("aiEnhanceStepBtn");
+
+    // Segmented Drawer Tab Switcher
+    document.querySelectorAll(".drawer-seg-btn").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll(".drawer-seg-btn").forEach(b => {
+                b.classList.remove("active");
+                b.style.background = "transparent";
+                b.style.color = "var(--text-muted)";
+            });
+            btn.classList.add("active");
+            btn.style.background = "#6366f1";
+            btn.style.color = "#ffffff";
+
+            const view = btn.dataset.view;
+            const focusCard = $("btnDrawerFocusToggle")?.parentElement;
+            const hotspotCard = $("drawerAccHotspot")?.parentElement;
+            const expectedCard = $("drawerAccExpected")?.parentElement;
+            const branchCard = $("drawerAccBranching")?.parentElement;
+            const metaCard = $("drawerAccMeta")?.parentElement;
+
+            const setVisible = (el, show) => {
+                if (el) el.classList.toggle("hidden", !show);
+            };
+
+            if (view === "all") {
+                setVisible(focusCard, true);
+                setVisible(hotspotCard, true);
+                setVisible(expectedCard, true);
+                setVisible(branchCard, true);
+                setVisible(metaCard, true);
+            } else if (view === "hotspot") {
+                setVisible(focusCard, true);
+                setVisible(hotspotCard, true);
+                setVisible(expectedCard, false);
+                setVisible(branchCard, false);
+                setVisible(metaCard, false);
+                $("drawerAccHotspot")?.classList.remove("hidden");
+            } else if (view === "notes") {
+                setVisible(focusCard, false);
+                setVisible(hotspotCard, false);
+                setVisible(expectedCard, true);
+                setVisible(branchCard, false);
+                setVisible(metaCard, false);
+                $("drawerAccExpected")?.classList.remove("hidden");
+            } else if (view === "branch") {
+                setVisible(focusCard, false);
+                setVisible(hotspotCard, false);
+                setVisible(expectedCard, false);
+                setVisible(branchCard, true);
+                setVisible(metaCard, false);
+                $("drawerAccBranching")?.classList.remove("hidden");
+            } else if (view === "meta") {
+                setVisible(focusCard, false);
+                setVisible(hotspotCard, false);
+                setVisible(expectedCard, false);
+                setVisible(branchCard, false);
+                setVisible(metaCard, true);
+                $("drawerAccMeta")?.classList.remove("hidden");
+            }
+        };
+    });
     
     if (btnPlay) {
         btnPlay.onclick = () => {

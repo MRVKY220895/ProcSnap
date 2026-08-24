@@ -439,6 +439,13 @@
                                     </div>
                                     <h3 id="guideStepTitle" class="guide-step-title" contenteditable="true" title="Click to edit title">Step Title</h3>
                                     <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description">Step description will appear here...</p>
+                                    <div class="drawer-segmented-tabs" style="display: flex; gap: 4px; background: rgba(0,0,0,0.06); padding: 4px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                        <button class="drawer-seg-btn active" data-view="all" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">📋 All</button>
+                                        <button class="drawer-seg-btn" data-view="hotspot" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🎯 Hotspot</button>
+                                        <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">💡 Notes</button>
+                                        <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔀 Branch</button>
+                                        <button class="drawer-seg-btn" data-view="meta" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔍 Meta</button>
+                                    </div>
                                 </div>
                                 <div class="guide-card-body" style="padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
                                     <!-- Element Focus & Spotlight Toggle Card -->
@@ -446,8 +453,8 @@
                                         <div style="display: flex; align-items: center; gap: 10px;">
                                             <span style="font-size: 18px;">🎯</span>
                                             <div>
-                                                <div style="font-size: 12.5px; font-weight: 800; color: var(--text-main, #fff);">Element Focus &amp; Spotlight</div>
-                                                <div style="font-size: 11px; color: var(--text-muted, #94a3b8);">Highlight target action on screenshot</div>
+                                                <div class="drawer-spotlight-title" style="font-size: 12.5px; font-weight: 800; color: var(--text-main, #fff);">Element Focus &amp; Spotlight</div>
+                                                <div class="drawer-spotlight-sub" style="font-size: 11px; color: var(--text-muted, #94a3b8);">Highlight target action on screenshot</div>
                                             </div>
                                         </div>
                                         <button id="btnDrawerFocusToggle" class="btn btn-secondary btn-xs" style="font-size: 11px; font-weight: 800; padding: 5px 12px; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.1); color: #10b981;">

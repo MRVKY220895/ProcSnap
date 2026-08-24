@@ -775,8 +775,8 @@ svg {
 }
 
 .step-detail-drawer.open {
-    width: 360px;
-    max-width: 90vw;
+    width: 460px;
+    max-width: 95vw;
 }
 
 .drawer-top-row {
@@ -3472,6 +3472,72 @@ svg {
 [data-theme="light"] .step-detail-drawer .guide-card-footer {
     background: #ffffff !important;
     border-top: 1px solid #e2e8f0 !important;
+}
+
+/* =========================================================
+   🎛️ ERGONOMIC STEP INSPECTOR FORM CONTROLS & CONTRAST
+========================================================= */
+
+.step-detail-drawer .form-control,
+.step-detail-drawer input[type="text"],
+.step-detail-drawer input[type="number"],
+.step-detail-drawer textarea {
+    background: var(--input-bg, #ffffff) !important;
+    color: var(--input-text, #0f172a) !important;
+    border: 1px solid var(--input-border, #cbd5e1) !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    font-size: 12.5px !important;
+    font-family: inherit !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    transition: all 0.15s ease !important;
+}
+
+.step-detail-drawer textarea {
+    min-height: 64px !important;
+    resize: vertical !important;
+    line-height: 1.45 !important;
+}
+
+.step-detail-drawer .form-control:focus,
+.step-detail-drawer input:focus,
+.step-detail-drawer textarea:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18) !important;
+    outline: none !important;
+}
+
+.step-detail-drawer label {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: var(--text-muted, #64748b) !important;
+    margin-bottom: 4px !important;
+    display: block !important;
+}
+
+[data-theme="light"] .step-detail-drawer .drawer-spotlight-title {
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .step-detail-drawer .drawer-spotlight-sub {
+    color: #475569 !important;
+}
+
+[data-theme="light"] .drawer-segmented-tabs {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .drawer-seg-btn {
+    color: #64748b !important;
+}
+
+[data-theme="light"] .drawer-seg-btn.active {
+    background: #6366f1 !important;
+    color: #ffffff !important;
 }
 
 /* =========================================================
