@@ -2537,9 +2537,18 @@ def generate_step_animation(session_id: str, step_id: int, payload: Optional[Ste
             frames.append(frame.convert("RGB"))
 
         seq = int(step["sequence"])
-        gif_filename = f"step-{seq:03d}-demo.gif"
         gif_dir = SCREENSHOTS_DIR / session_id
         gif_dir.mkdir(parents=True, exist_ok=True)
+
+        # Remove previous demo gifs for this step to keep folder clean
+        for old_gif in gif_dir.glob(f"step-{seq:03d}-demo*.*"):
+            try:
+                old_gif.unlink()
+            except Exception:
+                pass
+
+        gif_timestamp = int(time.time() * 1000)
+        gif_filename = f"step-{seq:03d}-demo-{gif_timestamp}.gif"
         gif_path = gif_dir / gif_filename
 
         frames[0].save(
@@ -2576,16 +2585,15 @@ def delete_step_animation(session_id: str, step_id: int):
             raise HTTPException(status_code=404, detail="Step not found")
 
         seq = int(step["sequence"])
-        gif_filename = f"step-{seq:03d}-demo.gif"
-        gif_path = SCREENSHOTS_DIR / session_id / gif_filename
-        
+        gif_dir = SCREENSHOTS_DIR / session_id
         deleted = False
-        if gif_path.is_file():
-            try:
-                gif_path.unlink()
-                deleted = True
-            except Exception as e:
-                print("Error unlinking gif file:", e)
+        if gif_dir.is_dir():
+            for old_gif in gif_dir.glob(f"step-{seq:03d}-demo*.*"):
+                try:
+                    old_gif.unlink()
+                    deleted = True
+                except Exception as e:
+                    print("Error unlinking gif file:", e)
 
         return {
             "success": True,

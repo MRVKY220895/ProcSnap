@@ -6299,8 +6299,28 @@ if (cmdModal) {
 
 let isDraggingReticle = false;
 let isHotspotClickMode = false;
+let isHotspotLocked = false;
+
+function toggleHotspotLock(forceState = null) {
+    isHotspotLocked = forceState !== null ? forceState : !isHotspotLocked;
+    const btn = $("btnToggleLockHotspot");
+    const icon = $("hotspotLockIcon");
+    const label = $("hotspotLockLabel");
+    const reticle = $("hotspotReticleHandle");
+
+    if (icon) icon.textContent = isHotspotLocked ? "🔒" : "🔓";
+    if (label) label.textContent = isHotspotLocked ? "Locked" : "Unlocked";
+    if (btn) btn.classList.toggle("active", isHotspotLocked);
+    if (reticle) reticle.classList.toggle("locked", isHotspotLocked);
+
+    showToast(isHotspotLocked ? "🔒 Hotspot position locked." : "🔓 Hotspot unlocked for adjustment.", 2000);
+}
 
 function toggleHotspotClickMode(forceState = null) {
+    if (isHotspotLocked && forceState !== false) {
+        showToast("🔒 Hotspot is locked. Unlock it in the toolbar to reposition.", 2500);
+        return;
+    }
     isHotspotClickMode = forceState !== null ? forceState : !isHotspotClickMode;
     const wrapper = $("canvasWrapper");
     const toolBtn = $("btnPickHotspotTool");
@@ -6362,6 +6382,10 @@ function initHotspotReticle() {
 
     // 1. Drag & Drop Listener on Reticle Handle
     reticle.addEventListener("pointerdown", (e) => {
+        if (isHotspotLocked) {
+            showToast("🔒 Hotspot is locked. Unlock it in the toolbar to adjust.", 2000);
+            return;
+        }
         e.preventDefault();
         e.stopPropagation();
         isDraggingReticle = true;
@@ -6447,7 +6471,7 @@ function initHotspotReticle() {
 
     // 2. Click-to-Pin Hotspot Finder on Canvas
     wrapper.addEventListener("click", async (e) => {
-        if (!isHotspotClickMode) return;
+        if (!isHotspotClickMode || isHotspotLocked) return;
         if (e.target.closest("#hotspotReticleHandle")) return;
 
         const rect = wrapper.getBoundingClientRect();
@@ -6504,9 +6528,10 @@ function initHotspotReticle() {
         }
     });
 
-    // 3. Wire Click Mode Trigger Buttons
+    // 3. Wire Click Mode Trigger Buttons & Lock Toggle
     setOnclick("btnPickHotspotTool", () => toggleHotspotClickMode());
     setOnclick("btnPickHotspotClick", () => toggleHotspotClickMode());
+    setOnclick("btnToggleLockHotspot", () => toggleHotspotLock());
 
     // 4. Hotkey 'H' to toggle Hotspot Click Finder Mode
     window.addEventListener("keydown", (e) => {
