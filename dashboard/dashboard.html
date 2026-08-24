@@ -40,6 +40,9 @@
                     <span id="aiErrorText"></span>
                     <button id="dismissAiErrorBtn" class="dismiss-btn" title="Dismiss error">✕</button>
                 </div>
+                <button id="btnRecordDesktopApp" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 12px; font-weight: 700; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); display: inline-flex; align-items: center; gap: 5px;" title="Record non-browser desktop applications (Excel, SAP, Terminal, File Explorer)">
+                    🖥️ Record Desktop App
+                </button>
                 <button id="startExtensionTopbarBtn" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="Start recording web workflows with ProcSnap extension">
                     🔴 Start Extension
                 </button>
@@ -1493,6 +1496,61 @@
                 <button id="videoImportCancelBtn" class="btn btn-secondary btn-sm">Cancel</button>
                 <button id="videoImportStartBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #a855f7, #6366f1); border: none; font-weight: 700;">
                     🪄 Generate SOP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Native Windows Desktop Recorder Modal & Status HUD -->
+    <div id="desktopRecorderModal" class="modal-backdrop hidden" style="position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; z-index: 10000; background: rgba(10, 15, 29, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 20px;">
+        <div class="desktop-rec-card" style="width: 580px; max-width: 95vw; background: var(--bg-surface-elevated, #182234); border: 1.5px solid #38bdf8; border-radius: 16px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.9); overflow: hidden; display: flex; flex-direction: column;">
+            <!-- Header -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(0,0,0,0.2);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 8px; background: linear-gradient(135deg, #0284c7, #38bdf8); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff;">🖥️</div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main, #fff); margin: 0;">Native Desktop App Recorder</h3>
+                        <div style="font-size: 12px; color: var(--text-muted, #94a3b8);">Captures clicks &amp; windows across Excel, SAP, File Explorer, Terminal &amp; any desktop app</div>
+                    </div>
+                </div>
+                <button id="btnCloseDesktopRecModal" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; border-radius: 6px;">✕</button>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div id="desktopRecPreStart">
+                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted, #94a3b8); margin-bottom: 6px; display: block;">Procedure Name</label>
+                    <input type="text" id="desktopRecTitleInput" placeholder="e.g. Excel Financial Model Update &amp; SAP Post" class="form-control" style="font-size: 13.5px; padding: 10px 14px; border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 14px;">
+                    
+                    <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text-main, #e2e8f0);">
+                        <div style="font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                            💡 How Desktop Recording Works:
+                        </div>
+                        <div>1. Click <strong>"Start Desktop Capture"</strong> below.</div>
+                        <div>2. Switch to Excel, SAP, File Explorer, or any Windows application and perform your workflow normally.</div>
+                        <div>3. Every mouse click automatically captures a full-resolution screenshot with the active window title.</div>
+                        <div>4. Press <kbd style="background: rgba(255,255,255,0.15); padding: 1px 5px; border-radius: 4px; font-family: monospace;">Ctrl+Shift+Q</kbd> or click <strong>Stop Recording</strong> when done!</div>
+                    </div>
+                </div>
+
+                <div id="desktopRecActiveHud" class="hidden" style="display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px 0;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="width: 14px; height: 14px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 16px #ef4444; animation: pulse 1.2s infinite;"></span>
+                        <span style="font-size: 16px; font-weight: 800; color: #fff;">RECORDING DESKTOP WORKFLOW</span>
+                    </div>
+                    <div style="font-size: 32px; font-weight: 900; color: #38bdf8;" id="desktopLiveStepCount">0 Steps Captured</div>
+                    <div style="font-size: 12px; color: var(--text-muted, #94a3b8);">Click anywhere on your computer. Press <kbd style="background: rgba(255,255,255,0.15); padding: 1px 5px; border-radius: 4px; font-family: monospace;">Ctrl+Shift+Q</kbd> or click below to finish.</div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 16px 24px; border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+                <button id="btnCancelDesktopRec" class="btn btn-secondary btn-sm" style="font-weight: 600;">Cancel</button>
+                <button id="btnStartDesktopRecAction" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #0284c7, #38bdf8); border: none; font-weight: 700; padding: 8px 18px; box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);">
+                    🚀 Start Desktop Capture
+                </button>
+                <button id="btnStopDesktopRecAction" class="btn btn-danger btn-sm hidden" style="font-weight: 700; padding: 8px 20px; box-shadow: 0 4px 14px rgba(239,68,68,0.4);">
+                    ⏹ Stop &amp; Open Studio
                 </button>
             </div>
         </div>

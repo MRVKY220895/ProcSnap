@@ -8150,6 +8150,134 @@ function initPrintSopPdf() {
 }
 
 
+// =========================================================
+// 🖥️ NATIVE DESKTOP RECORDER STUDIO CONTROLLER
+// =========================================================
+
+function initDesktopRecorderModal() {
+    const openBtn = $("btnRecordDesktopApp");
+    const modal = $("desktopRecorderModal");
+    const closeBtn = $("btnCloseDesktopRecModal");
+    const cancelBtn = $("btnCancelDesktopRec");
+    const startBtn = $("btnStartDesktopRecAction");
+    const stopBtn = $("btnStopDesktopRecAction");
+    const titleInput = $("desktopRecTitleInput");
+    const preStart = $("desktopRecPreStart");
+    const activeHud = $("desktopRecActiveHud");
+    const liveStepCount = $("desktopLiveStepCount");
+
+    if (!openBtn || !modal) return;
+
+    let pollInterval = null;
+
+    const closeModal = () => {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+        modal.classList.add("hidden");
+    };
+
+    openBtn.onclick = () => {
+        modal.classList.remove("hidden");
+        if (preStart) preStart.classList.remove("hidden");
+        if (activeHud) activeHud.classList.add("hidden");
+        if (startBtn) startBtn.classList.remove("hidden");
+        if (stopBtn) stopBtn.classList.add("hidden");
+        if (titleInput) titleInput.value = "Desktop Workflow: " + new Date().toLocaleDateString();
+    };
+
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+
+    if (startBtn) {
+        startBtn.onclick = async () => {
+            const title = titleInput?.value?.trim() || "Native Windows Desktop Workflow";
+            startBtn.disabled = true;
+            startBtn.innerHTML = `<span>⏳</span> Launching Hook...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/desktop-recorder/start`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Failed to start desktop recorder");
+                }
+
+                const data = await res.json();
+                showToast("🔴 Native Desktop Recording Active! Click anywhere on your desktop.", 5000);
+
+                if (preStart) preStart.classList.add("hidden");
+                if (activeHud) activeHud.classList.remove("hidden");
+                if (startBtn) startBtn.classList.add("hidden");
+                if (stopBtn) stopBtn.classList.remove("hidden");
+
+                // Start polling step count
+                pollInterval = setInterval(async () => {
+                    try {
+                        const sRes = await fetch(`${API_BASE}/desktop-recorder/status`);
+                        if (sRes.ok) {
+                            const sData = await sRes.json();
+                            if (liveStepCount) {
+                                liveStepCount.textContent = `${sData.stepCount || 0} Steps Captured`;
+                            }
+                            if (!sData.isRecording && pollInterval) {
+                                // Stopped via hotkey
+                                clearInterval(pollInterval);
+                                pollInterval = null;
+                                window.location.href = `dashboard.html?session_id=${encodeURIComponent(sData.sessionId)}`;
+                            }
+                        }
+                    } catch (e) {
+                        console.debug("Status poll notice:", e);
+                    }
+                }, 800);
+            } catch (e) {
+                console.error("Desktop recorder start error:", e);
+                showToast("Desktop recorder error: " + e.message);
+                startBtn.disabled = false;
+                startBtn.innerHTML = `🚀 Start Desktop Capture`;
+            }
+        };
+    }
+
+    if (stopBtn) {
+        stopBtn.onclick = async () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+
+            stopBtn.disabled = true;
+            stopBtn.innerHTML = `<span>⏳</span> Saving SOP...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/desktop-recorder/stop`, {
+                    method: "POST"
+                });
+
+                if (!res.ok) throw new Error("Failed to stop desktop recorder");
+                const data = await res.json();
+
+                showToast(`🎉 Desktop workflow saved with ${data.stepCount} steps! Loading...`, 4000);
+                setTimeout(() => {
+                    window.location.href = `dashboard.html?session_id=${encodeURIComponent(data.sessionId)}`;
+                }, 1000);
+            } catch (e) {
+                console.error("Desktop recorder stop error:", e);
+                showToast("Failed to stop recording: " + e.message);
+                stopBtn.disabled = false;
+                stopBtn.innerHTML = `⏹ Stop & Open Studio`;
+            }
+        };
+    }
+}
+
+
 // Initialize All Platform Enhancements
 initHotspotReticle();
 initCanvasFileDrop();
@@ -8165,5 +8293,6 @@ initWorkflowMergeModal();
 initStepListFilterAndBulkActions();
 initSlideshowAutoPlayAndFullscreen();
 initPrintSopPdf();
+initDesktopRecorderModal();
 
 

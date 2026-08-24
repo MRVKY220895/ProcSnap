@@ -4310,5 +4310,106 @@ def merge_sessions(payload: MergeSessionsRequest):
         conn.close()
 
 
+# =========================================================
+# 🖥️ NATIVE WINDOWS DESKTOP RECORDER API
+# =========================================================
+
+try:
+    from backend.desktop_recorder import desktop_recorder
+except Exception as e:
+    print(f"[ProcSnap] Desktop recorder import notice: {e}")
+    desktop_recorder = None
+
+def _desktop_step_db_callback(session_id: str, sequence: int, action: str, timestamp: str, url: str, title: str, element_json: str, screenshot_path: str):
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO workflow_steps (
+                workflow_id, sequence, action, timestamp, url, title, value,
+                selected_text, previous_url, checked, element_json, screenshot_path
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (session_id, sequence, action, timestamp, url, title, None, None, None, None, element_json, screenshot_path)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+class DesktopRecordStartRequest(BaseModel):
+    title: Optional[str] = "Native Windows Desktop Workflow"
+
+@app.post("/desktop-recorder/start")
+def start_desktop_recording(payload: DesktopRecordStartRequest):
+    if not desktop_recorder:
+        raise HTTPException(status_code=500, detail="Desktop recorder module not available.")
+    
+    title = payload.title or "Native Windows Desktop Workflow"
+    session_id = desktop_recorder.start(title=title, db_callback=_desktop_step_db_callback)
+
+    # Initialize workflow entry in database
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        now = datetime.utcnow().isoformat()
+        cur.execute(
+            """
+            INSERT OR IGNORE INTO workflows (id, name, application, status, started_at, created_at, updated_at, tags)
+            VALUES (?, ?, 'Windows Desktop', 'recording', ?, ?, ?, 'Desktop App SOP')
+            """,
+            (session_id, title, now, now, now)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "success": True,
+        "sessionId": session_id,
+        "title": title,
+        "message": "Native desktop recording started! Click anywhere on your desktop or applications."
+    }
+
+@app.post("/desktop-recorder/stop")
+def stop_desktop_recording():
+    if not desktop_recorder:
+        raise HTTPException(status_code=500, detail="Desktop recorder module not available.")
+    
+    session_id = desktop_recorder.stop()
+    if session_id:
+        conn = get_connection()
+        try:
+            cur = conn.cursor()
+            now = datetime.utcnow().isoformat()
+            cur.execute(
+                "UPDATE workflows SET status = 'completed', ended_at = ?, updated_at = ? WHERE id = ?",
+                (now, now, session_id)
+            )
+            count = cur.execute(
+                "SELECT COUNT(*) FROM workflow_steps WHERE workflow_id = ?",
+                (session_id,)
+            ).fetchone()[0]
+            conn.commit()
+        finally:
+            conn.close()
+        
+        return {
+            "success": True,
+            "sessionId": session_id,
+            "stepCount": count,
+            "message": f"Desktop recording stopped. Captured {count} steps!"
+        }
+    return {"success": False, "message": "No active desktop recording session."}
+
+@app.get("/desktop-recorder/status")
+def get_desktop_recorder_status():
+    if not desktop_recorder:
+        return {"isRecording": False, "error": "Module not available"}
+    return desktop_recorder.get_status()
+
+
+
 
 
