@@ -21,6 +21,8 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 
+from PIL import Image, ImageDraw
+
 try:
     import pptx
     from pptx.util import Inches as PptxInches, Pt as PptxPt
@@ -29,7 +31,7 @@ try:
 except ImportError:
     pptx = None
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -228,6 +230,11 @@ def initialize_database() -> None:
         pass
 
     try:
+        cursor.execute("ALTER TABLE step_edits ADD COLUMN branches TEXT")
+    except Exception:
+        pass
+
+    try:
         cursor.execute("ALTER TABLE workflows ADD COLUMN tags TEXT DEFAULT ''")
     except Exception:
         pass
@@ -338,6 +345,7 @@ class StepEditRequest(BaseModel):
     note: Optional[str] = None
     expected: Optional[str] = None
     voiceover: Optional[str] = None
+    branches: Optional[str] = None
     hidden: Optional[bool] = None
     checked: Optional[bool] = None
 
@@ -710,7 +718,7 @@ def get_session(session_id: str):
         # Fetch all edits for this workflow
         edits_rows = cursor.execute(
             """
-            SELECT step_id, title, description, note, expected, hidden
+            SELECT step_id, title, description, note, expected, voiceover, branches, hidden
             FROM step_edits
             WHERE workflow_id = ?
             """,
@@ -733,10 +741,18 @@ def get_session(session_id: str):
                 step_dict["description"] = edit["description"] if edit["description"] is not None else step_dict["description"]
                 step_dict["note"] = edit["note"] or ""
                 step_dict["expected"] = edit["expected"] or ""
+                step_dict["voiceover"] = edit["voiceover"] or ""
+                raw_branches = edit["branches"] if "branches" in edit.keys() and edit["branches"] else ""
+                try:
+                    step_dict["branches"] = json.loads(raw_branches) if raw_branches else []
+                except Exception:
+                    step_dict["branches"] = []
                 step_dict["hidden"] = bool(edit["hidden"])
             else:
                 step_dict["note"] = ""
                 step_dict["expected"] = ""
+                step_dict["voiceover"] = ""
+                step_dict["branches"] = []
                 step_dict["hidden"] = False
                 
             steps.append(step_dict)
@@ -1405,7 +1421,7 @@ def edit_step(session_id: str, step_id: int, request: StepEditRequest):
             
         # Get existing edit or insert new
         existing = cursor.execute(
-            "SELECT title, description, note, expected, voiceover, hidden FROM step_edits WHERE step_id = ?",
+            "SELECT title, description, note, expected, voiceover, branches, hidden FROM step_edits WHERE step_id = ?",
             (step_id,)
         ).fetchone()
         
@@ -1415,6 +1431,7 @@ def edit_step(session_id: str, step_id: int, request: StepEditRequest):
             note = request.note if request.note is not None else existing["note"]
             expected = request.expected if request.expected is not None else existing["expected"]
             voiceover = request.voiceover if request.voiceover is not None else existing["voiceover"]
+            branches = request.branches if request.branches is not None else (existing["branches"] if "branches" in existing.keys() else "")
             hidden = int(request.hidden) if request.hidden is not None else existing["hidden"]
         else:
             orig_step = cursor.execute(
@@ -1427,22 +1444,24 @@ def edit_step(session_id: str, step_id: int, request: StepEditRequest):
             note = request.note if request.note is not None else ""
             expected = request.expected if request.expected is not None else ""
             voiceover = request.voiceover if request.voiceover is not None else ""
+            branches = request.branches if request.branches is not None else ""
             hidden = int(request.hidden) if request.hidden is not None else 0
             
         cursor.execute(
             """
-            INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, voiceover, hidden, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, voiceover, branches, hidden, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(step_id) DO UPDATE SET
                 title = excluded.title,
                 description = excluded.description,
                 note = excluded.note,
                 expected = excluded.expected,
                 voiceover = excluded.voiceover,
+                branches = excluded.branches,
                 hidden = excluded.hidden,
                 updated_at = excluded.updated_at
             """,
-            (step_id, session_id, title, description, note, expected, voiceover, hidden, now)
+            (step_id, session_id, title, description, note, expected, voiceover, branches, hidden, now)
         )
         if request.checked is not None:
             cursor.execute(
@@ -2329,6 +2348,269 @@ def crop_step_screenshot(session_id: str, step_id: int, request: CropScreenshotR
         )
         connection.commit()
         return {"success": True, "screenshotUrl": f"storage/screenshots/{session_id}/{filename}"}
+    finally:
+        connection.close()
+
+
+# =========================================================
+# ANIMATED STEP MICRO-DEMO GENERATOR (GIF)
+# =========================================================
+
+@app.post("/sessions/{session_id}/steps/{step_id}/animate")
+def generate_step_animation(session_id: str, step_id: int):
+    """
+    Generates a 14-frame animated micro-demo GIF for the step.
+    Interpolates a simulated moving cursor towards the hotspot coordinate,
+    followed by a smooth pulsing ripple click animation.
+    """
+    connection = get_connection()
+    try:
+        cursor = connection.cursor()
+        step = cursor.execute(
+            "SELECT id, sequence, element_json, screenshot_path FROM workflow_steps WHERE id = ? AND workflow_id = ?",
+            (step_id, session_id)
+        ).fetchone()
+        if not step or not step["screenshot_path"]:
+            raise HTTPException(status_code=404, detail="Step or screenshot not found")
+
+        raw_path = step["screenshot_path"]
+        candidate_paths = [
+            BASE_DIR / raw_path,
+            BASE_DIR / "screenshots" / session_id / Path(raw_path).name,
+            SCREENSHOTS_DIR / session_id / Path(raw_path).name,
+            Path(raw_path)
+        ]
+        img_path = None
+        for p in candidate_paths:
+            if p.is_file():
+                img_path = p
+                break
+
+        if not img_path:
+            raise HTTPException(status_code=404, detail="Screenshot file missing on disk")
+
+        # Check annotations for custom hotspot coordinates first
+        anno_row = cursor.execute(
+            "SELECT data FROM step_annotations WHERE step_id = ?",
+            (step_id,)
+        ).fetchone()
+
+        target_x, target_y = None, None
+        if anno_row and anno_row["data"]:
+            try:
+                annos = json.loads(anno_row["data"])
+                for a in annos:
+                    if a.get("type") in ("spotlight", "rect", "circle") and "x" in a and "y" in a:
+                        target_x = a["x"] + (a.get("w", 0) / 2)
+                        target_y = a["y"] + (a.get("h", 0) / 2)
+                        break
+            except Exception:
+                pass
+
+        # Fallback to element_json coordinates
+        if target_x is None and step["element_json"]:
+            try:
+                elem = json.loads(step["element_json"])
+                coords = elem.get("coords") or {}
+                if "viewport_x" in coords and "viewport_y" in coords:
+                    target_x = float(coords["viewport_x"])
+                    target_y = float(coords["viewport_y"])
+                elif "percentage_x" in coords and "percentage_y" in coords:
+                    target_x = float(coords["percentage_x"])
+                    target_y = float(coords["percentage_y"])
+            except Exception:
+                pass
+
+        base_img = Image.open(img_path).convert("RGBA")
+        width, height = base_img.size
+
+        # If percentage or fallback
+        if target_x is None:
+            target_x = width * 0.5
+            target_y = height * 0.5
+        elif target_x <= 1.0 and target_y <= 1.0:
+            target_x = target_x * width
+            target_y = target_y * height
+
+        # Ensure target is within image bounds
+        target_x = max(24, min(width - 24, target_x))
+        target_y = max(24, min(height - 24, target_y))
+
+        # Start position (offset down-right for natural travel trajectory)
+        start_x = min(width - 30, target_x + 160)
+        start_y = min(height - 30, target_y + 130)
+
+        frames = []
+        total_frames = 14
+
+        for f in range(total_frames):
+            frame = base_img.copy()
+            draw = ImageDraw.Draw(frame, "RGBA")
+
+            if f < 9:
+                # Travel phase with smooth cubic ease-out
+                t = f / 8.0
+                ease_t = 1 - pow(1 - t, 3)
+                cur_x = start_x + (target_x - start_x) * ease_t
+                cur_y = start_y + (target_y - start_y) * ease_t
+
+                # Draw modern cursor
+                points = [
+                    (cur_x, cur_y),
+                    (cur_x, cur_y + 22),
+                    (cur_x + 6, cur_y + 17),
+                    (cur_x + 12, cur_y + 27),
+                    (cur_x + 16, cur_y + 25),
+                    (cur_x + 10, cur_y + 15),
+                    (cur_x + 18, cur_y + 15),
+                ]
+                shadow_points = [(px + 2, py + 2) for px, py in points]
+                draw.polygon(shadow_points, fill=(0, 0, 0, 90))
+                draw.polygon(points, fill=(255, 255, 255, 255), outline=(15, 23, 42, 255))
+            else:
+                # Click ripple phase
+                rf = f - 9  # 0 to 4
+                cur_x, cur_y = target_x, target_y
+                
+                # Expanding ripple ring
+                radius = 12 + rf * 10
+                alpha = int(220 * (1.0 - (rf / 5.0)))
+                
+                draw.ellipse(
+                    [cur_x - radius, cur_y - radius, cur_x + radius, cur_y + radius],
+                    outline=(239, 68, 68, alpha),
+                    width=3
+                )
+                if radius > 16:
+                    draw.ellipse(
+                        [cur_x - radius + 8, cur_y - radius + 8, cur_x + radius - 8, cur_y + radius - 8],
+                        outline=(168, 85, 247, int(alpha * 0.7)),
+                        width=2
+                    )
+
+                # Pressed cursor
+                points = [
+                    (cur_x, cur_y),
+                    (cur_x, cur_y + 19),
+                    (cur_x + 5, cur_y + 15),
+                    (cur_x + 10, cur_y + 23),
+                    (cur_x + 13, cur_y + 21),
+                    (cur_x + 8, cur_y + 13),
+                    (cur_x + 15, cur_y + 13),
+                ]
+                draw.polygon(points, fill=(240, 240, 240, 255), outline=(220, 38, 38, 255))
+
+            frames.append(frame.convert("RGB"))
+
+        seq = int(step["sequence"])
+        gif_filename = f"step-{seq:03d}-demo.gif"
+        gif_dir = SCREENSHOTS_DIR / session_id
+        gif_dir.mkdir(parents=True, exist_ok=True)
+        gif_path = gif_dir / gif_filename
+
+        frames[0].save(
+            gif_path,
+            save_all=True,
+            append_images=frames[1:],
+            duration=110,
+            loop=0,
+            optimize=True
+        )
+
+        return {
+            "success": True,
+            "gif_url": f"/screenshots/{session_id}/{gif_filename}",
+            "filename": gif_filename
+        }
+    finally:
+        connection.close()
+
+
+# =========================================================
+# GLOBAL DEEP SEARCH (COMMAND PALETTE)
+# =========================================================
+
+@app.get("/search")
+def global_deep_search(q: str = Query(..., min_length=1)):
+    """
+    Deep search across all workflows, step titles, actions, notes, URLs, and tags.
+    """
+    connection = get_connection()
+    q_clean = q.strip()
+    like_query = f"%{q_clean}%"
+    try:
+        cursor = connection.cursor()
+        
+        # 1. Search Workflows
+        wf_rows = cursor.execute(
+            """
+            SELECT id, name, application, tags, started_at
+            FROM workflows
+            WHERE name LIKE ? OR application LIKE ? OR tags LIKE ?
+            ORDER BY updated_at DESC
+            LIMIT 10
+            """,
+            (like_query, like_query, like_query)
+        ).fetchall()
+        
+        workflows_match = [
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "application": row["application"],
+                "tags": (row["tags"] if "tags" in row.keys() else "") or "",
+                "startedAt": row["started_at"]
+            }
+            for row in wf_rows
+        ]
+        
+        # 2. Search Steps
+        step_rows = cursor.execute(
+            """
+            SELECT ws.id as step_id, ws.sequence, ws.action, ws.title as orig_title, ws.url, ws.value,
+                   w.id as workflow_id, w.name as workflow_name, w.application,
+                   se.title as edit_title, se.description, se.note, se.expected
+            FROM workflow_steps ws
+            JOIN workflows w ON ws.workflow_id = w.id
+            LEFT JOIN step_edits se ON ws.id = se.step_id
+            WHERE ws.title LIKE ? OR ws.action LIKE ? OR ws.url LIKE ? OR ws.value LIKE ?
+               OR se.title LIKE ? OR se.description LIKE ? OR se.note LIKE ? OR se.expected LIKE ?
+            ORDER BY w.updated_at DESC, ws.sequence ASC
+            LIMIT 25
+            """,
+            (like_query, like_query, like_query, like_query, like_query, like_query, like_query, like_query)
+        ).fetchall()
+        
+        steps_match = []
+        for row in step_rows:
+            display_title = row["edit_title"] if row["edit_title"] else (row["orig_title"] or f"Step {row['sequence']}")
+            match_context = ""
+            if row["note"] and q_clean.lower() in row["note"].lower():
+                match_context = f"Note: {row['note'][:60]}..."
+            elif row["description"] and q_clean.lower() in row["description"].lower():
+                match_context = f"Desc: {row['description'][:60]}..."
+            elif row["url"] and q_clean.lower() in row["url"].lower():
+                match_context = f"URL: {row['url'][:50]}..."
+            elif row["action"] and q_clean.lower() in row["action"].lower():
+                match_context = f"Action: {row['action']}"
+            
+            steps_match.append({
+                "stepId": row["step_id"],
+                "sequence": row["sequence"],
+                "workflowId": row["workflow_id"],
+                "workflowName": row["workflow_name"],
+                "application": row["application"],
+                "title": display_title,
+                "action": row["action"],
+                "matchContext": match_context
+            })
+            
+        return {
+            "query": q_clean,
+            "totalMatches": len(workflows_match) + len(steps_match),
+            "workflows": workflows_match,
+            "steps": steps_match
+        }
     finally:
         connection.close()
 

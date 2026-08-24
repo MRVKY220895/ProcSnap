@@ -2865,6 +2865,7 @@ function loadActiveStepDetails() {
     setVal("guideStepExpected", step.expected || "");
     setVal("guideStepNote", step.note || "");
     setVal("guideStepVoiceover", step.voiceover || "");
+    renderStepBranches(step);
 
     // Populate Interactive Hotspot values (Requirement 2)
     const hs = calculateDefaultHotspot(step);
@@ -3082,7 +3083,8 @@ async function saveActiveStepEditsSilent() {
                 description: desc,
                 expected: expected,
                 note: note,
-                voiceover: voiceover
+                voiceover: voiceover,
+                branches: JSON.stringify(step.branches || [])
             })
         });
     } catch (e) {
@@ -3100,11 +3102,13 @@ function renderStepThumbnails() {
     strip.innerHTML = steps.map((s, index) => {
         const img = s.screenshotUrl ? `<img src="${esc(API_BASE + s.screenshotUrl)}" alt="Step ${s.sequence}">` : '<div class="no-screenshot-thumb">No img</div>';
         const checkedBadge = s.checked ? '<div class="thumb-checked-badge">✓</div>' : '';
+        const branchBadge = (s.branches && s.branches.length > 0) ? `<div class="branch-count-badge" title="${s.branches.length} Decision Paths">🔀 ${s.branches.length}</div>` : '';
         return `
             <div class="thumb-card ${index === currentStepIndex ? 'active' : ''} ${s.hidden ? 'hidden-step' : ''}" data-index="${index}" draggable="true" title="Drag to reorder step">
                 ${img}
                 <div class="thumb-badge">${s.sequence}</div>
                 ${checkedBadge}
+                ${branchBadge}
             </div>
         `;
     }).join("");
@@ -3513,6 +3517,48 @@ function renderPlaybackTab() {
         $("playProgress").textContent = `Step ${playIdx + 1} of ${visibleSteps.length}`;
         $("playPrevBtn").disabled = playIdx === 0;
         $("playNextBtn").disabled = playIdx === visibleSteps.length - 1;
+
+        // Decision Branching in Playback / Presentation View
+        let playBranchWrap = $("playBranchActionsWrap");
+        if (!playBranchWrap && $("playStepDesc")) {
+            playBranchWrap = document.createElement("div");
+            playBranchWrap.id = "playBranchActionsWrap";
+            playBranchWrap.className = "playback-branch-container hidden";
+            $("playStepDesc").parentNode.insertBefore(playBranchWrap, $("playStepNotesBox"));
+        }
+        if (playBranchWrap) {
+            const branches = s.branches || [];
+            if (branches.length > 0) {
+                playBranchWrap.classList.remove("hidden");
+                playBranchWrap.innerHTML = `
+                    <div class="playback-branch-title">
+                        <span>🔀 Decision Path — Choose Next Action:</span>
+                    </div>
+                    <div class="playback-branch-buttons">
+                        ${branches.map((b, bi) => `
+                            <button class="btn-branch-choice" data-target-seq="${b.target_sequence}">
+                                <span>👉</span> ${esc(b.label || ('Path ' + (bi + 1)))} (Jump to Step ${b.target_sequence})
+                            </button>
+                        `).join("")}
+                    </div>
+                `;
+                playBranchWrap.querySelectorAll(".btn-branch-choice").forEach(bBtn => {
+                    bBtn.onclick = () => {
+                        const targetSeq = parseInt(bBtn.dataset.targetSeq, 10);
+                        const targetIndex = visibleSteps.findIndex(stepObj => stepObj.sequence === targetSeq);
+                        if (targetIndex !== -1) {
+                            playIdx = targetIndex;
+                            showPlayStep();
+                        } else {
+                            showToast(`Target Step ${targetSeq} not found in visible steps`);
+                        }
+                    };
+                });
+            } else {
+                playBranchWrap.classList.add("hidden");
+                playBranchWrap.innerHTML = "";
+            }
+        }
 
         // PPT Presenter View: Update Previous Slide Preview Card
         const prevStep = playIdx > 0 ? visibleSteps[playIdx - 1] : null;
@@ -5495,3 +5541,350 @@ async function loadSystemRequirements() {
     }
 }
 
+// =========================================================
+// 🔀 DECISION BRANCHING (DECISION TREES)
+// =========================================================
+
+function renderStepBranches(step) {
+    const listEl = $("stepBranchList");
+    if (!listEl) return;
+    
+    if (!step) {
+        listEl.innerHTML = "";
+        return;
+    }
+    
+    if (!step.branches || !Array.isArray(step.branches)) {
+        step.branches = [];
+    }
+    
+    const allSteps = workflow ? (workflow.steps || []) : [];
+    
+    if (step.branches.length === 0) {
+        listEl.innerHTML = `
+            <div style="font-size: 11px; color: var(--text-muted); font-style: italic; padding: 4px 0;">
+                No branch rules defined. Sequential playback (Step ${step.sequence} → ${Math.min(allSteps.length, step.sequence + 1)}).
+            </div>
+        `;
+    } else {
+        listEl.innerHTML = step.branches.map((b, i) => {
+            const stepOptions = allSteps.map(s => `
+                <option value="${s.sequence}" ${s.sequence === b.target_sequence ? 'selected' : ''}>
+                    Step ${s.sequence} ${s.title ? '— ' + esc(s.title.substring(0, 14)) : ''}
+                </option>
+            `).join("");
+            
+            return `
+                <div class="step-branch-item" data-index="${i}">
+                    <div class="step-branch-row">
+                        <input type="text" class="step-branch-input" value="${esc(b.label || '')}" placeholder="Choice label (e.g. If Admin)" data-index="${i}">
+                        <select class="step-branch-select" data-index="${i}">
+                            ${stepOptions}
+                        </select>
+                        <button class="btn-branch-delete" data-index="${i}" title="Remove branch">✕</button>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+    
+    // Wire inputs
+    listEl.querySelectorAll(".step-branch-input").forEach(inp => {
+        inp.oninput = (e) => {
+            const idx = parseInt(e.target.dataset.index, 10);
+            if (step.branches[idx]) {
+                step.branches[idx].label = e.target.value;
+                if (typeof triggerAutoSaveStepEdits === "function") triggerAutoSaveStepEdits();
+                else saveStepEdits();
+            }
+        };
+    });
+    
+    listEl.querySelectorAll(".step-branch-select").forEach(sel => {
+        sel.onchange = (e) => {
+            const idx = parseInt(e.target.dataset.index, 10);
+            if (step.branches[idx]) {
+                step.branches[idx].target_sequence = parseInt(e.target.value, 10);
+                if (typeof triggerAutoSaveStepEdits === "function") triggerAutoSaveStepEdits();
+                else saveStepEdits();
+            }
+        };
+    });
+    
+    listEl.querySelectorAll(".btn-branch-delete").forEach(btn => {
+        btn.onclick = (e) => {
+            const idx = parseInt(e.currentTarget.dataset.index, 10);
+            step.branches.splice(idx, 1);
+            renderStepBranches(step);
+            if (typeof triggerAutoSaveStepEdits === "function") triggerAutoSaveStepEdits();
+            else saveStepEdits();
+            renderStepThumbnails();
+        };
+    });
+}
+
+// Wire Add Branch Button
+const btnAddStepBranch = $("btnAddStepBranch");
+if (btnAddStepBranch) {
+    btnAddStepBranch.onclick = () => {
+        const step = currentStep();
+        if (!step) return;
+        if (!step.branches || !Array.isArray(step.branches)) step.branches = [];
+        const allSteps = workflow ? (workflow.steps || []) : [];
+        const nextSeq = Math.min(allSteps.length, (step.sequence || 1) + 1);
+        step.branches.push({
+            label: `Path ${step.branches.length + 1}`,
+            target_sequence: nextSeq
+        });
+        renderStepBranches(step);
+        if (typeof triggerAutoSaveStepEdits === "function") triggerAutoSaveStepEdits();
+        else saveStepEdits();
+        renderStepThumbnails();
+    };
+}
+
+
+// =========================================================
+// 🎬 ANIMATED STEP MICRO-DEMO GENERATOR (GIF)
+// =========================================================
+
+const btnGenerateAnimation = $("btnGenerateAnimation");
+if (btnGenerateAnimation) {
+    btnGenerateAnimation.onclick = async () => {
+        const step = currentStep();
+        if (!step || !workflow) return;
+        
+        btnGenerateAnimation.disabled = true;
+        const prevHTML = btnGenerateAnimation.innerHTML;
+        btnGenerateAnimation.innerHTML = `<span>⏳</span> Generating...`;
+        
+        try {
+            const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/animate`, {
+                method: "POST"
+            });
+            if (res.success && res.gif_url) {
+                const img = $("screenshotImg");
+                if (img) {
+                    img.src = `${API_BASE + res.gif_url}?t=${Date.now()}`;
+                }
+                showToast("🎬 Micro-Demo loop generated successfully!", 3000);
+            }
+        } catch (e) {
+            showToast(`Failed to generate animation: ${e.message}`, 4000);
+        } finally {
+            btnGenerateAnimation.disabled = false;
+            btnGenerateAnimation.innerHTML = prevHTML;
+        }
+    };
+}
+
+
+// =========================================================
+// 🔍 COMMAND PALETTE (CTRL+K GLOBAL SEARCH)
+// =========================================================
+
+let cmdPaletteActiveIndex = 0;
+let cmdPaletteItems = [];
+let cmdSearchDebounceTimer = null;
+
+function toggleCommandPalette(forceOpen = null) {
+    const modal = $("commandPaletteModal");
+    const input = $("cmdPaletteInput");
+    if (!modal) return;
+    
+    const shouldOpen = forceOpen !== null ? forceOpen : modal.classList.contains("hidden");
+    if (shouldOpen) {
+        modal.classList.remove("hidden");
+        if (input) {
+            input.value = "";
+            input.focus();
+            searchCommandPalette("");
+        }
+    } else {
+        modal.classList.add("hidden");
+    }
+}
+
+async function searchCommandPalette(query) {
+    const q = (query || "").trim();
+    const resultsEl = $("cmdPaletteResults");
+    const countEl = $("cmdPaletteCount");
+    if (!resultsEl) return;
+    
+    if (!q) {
+        resultsEl.innerHTML = `
+            <div style="padding: 28px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                Type a keyword to search across all workflows, steps, actions, URLs, and notes in your library...
+            </div>
+        `;
+        if (countEl) countEl.textContent = "0 results";
+        cmdPaletteItems = [];
+        return;
+    }
+    
+    resultsEl.innerHTML = `
+        <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+            <span>⏳ Searching library...</span>
+        </div>
+    `;
+    
+    try {
+        const res = await api(`/search?q=${encodeURIComponent(q)}`);
+        const wfs = res.workflows || [];
+        const steps = res.steps || [];
+        const total = (res.totalMatches !== undefined) ? res.totalMatches : (wfs.length + steps.length);
+        if (countEl) countEl.textContent = `${total} match${total === 1 ? '' : 'es'}`;
+        
+        if (wfs.length === 0 && steps.length === 0) {
+            resultsEl.innerHTML = `
+                <div style="padding: 28px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                    No results found for "<strong>${esc(q)}</strong>".
+                </div>
+            `;
+            cmdPaletteItems = [];
+            return;
+        }
+        
+        cmdPaletteItems = [];
+        let html = "";
+        
+        if (wfs.length > 0) {
+            html += `<div class="cmd-palette-category">Workflows (${wfs.length})</div>`;
+            wfs.forEach(wf => {
+                const itemIndex = cmdPaletteItems.length;
+                cmdPaletteItems.push({ type: "workflow", id: wf.id });
+                html += `
+                    <div class="cmd-palette-item ${itemIndex === 0 ? 'active' : ''}" data-index="${itemIndex}" data-type="workflow" data-id="${wf.id}">
+                        <div class="cmd-palette-item-left">
+                            <span class="cmd-palette-item-icon">📁</span>
+                            <div class="cmd-palette-item-info">
+                                <div class="cmd-palette-item-title">${esc(wf.name || 'Untitled Workflow')}</div>
+                                <div class="cmd-palette-item-sub">${esc(wf.application || 'Chrome')} • Started ${fmt(wf.startedAt)}</div>
+                            </div>
+                        </div>
+                        <span class="cmd-palette-badge">Workflow</span>
+                    </div>
+                `;
+            });
+        }
+        
+        if (steps.length > 0) {
+            html += `<div class="cmd-palette-category">Steps (${steps.length})</div>`;
+            steps.forEach(st => {
+                const itemIndex = cmdPaletteItems.length;
+                cmdPaletteItems.push({ type: "step", id: st.workflowId, sequence: st.sequence });
+                html += `
+                    <div class="cmd-palette-item ${itemIndex === 0 ? 'active' : ''}" data-index="${itemIndex}" data-type="step" data-id="${st.workflowId}" data-sequence="${st.sequence}">
+                        <div class="cmd-palette-item-left">
+                            <span class="cmd-palette-item-icon">🎯</span>
+                            <div class="cmd-palette-item-info">
+                                <div class="cmd-palette-item-title">Step ${st.sequence}: ${esc(st.title || 'Step')}</div>
+                                <div class="cmd-palette-item-sub">in <strong>${esc(st.workflowName)}</strong> ${st.matchContext ? '• ' + esc(st.matchContext) : ''}</div>
+                            </div>
+                        </div>
+                        <span class="cmd-palette-badge" style="color: #818cf8;">${esc(st.action || 'Step')}</span>
+                    </div>
+                `;
+            });
+        }
+        
+        resultsEl.innerHTML = html;
+        cmdPaletteActiveIndex = 0;
+        
+        // Click handlers
+        resultsEl.querySelectorAll(".cmd-palette-item").forEach(el => {
+            el.onclick = () => selectCommandPaletteItem(parseInt(el.dataset.index, 10));
+        });
+        
+    } catch (e) {
+        resultsEl.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: var(--danger); font-size: 13px;">
+                Error searching library: ${esc(e.message)}
+            </div>
+        `;
+    }
+}
+
+async function selectCommandPaletteItem(index) {
+    if (index < 0 || index >= cmdPaletteItems.length) return;
+    const item = cmdPaletteItems[index];
+    toggleCommandPalette(false);
+    
+    if (item.type === "workflow") {
+        await openWorkflow(item.id);
+    } else if (item.type === "step") {
+        await openWorkflow(item.id);
+        const targetIdx = Math.max(0, (item.sequence || 1) - 1);
+        if (typeof setTab === "function") setTab("guide");
+        currentStepIndex = targetIdx;
+        renderActiveStep();
+        renderStepThumbnails();
+    }
+}
+
+function updateCommandPaletteHighlight() {
+    const items = document.querySelectorAll(".cmd-palette-item");
+    items.forEach((item, idx) => {
+        if (idx === cmdPaletteActiveIndex) {
+            item.classList.add("active");
+            item.scrollIntoView({ block: "nearest" });
+        } else {
+            item.classList.remove("active");
+        }
+    });
+}
+
+// Wire Input & Keyboard Navigation
+const cmdPaletteInput = $("cmdPaletteInput");
+if (cmdPaletteInput) {
+    cmdPaletteInput.addEventListener("input", (e) => {
+        clearTimeout(cmdSearchDebounceTimer);
+        cmdSearchDebounceTimer = setTimeout(() => {
+            searchCommandPalette(e.target.value);
+        }, 180);
+    });
+
+    cmdPaletteInput.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (cmdPaletteItems.length > 0) {
+                cmdPaletteActiveIndex = (cmdPaletteActiveIndex + 1) % cmdPaletteItems.length;
+                updateCommandPaletteHighlight();
+            }
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (cmdPaletteItems.length > 0) {
+                cmdPaletteActiveIndex = (cmdPaletteActiveIndex - 1 + cmdPaletteItems.length) % cmdPaletteItems.length;
+                updateCommandPaletteHighlight();
+            }
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (cmdPaletteItems.length > 0) {
+                selectCommandPaletteItem(cmdPaletteActiveIndex);
+            }
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            toggleCommandPalette(false);
+        }
+    });
+}
+
+// Wire Global Ctrl+K / Cmd+K listener
+window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        toggleCommandPalette();
+    }
+});
+
+// Wire Topbar Button & Modal backdrop close
+setOnclick("openCommandPaletteBtn", () => toggleCommandPalette(true));
+
+const cmdModal = $("commandPaletteModal");
+if (cmdModal) {
+    cmdModal.addEventListener("click", (e) => {
+        if (e.target === cmdModal) {
+            toggleCommandPalette(false);
+        }
+    });
+}
