@@ -3001,7 +3001,8 @@ function loadActiveStepDetails() {
 
     if (step.screenshotUrl) {
         if (imgEl) {
-            imgEl.src = API_BASE + step.screenshotUrl;
+            const cleanUrl = step.screenshotUrl.replace(/-demo.*\.gif/i, ".png");
+            imgEl.src = API_BASE + (step.hasActiveDemo ? cleanUrl : step.screenshotUrl);
             imgEl.classList.remove("hidden");
         }
         if (canvasWrap) canvasWrap.classList.remove("hidden");
@@ -5940,31 +5941,144 @@ if (btnAddStepBranch) {
 const btnGenerateAnimation = $("btnGenerateAnimation");
 const btnRemoveAnimation = $("btnRemoveAnimation");
 
+let isDraggingLiveCursor = false;
+
+function updateLiveCursorOverlay(step) {
+    const overlay = $("liveCursorOverlay");
+    const handle = $("draggableCursorHandle");
+    const notice = $("activeDemoAdjustNotice");
+    if (!overlay || !handle) return;
+
+    if (!step || !step.hasActiveDemo) {
+        overlay.classList.add("hidden");
+        if (notice) notice.classList.add("hidden");
+        return;
+    }
+
+    overlay.classList.remove("hidden");
+    if (notice) notice.classList.remove("hidden");
+
+    const hs = calculateDefaultHotspot(step);
+    const xPct = Math.max(2, Math.min(98, hs.xPct + (hs.wPct / 2)));
+    const yPct = Math.max(2, Math.min(98, hs.yPct + (hs.hPct / 2)));
+
+    handle.style.left = `${xPct}%`;
+    handle.style.top = `${yPct}%`;
+
+    const txt = $("cursorCoordsText");
+    if (txt) txt.textContent = `Drag Cursor (${Math.round(xPct)}%, ${Math.round(yPct)}%)`;
+}
+
+function initLiveDraggableCursor() {
+    const handle = $("draggableCursorHandle");
+    const wrapper = $("canvasWrapper");
+    if (!handle || !wrapper) return;
+
+    handle.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isDraggingLiveCursor = true;
+        handle.setPointerCapture(e.pointerId);
+        handle.classList.add("dragging");
+    });
+
+    handle.addEventListener("pointermove", (e) => {
+        if (!isDraggingLiveCursor) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const rect = wrapper.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        let xPct = ((e.clientX - rect.left) / rect.width) * 100;
+        let yPct = ((e.clientY - rect.top) / rect.height) * 100;
+
+        xPct = Math.max(1, Math.min(99, xPct));
+        yPct = Math.max(1, Math.min(99, yPct));
+
+        handle.style.left = `${xPct}%`;
+        handle.style.top = `${yPct}%`;
+
+        const txt = $("cursorCoordsText");
+        if (txt) txt.textContent = `Drag Cursor (${Math.round(xPct)}%, ${Math.round(yPct)}%)`;
+
+        const curW = Number($("hotspotW")?.value || 20);
+        const curH = Number($("hotspotH")?.value || 20);
+        const newLeft = Math.max(0, Math.min(100 - curW, Math.round(xPct - curW / 2)));
+        const newTop = Math.max(0, Math.min(100 - curH, Math.round(yPct - curH / 2)));
+
+        setVal("hotspotX", newLeft);
+        setVal("hotspotY", newTop);
+    });
+
+    const finishCursorDrag = async (e) => {
+        if (!isDraggingLiveCursor) return;
+        isDraggingLiveCursor = false;
+        handle.classList.remove("dragging");
+        try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+
+        const step = getCurrentStep();
+        if (!step) return;
+
+        const leftVal = Number($("hotspotX")?.value || 40);
+        const topVal = Number($("hotspotY")?.value || 40);
+        const wVal = Number($("hotspotW")?.value || 20);
+        const hVal = Number($("hotspotH")?.value || 20);
+
+        step.hotspot = {
+            xPct: leftVal,
+            yPct: topVal,
+            wPct: wVal,
+            hPct: hVal,
+            prompt: $("guideHotspotPrompt")?.value || (step.title || getDefaultTitle(step)),
+            type: "custom"
+        };
+
+        saveActiveStepEditsSilent();
+
+        const curXPct = leftVal + (wVal / 2);
+        const curYPct = topVal + (hVal / 2);
+
+        createCanvasClickRipple(e.clientX - wrapper.getBoundingClientRect().left, e.clientY - wrapper.getBoundingClientRect().top, wrapper);
+        showToast(`🎯 Cursor target updated: (${Math.round(curXPct)}%, ${Math.round(curYPct)}%)!`, 2500);
+
+        // Sync backend GIF rendering silently in background
+        triggerAnimateGeneration(step, curXPct, curYPct, true);
+    };
+
+    handle.addEventListener("pointerup", finishCursorDrag);
+    handle.addEventListener("pointercancel", finishCursorDrag);
+}
+
 function updateDemoButtonState(step) {
     const notice = $("activeDemoAdjustNotice");
+    const liveOverlay = $("liveCursorOverlay");
     if (!step) {
         if (btnRemoveAnimation) btnRemoveAnimation.classList.add("hidden");
         if (notice) notice.classList.add("hidden");
+        if (liveOverlay) liveOverlay.classList.add("hidden");
         return;
     }
     if (step.hasActiveDemo) {
         if (btnRemoveAnimation) btnRemoveAnimation.classList.remove("hidden");
         if (btnGenerateAnimation) btnGenerateAnimation.innerHTML = `<span>🔄</span> Re-generate`;
         if (notice) notice.classList.remove("hidden");
+        updateLiveCursorOverlay(step);
     } else {
         if (btnRemoveAnimation) btnRemoveAnimation.classList.add("hidden");
         if (btnGenerateAnimation) btnGenerateAnimation.innerHTML = `🎬 Micro-Demo`;
         if (notice) notice.classList.add("hidden");
+        if (liveOverlay) liveOverlay.classList.add("hidden");
     }
 }
 
-async function triggerAnimateGeneration(step, customXPct = null, customYPct = null) {
+async function triggerAnimateGeneration(step, customXPct = null, customYPct = null, isSilent = false) {
     if (!step || !workflow) {
-        showToast("Please select a step with a screenshot first");
+        if (!isSilent) showToast("Please select a step with a screenshot first");
         return;
     }
     if (!step.screenshotUrl) {
-        showToast("This step does not have a screenshot to animate");
+        if (!isSilent) showToast("This step does not have a screenshot to animate");
         return;
     }
 
@@ -5972,7 +6086,20 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
     let yPct = customYPct;
 
     if (xPct === null || yPct === null) {
-        // Priority 1: Check live Reticle position on screen
+        // Priority 1: Check live Draggable Cursor position on screen
+        const handle = $("draggableCursorHandle");
+        if (handle && handle.style.left && handle.style.top) {
+            const hLeft = parseFloat(handle.style.left);
+            const hTop = parseFloat(handle.style.top);
+            if (!isNaN(hLeft) && !isNaN(hTop) && hLeft > 0 && hTop > 0) {
+                xPct = hLeft;
+                yPct = hTop;
+            }
+        }
+    }
+
+    if (xPct === null || yPct === null) {
+        // Priority 2: Check live Reticle position on screen
         const reticle = $("hotspotReticleHandle");
         if (reticle && reticle.style.left && reticle.style.top && !reticle.classList.contains("hidden")) {
             const rLeft = parseFloat(reticle.style.left);
@@ -5985,7 +6112,7 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
     }
 
     if (xPct === null || yPct === null) {
-        // Priority 2: Inspector input fields
+        // Priority 3: Inspector input fields
         const hsX = Number($("hotspotX")?.value);
         const hsY = Number($("hotspotY")?.value);
         const hsW = Number($("hotspotW")?.value || 20);
@@ -5998,14 +6125,12 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
             xPct = step.hotspot.xPct + ((step.hotspot.wPct || 20) / 2);
             yPct = step.hotspot.yPct + ((step.hotspot.hPct || 20) / 2);
         } else if (step.element?.screen) {
-            // Priority 3: DOM element.screen (red dashed focus box)
             const sc = step.element.screen;
             const sw = Number(sc.viewportWidth || 1920);
             const sh = Number(sc.viewportHeight || 1080);
             xPct = ((Number(sc.x || 0) + (Number(sc.width || 0) / 2)) / Math.max(1, sw)) * 100;
             yPct = ((Number(sc.y || 0) + (Number(sc.height || 0) / 2)) / Math.max(1, sh)) * 100;
         } else {
-            // Priority 4: Fallback default hotspot
             const hs = calculateDefaultHotspot(step);
             xPct = hs.xPct + (hs.wPct / 2);
             yPct = hs.yPct + (hs.hPct / 2);
@@ -6020,7 +6145,7 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
         y_pct: finalYPct
     };
 
-    if (btnGenerateAnimation) {
+    if (btnGenerateAnimation && !isSilent) {
         btnGenerateAnimation.disabled = true;
         btnGenerateAnimation.innerHTML = `<span>⏳</span> Generating...`;
     }
@@ -6035,19 +6160,24 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
         if (res.success && res.gif_url) {
             step.hasActiveDemo = true;
             step.screenshotUrl = res.gif_url;
-            const imgEl = $("guideImg");
-            if (imgEl) {
-                imgEl.src = `${normalizeImageUrl(res.gif_url)}?t=${Date.now()}`;
-                imgEl.classList.remove("hidden");
-            }
             updateDemoButtonState(step);
             if (typeof updateHotspotReticlePosition === "function") {
                 updateHotspotReticlePosition(step);
             }
             renderStepThumbnails();
-            showToast(`🎬 Micro-Demo generated at target (${Math.round(finalXPct)}%, ${Math.round(finalYPct)}%)!`, 3500);
+            if (!isSilent) {
+                showToast(`🎬 Micro-Demo generated at target (${Math.round(finalXPct)}%, ${Math.round(finalYPct)}%)!`, 3500);
+            }
         }
     } catch (e) {
+        if (!isSilent) showToast(`Failed to generate animation: ${e.message}`, 4000);
+    } finally {
+        if (btnGenerateAnimation && !isSilent) {
+            btnGenerateAnimation.disabled = false;
+            updateDemoButtonState(step);
+        }
+    }
+}
         showToast(`Failed to generate animation: ${e.message}`, 4000);
     } finally {
         if (btnGenerateAnimation) {
@@ -6852,4 +6982,5 @@ function updateTemplateSelectionCount() {
 initHotspotReticle();
 initCanvasFileDrop();
 initSopTemplateManager();
+initLiveDraggableCursor();
 

@@ -368,7 +368,28 @@
                                         <canvas id="annotationCanvas"></canvas>
                                         <!-- Active GIF Real-Time Drag Notice -->
                                         <div id="activeDemoAdjustNotice" class="demo-adjust-notice hidden" style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.92); border: 1px solid #6366f1; border-radius: 999px; padding: 5px 14px; font-size: 11.5px; font-weight: 700; color: #fff; z-index: 150; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); pointer-events: none; white-space: nowrap;">
-                                            <span>🎬</span> Drag target pin or click GIF to adjust click location
+                                            <span>🎬</span> Drag cursor directly to adjust click location
+                                        </div>
+                                        <!-- Live Interactive Animated Micro-Demo Cursor Layer (Directly Draggable!) -->
+                                        <div id="liveCursorOverlay" class="live-cursor-overlay hidden">
+                                            <div id="draggableCursorHandle" class="draggable-cursor-handle" title="Click & Drag Cursor directly to reposition the micro-demo">
+                                                <div class="cursor-drag-badge" id="cursorDragBadge">
+                                                    <span>🖐️</span>
+                                                    <span id="cursorCoordsText">Drag Cursor (50%, 50%)</span>
+                                                </div>
+                                                <div class="live-click-ripple-ring ripple-ring-1"></div>
+                                                <div class="live-click-ripple-ring ripple-ring-2"></div>
+                                                <div class="live-cursor-arrow-wrapper">
+                                                    <svg class="live-cursor-svg" viewBox="0 0 28 32" width="28" height="32">
+                                                        <defs>
+                                                            <filter id="cursorShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                                                <feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="rgba(0,0,0,0.5)" />
+                                                            </filter>
+                                                        </defs>
+                                                        <path d="M2 2 L2 24 L8 18 L14 29 L18 27 L12 16 L20 16 Z" fill="#ffffff" stroke="#0f172a" stroke-width="2" stroke-linejoin="round" filter="url(#cursorShadow)"/>
+                                                    </svg>
+                                                </div>
+                                            </div>
                                         </div>
                                         <!-- Interactive Drag-and-Drop Hotspot Target Reticle -->
                                         <div id="hotspotReticleHandle" class="hotspot-reticle-handle hidden" title="Drag to adjust click location / Micro-demo target">
