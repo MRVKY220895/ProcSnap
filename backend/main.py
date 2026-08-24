@@ -1862,9 +1862,23 @@ class AIDescribeRequest(BaseModel):
     step_id: int
     session_id: str
 
+def _get_text_model() -> str:
+    installed = get_installed_models()
+    for inst in installed:
+        if inst.startswith("qwen2.5"):
+            return inst
+    return "qwen2.5"
+
+def _get_vision_model() -> str:
+    installed = get_installed_models()
+    for inst in installed:
+        if inst.startswith("moondream"):
+            return inst
+    return "moondream"
+
 @app.post("/ai/describe-step")
 def ai_describe_step(request: AIDescribeRequest):
-    connection = get_database_connection()
+    connection = get_connection()
     try:
         cursor = connection.cursor()
         step = cursor.execute(
@@ -1889,7 +1903,7 @@ def ai_describe_step(request: AIDescribeRequest):
                 )
                 
                 payload = {
-                    "model": "moondream",
+                    "model": _get_vision_model(),
                     "prompt": prompt,
                     "images": [base64_image],
                     "stream": False
@@ -1901,7 +1915,7 @@ def ai_describe_step(request: AIDescribeRequest):
             except Exception as e:
                 print(f"Vision analysis failed: {e}")
                 
-        # 2. Text Polishing using qwen2.5:0.5b
+        # 2. Text Polishing using qwen2.5
         element_info = ""
         if step["element_json"]:
             try:
@@ -1936,7 +1950,7 @@ def ai_describe_step(request: AIDescribeRequest):
         )
         
         payload_text = {
-            "model": "qwen2.5:0.5b",
+            "model": _get_text_model(),
             "prompt": prompt_text,
             "format": "json",
             "stream": False
@@ -1958,32 +1972,37 @@ def ai_describe_step(request: AIDescribeRequest):
                 print("Failed parsing JSON response from text model. Raw:", response_text["response"])
         
         if not title:
-            title = f"Perform {step['action']} on element"
+            title = step["title"] or f"Step {step['action']}"
         if not description:
-            description = f"Go to {step['url']} and execute {step['action']} action."
-        if not expected:
-            expected = "The application responds to the action."
+            description = f"Perform {step['action']} on {step['url']}"
             
         now = datetime.now(timezone.utc).isoformat()
+        
+        # Save to database
+        existing = cursor.execute("SELECT note, hidden FROM step_edits WHERE step_id = ?", (request.step_id,)).fetchone()
+        note = existing["note"] if existing else ""
+        hidden = existing["hidden"] if existing else 0
+        
         cursor.execute(
             """
             INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, hidden, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(step_id) DO UPDATE SET
                 title = excluded.title,
                 description = excluded.description,
                 expected = excluded.expected,
                 updated_at = excluded.updated_at
             """,
-            (request.step_id, request.session_id, title, description, expected, now)
+            (request.step_id, request.session_id, title, description, note, expected, hidden, now)
         )
         connection.commit()
         
         return {
-            "success": True,
+            "step_id": request.step_id,
             "title": title,
             "description": description,
-            "expected": expected
+            "expected": expected,
+            "vision_description": vision_description
         }
     finally:
         connection.close()
@@ -1993,7 +2012,7 @@ class AIPolishRequest(BaseModel):
 
 @app.post("/ai/polish-sop")
 def ai_polish_sop(request: AIPolishRequest):
-    connection = get_database_connection()
+    connection = get_connection()
     try:
         cursor = connection.cursor()
         steps = cursor.execute(
@@ -2036,7 +2055,7 @@ def ai_polish_sop(request: AIPolishRequest):
         )
         
         payload = {
-            "model": "qwen2.5:0.5b",
+            "model": _get_text_model(),
             "prompt": prompt,
             "format": "json",
             "stream": False
@@ -2070,17 +2089,17 @@ def ai_polish_sop(request: AIPolishRequest):
                         INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, hidden, updated_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(step_id) DO UPDATE SET
-                            title = excluded.title,
-                            description = excluded.description,
-                            updated_at = excluded.updated_at
+                            title = CASE WHEN ? != '' THEN ? ELSE title END,
+                            description = CASE WHEN ? != '' THEN ? ELSE description END,
+                            updated_at = ?
                         """,
-                        (step_id, request.session_id, p_title, p_desc, note, expected, hidden, now)
+                        (step_id, request.session_id, p_title, p_desc, note, expected, hidden, now,
+                         p_title, p_title, p_desc, p_desc, now)
                     )
                 connection.commit()
-                return {"success": True, "message": "All steps polished successfully"}
+                return {"success": True, "count": len(polished_list), "steps": polished_list}
             except Exception as e:
-                print("Failed parsing polished list JSON. Error:", e)
-                raise HTTPException(status_code=500, detail="Failed to parse AI response")
+                raise HTTPException(status_code=500, detail=f"Failed parsing polished SOP JSON: {e}")
                 
         raise HTTPException(status_code=500, detail="No response from Ollama")
     finally:
