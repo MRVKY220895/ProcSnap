@@ -1224,6 +1224,8 @@ async function openWorkflow(id) {
         renderWfTags();
         updateLibraryStats();
         fetchAndRenderSopHealth();
+        if (typeof updateLifecyclePill === "function") updateLifecyclePill(workflow.lifecycle_status || "draft");
+        if ($("currentVersionLabel")) $("currentVersionLabel").textContent = workflow.current_version || "v1.0";
         currentStepIndex = 0;
         setTab(activeTab);
     } catch (e) {
@@ -4397,7 +4399,277 @@ function closeBranchAuditModal() {
 
 setOnclick("validateBranchesBtn", () => openBranchAuditModal());
 
+// ============================================================
+// PHASE 7 — PRIVACY & SMART REDACTION REVIEW QUEUE
+// ============================================================
+let currentPrivacyFindings = [];
+
+async function openPrivacyScanModal() {
+    if (!workflow?.id) return showToast("⚠ Open a workflow first");
+    const modal = $("privacyScanModal");
+    if (modal) modal.style.display = "flex";
+    await fetchAndRenderPrivacyFindings();
+}
+
+function closePrivacyScanModal() {
+    const modal = $("privacyScanModal");
+    if (modal) modal.style.display = "none";
+}
+
+async function fetchAndRenderPrivacyFindings() {
+    if (!workflow?.id) return;
+    const list = $("privacyFindingsList");
+    if (list) list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">Running privacy and PII scan across all steps...</div>`;
+
+    try {
+        const report = await api(`/sessions/${encodeURIComponent(workflow.id)}/scan-pii`, { method: "POST" });
+        currentPrivacyFindings = report.findings || [];
+
+        const header = $("privacyFindingsHeader");
+        const sub = $("privacyFindingsSub");
+        const autoMaskBtn = $("btnAutoMaskAllPii");
+
+        if (header) {
+            header.textContent = currentPrivacyFindings.length === 0
+                ? "✅ No Sensitive Data Detected"
+                : `🛡️ ${currentPrivacyFindings.length} Sensitive Item${currentPrivacyFindings.length === 1 ? '' : 's'} Found across ${report.affected_steps_count} Step${report.affected_steps_count === 1 ? '' : 's'}`;
+        }
+        if (sub) {
+            sub.textContent = currentPrivacyFindings.length === 0
+                ? "No passwords, API tokens, credit cards, or PII were detected in this SOP."
+                : "Review the flagged items below. Click 'Auto-Mask All PII' to replace sensitive values with safe tokens.";
+        }
+        if (autoMaskBtn) {
+            autoMaskBtn.style.display = currentPrivacyFindings.length === 0 ? "none" : "block";
+        }
+
+        if (list) {
+            if (currentPrivacyFindings.length === 0) {
+                list.innerHTML = `
+                    <div style="padding:20px; text-align:center; color:#10b981; font-weight:700; font-size:13.5px; background:rgba(16,185,129,0.08); border-radius:10px; border:1px solid rgba(16,185,129,0.2);">
+                        🎉 Privacy verified! No sensitive personal data or secrets detected in step titles, descriptions, or URLs.
+                    </div>
+                `;
+            } else {
+                list.innerHTML = currentPrivacyFindings.map((f, idx) => `
+                    <div style="background:rgba(255,255,255,0.03); border-left:3px solid ${f.severity === 'high' ? '#ef4444' : '#f59e0b'}; border-radius:8px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:13px; font-weight:700; color:var(--text-main,#fff);">Step ${f.step_sequence}: ${esc(f.label)}</span>
+                                <span style="font-size:10px; font-weight:800; text-transform:uppercase; color:${f.severity === 'high' ? '#ef4444' : '#f59e0b'}; background:${f.severity === 'high' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)'}; padding:2px 8px; border-radius:999px;">${f.severity}</span>
+                            </div>
+                            <div style="font-size:11.5px; color:var(--text-muted,#94a3b8); margin-top:3px;">
+                                Field: <code style="color:#818cf8;">${esc(f.field)}</code> · Masked Preview: <span style="font-family:monospace; color:#ef4444;">${esc(f.masked_sample)}</span>
+                            </div>
+                        </div>
+                        <button onclick="maskSingleStepPii(${f.step_id})" class="btn btn-secondary btn-xs" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">
+                            🔒 Redact Step
+                        </button>
+                    </div>
+                `).join("");
+            }
+        }
+    } catch (e) {
+        if (list) list.innerHTML = `<div style="color:#ef4444; padding:14px;">Privacy scan failed: ${esc(e.message)}</div>`;
+    }
+}
+
+async function autoMaskAllPii() {
+    if (!workflow?.id) return;
+    const btn = $("btnAutoMaskAllPii");
+    if (btn) { btn.disabled = true; btn.textContent = "🔒 Redacting..."; }
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/apply-redaction`, {
+            method: "POST",
+            body: JSON.stringify({ mask_text: true })
+        });
+        showToast(`🔒 ${res.message}`);
+        workflow = await api(`/sessions/${encodeURIComponent(workflow.id)}`);
+        renderStepsTab();
+        renderStepThumbnails();
+        await fetchAndRenderPrivacyFindings();
+    } catch (e) {
+        showToast("Redaction failed: " + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "🔒 Auto-Mask All PII"; }
+    }
+}
+
+async function maskSingleStepPii(stepId) {
+    if (!workflow?.id || !stepId) return;
+    const step = workflow.steps.find(s => s.id === stepId);
+    if (!step) return;
+
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/apply-redaction`, {
+            method: "POST",
+            body: JSON.stringify({ mask_text: true })
+        });
+        showToast(`🔒 Redacted sensitive data in Step!`);
+        workflow = await api(`/sessions/${encodeURIComponent(workflow.id)}`);
+        renderStepsTab();
+        renderStepThumbnails();
+        await fetchAndRenderPrivacyFindings();
+    } catch (e) {
+        showToast("Redaction failed: " + e.message);
+    }
+}
+
+setOnclick("privacyScanBtn", () => openPrivacyScanModal());
+
+// ============================================================
+// PHASE 8 — SOP LIFECYCLE & VERSION MANAGEMENT ENGINE
+// ============================================================
+const LIFECYCLE_DISPLAY_MAP = {
+    "draft": { label: "📝 Draft", bg: "rgba(148,163,184,0.15)", color: "#94a3b8", border: "rgba(148,163,184,0.3)" },
+    "under_review": { label: "👀 Under Review", bg: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "rgba(245,158,11,0.3)" },
+    "approved": { label: "✅ Approved", bg: "rgba(16,185,129,0.15)", color: "#10b981", border: "rgba(16,185,129,0.3)" },
+    "published": { label: "🚀 Published", bg: "rgba(99,102,241,0.15)", color: "#818cf8", border: "rgba(99,102,241,0.3)" },
+    "archived": { label: "📦 Archived", bg: "rgba(100,116,139,0.15)", color: "#64748b", border: "rgba(100,116,139,0.3)" }
+};
+
+function updateLifecyclePill(status) {
+    const s = (status || "draft").toLowerCase();
+    const info = LIFECYCLE_DISPLAY_MAP[s] || LIFECYCLE_DISPLAY_MAP["draft"];
+    const labelEl = $("lifecycleStatusLabel");
+    const btnEl = $("lifecycleStatusBtn");
+
+    if (labelEl) labelEl.textContent = info.label;
+    if (btnEl) {
+        btnEl.style.background = info.bg;
+        btnEl.style.color = info.color;
+        btnEl.style.borderColor = info.border;
+    }
+}
+
+async function setLifecycleStatus(status) {
+    if (!workflow?.id) return;
+    const menu = $("lifecycleStatusMenu");
+    if (menu) menu.style.display = "none";
+
+    try {
+        await api(`/sessions/${encodeURIComponent(workflow.id)}/lifecycle`, {
+            method: "PATCH",
+            body: JSON.stringify({ status })
+        });
+        workflow.lifecycle_status = status;
+        updateLifecyclePill(status);
+        showToast(`SOP status updated to ${LIFECYCLE_DISPLAY_MAP[status]?.label || status}`);
+    } catch (e) {
+        showToast("Failed to update status: " + e.message);
+    }
+}
+
+// Lifecycle dropdown toggle
+const lifeBtn = $("lifecycleStatusBtn");
+if (lifeBtn) {
+    lifeBtn.onclick = (e) => {
+        e.stopPropagation();
+        const menu = $("lifecycleStatusMenu");
+        if (menu) {
+            menu.style.display = menu.style.display === "flex" ? "none" : "flex";
+        }
+    };
+}
+document.addEventListener("click", () => {
+    const menu = $("lifecycleStatusMenu");
+    if (menu) menu.style.display = "none";
+});
+
+async function openVersionHistoryModal() {
+    if (!workflow?.id) return showToast("⚠ Open a workflow first");
+    const modal = $("versionHistoryModal");
+    if (modal) modal.style.display = "flex";
+    await fetchAndRenderVersionHistory();
+}
+
+function closeVersionHistoryModal() {
+    const modal = $("versionHistoryModal");
+    if (modal) modal.style.display = "none";
+}
+
+async function fetchAndRenderVersionHistory() {
+    if (!workflow?.id) return;
+    const list = $("versionTimelineList");
+    const activeTag = $("modalActiveVersionTag");
+    const currLabel = $("currentVersionLabel");
+
+    if (list) list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">Loading version history...</div>`;
+
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/versions`);
+        const versions = res.versions || [];
+        const currentVer = res.current_version || "1.0";
+
+        if (activeTag) activeTag.textContent = currentVer;
+        if (currLabel) currLabel.textContent = currentVer;
+
+        if (list) {
+            if (versions.length === 0) {
+                list.innerHTML = `
+                    <div style="padding:16px; text-align:center; color:var(--text-muted); font-size:12.5px; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid var(--border-subtle,rgba(255,255,255,0.06));">
+                        No historical version snapshots saved yet. Click <strong>'+ Snapshot New Version'</strong> above to freeze milestone v1.0.
+                    </div>
+                `;
+            } else {
+                list.innerHTML = versions.map((v, idx) => `
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle,rgba(255,255,255,0.08)); border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-weight:800; font-size:14.5px; color:#818cf8;">${esc(v.version)}</span>
+                                <span style="font-size:11px; color:var(--text-muted);">· ${new Date(v.created_at).toLocaleString()}</span>
+                                <span style="font-size:10px; font-weight:700; background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:999px; text-transform:uppercase;">${esc(v.status || 'draft')}</span>
+                            </div>
+                            <div style="font-size:12px; color:var(--text-main,#fff); margin-top:4px;">${esc(v.change_summary || 'Snapshot')}</div>
+                        </div>
+                        <button onclick="restoreVersionSnapshot(${v.id}, '${esc(v.version)}')" class="btn btn-secondary btn-xs" style="border-color:rgba(99,102,241,0.3); color:#818cf8;">
+                            ↺ Restore This Version
+                        </button>
+                    </div>
+                `).join("");
+            }
+        }
+    } catch (e) {
+        if (list) list.innerHTML = `<div style="color:#ef4444; padding:12px;">Failed to load version history: ${esc(e.message)}</div>`;
+    }
+}
+
+async function createNewVersionSnapshotPrompt() {
+    if (!workflow?.id) return;
+    const nextVer = prompt("Enter Version Tag (e.g. v1.1, v2.0):", "v1.1");
+    if (!nextVer) return;
+    const summary = prompt("Enter Change Summary / Milestone Notes:", "Updated step instructions and process flow");
+    if (summary === null) return;
+
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/versions/create`, {
+            method: "POST",
+            body: JSON.stringify({ version: nextVer.trim(), change_summary: summary.trim() })
+        });
+        showToast(`🎉 ${res.message}`);
+        await fetchAndRenderVersionHistory();
+    } catch (e) {
+        showToast("Failed to create snapshot: " + e.message);
+    }
+}
+
+async function restoreVersionSnapshot(versionId, versionTag) {
+    if (!confirm(`Are you sure you want to restore workflow to version snapshot ${versionTag}? Current uncommitted edits will be replaced.`)) return;
+
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/versions/${versionId}/restore`, { method: "POST" });
+        showToast(`↺ ${res.message}`);
+        workflow = await api(`/sessions/${encodeURIComponent(workflow.id)}`);
+        renderStepsTab();
+        renderStepThumbnails();
+        await fetchAndRenderVersionHistory();
+    } catch (e) {
+        showToast("Restore failed: " + e.message);
+    }
+}
+
 // Insert manual step logic
+
 
 
 setOnclick("addNewStepBtn", async () => {

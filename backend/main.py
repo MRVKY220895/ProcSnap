@@ -273,8 +273,51 @@ def initialize_database() -> None:
         except Exception:
             pass
 
+    # Phase 7 & 8 — Privacy Redaction & SOP Lifecycle Versioning
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS redaction_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            rules TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS workflow_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workflow_id TEXT NOT NULL,
+            version TEXT NOT NULL,
+            status TEXT DEFAULT 'draft',
+            snapshot_json TEXT NOT NULL,
+            change_summary TEXT,
+            created_by TEXT DEFAULT 'Author',
+            created_at TEXT NOT NULL,
+            review_due TEXT,
+            FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+        )
+        """
+    )
+
+    for col in ["current_version TEXT DEFAULT '1.0'",
+                "lifecycle_status TEXT DEFAULT 'draft'",
+                "review_due_date TEXT"]:
+        try:
+            cursor.execute(f"ALTER TABLE workflows ADD COLUMN {col}")
+        except Exception:
+            pass
+
+    try:
+        cursor.execute("ALTER TABLE step_edits ADD COLUMN redaction_flags TEXT DEFAULT NULL")
+    except Exception:
+        pass
+
     connection.commit()
     connection.close()
+
 
 
 
@@ -5100,6 +5143,341 @@ def auto_fix_sop_quality_issues(session_id: str):
         }
     finally:
         conn.close()
+
+
+# =============================================================================
+# PHASE 7 — PRIVACY & SMART REDACTION ENDPOINTS
+# =============================================================================
+
+@app.post("/sessions/{session_id}/scan-pii")
+def scan_session_pii(session_id: str, body: dict = Body(default={})):
+    """
+    Scans an SOP workflow's step titles, descriptions, values, and inputs for sensitive data (PII, credentials, keys).
+    """
+    try:
+        from .privacy_redaction import SensitiveDataDetector, DEFAULT_PROFILES
+    except ImportError:
+        from privacy_redaction import SensitiveDataDetector, DEFAULT_PROFILES
+
+    rules = body.get("rules")
+
+    conn = get_connection()
+    try:
+        wf_row = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf_row:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        step_rows = conn.execute(
+            """
+            SELECT ws.id, ws.sequence, ws.action, ws.title, ws.value, ws.url, ws.element_json,
+                   se.title AS edited_title, se.description AS edited_description, se.note
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            ORDER BY ws.sequence ASC
+            """,
+            (session_id,)
+        ).fetchall()
+
+        steps = []
+        for r in step_rows:
+            d = dict(r)
+            if d.get("element_json"):
+                try:
+                    d["element"] = json.loads(d["element_json"])
+                except Exception:
+                    d["element"] = None
+            else:
+                d["element"] = None
+            steps.append(d)
+
+        report = SensitiveDataDetector.scan_workflow(dict(wf_row), steps, rules=rules)
+        report["profiles"] = DEFAULT_PROFILES
+        return report
+    finally:
+        conn.close()
+
+
+@app.post("/sessions/{session_id}/apply-redaction")
+def apply_session_redaction(session_id: str, body: dict = Body(default={})):
+    """
+    Applies text masking and optional screenshot region blurring across all steps.
+    """
+    try:
+        from .privacy_redaction import RedactionEngine, SensitiveDataDetector
+    except ImportError:
+        from privacy_redaction import RedactionEngine, SensitiveDataDetector
+
+    rules = body.get("rules")
+    mask_text = body.get("mask_text", True)
+    now = utc_now()
+
+    conn = get_connection()
+    try:
+        step_rows = conn.execute(
+            """
+            SELECT ws.id, ws.sequence, ws.title, ws.value, ws.url,
+                   se.title AS edited_title, se.description AS edited_description, se.note
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            """,
+            (session_id,)
+        ).fetchall()
+
+        redacted_count = 0
+        for r in step_rows:
+            step_id = r["id"]
+            title = r["edited_title"] or r["title"] or ""
+            desc = r["edited_description"] or ""
+            note = r["note"] or ""
+            val = r["value"] or ""
+
+            new_title = RedactionEngine.mask_text(title, rules=rules) if mask_text else title
+            new_desc = RedactionEngine.mask_text(desc, rules=rules) if mask_text else desc
+            new_note = RedactionEngine.mask_text(note, rules=rules) if mask_text else note
+
+            if new_title != title or new_desc != desc or new_note != note:
+                redacted_count += 1
+                conn.execute(
+                    """
+                    INSERT INTO step_edits (step_id, workflow_id, title, description, note, redaction_flags, updated_at)
+                    VALUES (?, ?, ?, ?, ?, 'redacted', ?)
+                    ON CONFLICT(step_id) DO UPDATE SET
+                        title = excluded.title,
+                        description = excluded.description,
+                        note = excluded.note,
+                        redaction_flags = 'redacted',
+                        updated_at = excluded.updated_at
+                    """,
+                    (step_id, session_id, new_title, new_desc, new_note, now)
+                )
+
+        conn.commit()
+        return {
+            "success": True,
+            "redacted_steps_count": redacted_count,
+            "message": f"Successfully redacted sensitive data across {redacted_count} steps."
+        }
+    finally:
+        conn.close()
+
+
+@app.get("/redaction-profiles")
+def get_redaction_profiles():
+    """
+    Returns available pre-configured PII and secret redaction profiles.
+    """
+    try:
+        from .privacy_redaction import DEFAULT_PROFILES
+    except ImportError:
+        from privacy_redaction import DEFAULT_PROFILES
+
+    return DEFAULT_PROFILES
+
+
+# =============================================================================
+# PHASE 8 — SOP LIFECYCLE & VERSION MANAGEMENT ENDPOINTS
+# =============================================================================
+
+@app.get("/sessions/{session_id}/lifecycle-statuses")
+def get_lifecycle_statuses():
+    """
+    Returns supported SOP lifecycle states (Draft, Under Review, Approved, Published, Review Due, Archived).
+    """
+    try:
+        from .sop_lifecycle import LIFECYCLE_STATUSES
+    except ImportError:
+        from sop_lifecycle import LIFECYCLE_STATUSES
+
+    return LIFECYCLE_STATUSES
+
+
+@app.patch("/sessions/{session_id}/lifecycle")
+def update_sop_lifecycle(session_id: str, body: dict = Body(default={})):
+    """
+    Updates the lifecycle status of an SOP (draft -> under_review -> approved -> published -> archived).
+    """
+    status = body.get("status", "draft").lower()
+    review_due = body.get("review_due_date")
+    now = utc_now()
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            UPDATE workflows
+            SET lifecycle_status = ?, review_due_date = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (status, review_due, now, session_id)
+        )
+        conn.commit()
+        return {"success": True, "lifecycle_status": status, "review_due_date": review_due}
+    finally:
+        conn.close()
+
+
+@app.get("/sessions/{session_id}/versions")
+def get_workflow_versions(session_id: str):
+    """
+    Returns all historical snapshot versions for a workflow.
+    """
+    conn = get_connection()
+    try:
+        wf = conn.execute("SELECT current_version, lifecycle_status, review_due_date FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        rows = conn.execute(
+            """
+            SELECT id, version, status, change_summary, created_by, created_at, review_due
+            FROM workflow_versions
+            WHERE workflow_id = ?
+            ORDER BY id DESC
+            """,
+            (session_id,)
+        ).fetchall()
+
+        return {
+            "current_version": wf["current_version"] or "1.0",
+            "lifecycle_status": wf["lifecycle_status"] or "draft",
+            "review_due_date": wf["review_due_date"],
+            "versions": [dict(r) for r in rows]
+        }
+    finally:
+        conn.close()
+
+
+@app.post("/sessions/{session_id}/versions/create")
+def create_version_snapshot(session_id: str, body: dict = Body(default={})):
+    """
+    Captures a full immutable JSON snapshot of the workflow state and tags it as a new version (e.g., v1.1, v2.0).
+    """
+    version_tag = body.get("version", "v1.1")
+    change_summary = body.get("change_summary", "Milestone snapshot")
+    created_by = body.get("created_by", "Author")
+    now = utc_now()
+
+    conn = get_connection()
+    try:
+        wf = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        steps = conn.execute(
+            """
+            SELECT ws.*, se.title AS edited_title, se.description AS edited_description,
+                   se.note, se.expected, se.branches, se.intent_marker, se.semantic_class
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            ORDER BY ws.sequence ASC
+            """,
+            (session_id,)
+        ).fetchall()
+
+        snapshot_dict = {
+            "workflow": dict(wf),
+            "steps": [dict(s) for s in steps],
+            "version": version_tag,
+            "snapshot_at": now
+        }
+
+        cursor = conn.execute(
+            """
+            INSERT INTO workflow_versions (workflow_id, version, status, snapshot_json, change_summary, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (session_id, version_tag, wf["lifecycle_status"] or "draft", json.dumps(snapshot_dict), change_summary, created_by, now)
+        )
+        version_id = cursor.lastrowid
+
+        # Update workflow current_version
+        conn.execute("UPDATE workflows SET current_version = ?, updated_at = ? WHERE id = ?", (version_tag, now, session_id))
+        conn.commit()
+
+        return {
+            "success": True,
+            "version_id": version_id,
+            "version": version_tag,
+            "message": f"Snapshot {version_tag} saved successfully!"
+        }
+    finally:
+        conn.close()
+
+
+@app.post("/sessions/{session_id}/versions/{version_id}/restore")
+def restore_version_snapshot(session_id: str, version_id: int):
+    """
+    Restores workflow state and steps from a historical version snapshot.
+    """
+    conn = get_connection()
+    try:
+        v_row = conn.execute("SELECT * FROM workflow_versions WHERE id = ? AND workflow_id = ?", (version_id, session_id)).fetchone()
+        if not v_row:
+            raise HTTPException(status_code=404, detail="Version snapshot not found")
+
+        snapshot = json.loads(v_row["snapshot_json"])
+        saved_steps = snapshot.get("steps", [])
+        now = utc_now()
+
+        for s in saved_steps:
+            step_id = s.get("id")
+            if step_id:
+                t = s.get("edited_title") or s.get("title")
+                d = s.get("edited_description") or s.get("description")
+                n = s.get("note")
+                conn.execute(
+                    """
+                    INSERT INTO step_edits (step_id, workflow_id, title, description, note, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(step_id) DO UPDATE SET
+                        title = excluded.title,
+                        description = excluded.description,
+                        note = excluded.note,
+                        updated_at = excluded.updated_at
+                    """,
+                    (step_id, session_id, t, d, n, now)
+                )
+
+        conn.execute("UPDATE workflows SET current_version = ?, updated_at = ? WHERE id = ?", (v_row["version"], now, session_id))
+        conn.commit()
+
+        return {
+            "success": True,
+            "restored_version": v_row["version"],
+            "message": f"Successfully restored to version snapshot {v_row['version']}."
+        }
+    finally:
+        conn.close()
+
+
+@app.get("/sessions/{session_id}/versions/compare")
+def compare_workflow_versions(session_id: str, v1_id: int = Query(...), v2_id: int = Query(...)):
+    """
+    Performs an automated diff between two version snapshots.
+    """
+    try:
+        from .sop_lifecycle import VersionDiffEngine
+    except ImportError:
+        from sop_lifecycle import VersionDiffEngine
+
+    conn = get_connection()
+    try:
+        r1 = conn.execute("SELECT snapshot_json FROM workflow_versions WHERE id = ?", (v1_id,)).fetchone()
+        r2 = conn.execute("SELECT snapshot_json FROM workflow_versions WHERE id = ?", (v2_id,)).fetchone()
+        if not r1 or not r2:
+            raise HTTPException(status_code=404, detail="One or both version snapshots not found")
+
+        v1_data = json.loads(r1["snapshot_json"])
+        v2_data = json.loads(r2["snapshot_json"])
+
+        diff = VersionDiffEngine.compare_snapshots(v1_data, v2_data)
+        return diff
+    finally:
+        conn.close()
+
 
 
 
