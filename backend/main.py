@@ -2391,3 +2391,214 @@ def export_session_docx(session_id: str):
         headers=headers
     )
 
+
+# =========================================================
+# SYSTEM REQUIREMENTS & HEALTH DIAGNOSTICS
+# =========================================================
+
+@app.get("/system/requirements")
+def get_system_requirements():
+    """
+    Scans the local environment and returns live diagnostic statuses for all components.
+    """
+    import platform
+    import importlib.metadata
+    
+    # 1. Python Environment
+    py_version = platform.python_version()
+    py_executable = sys.executable
+    in_venv = hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
+    
+    # 2. Package Dependency Checks
+    tracked_packages = [
+        {"name": "fastapi", "required": ">=0.110.0", "description": "Core HTTP Backend API & Studio Server"},
+        {"name": "uvicorn", "required": ">=0.29.0", "description": "High-Performance ASGI Web Server"},
+        {"name": "python-docx", "package_lookup": "python-docx", "required": ">=1.1.0", "description": "Microsoft Word (.docx) SOP Document Generator"},
+        {"name": "pillow", "package_lookup": "Pillow", "required": ">=10.0.0", "description": "Screenshot & Canvas Image Processing Engine"},
+        {"name": "edge-tts", "package_lookup": "edge-tts", "required": ">=6.1.0", "description": "Offline-ready Microsoft Neural Voice Narration"},
+        {"name": "lxml", "package_lookup": "lxml", "required": ">=4.9.0", "description": "XML & Document Layout Styling Engine"},
+        {"name": "pydantic", "package_lookup": "pydantic", "required": ">=2.0.0", "description": "Data Validation & Schema Modeling"},
+    ]
+    
+    package_results = []
+    all_packages_ok = True
+    
+    for pkg in tracked_packages:
+        lookup_name = pkg.get("package_lookup", pkg["name"])
+        installed = False
+        installed_version = None
+        
+        try:
+            installed_version = importlib.metadata.version(lookup_name)
+            installed = True
+        except Exception:
+            # Fallback import check
+            try:
+                mod = __import__(pkg["name"].replace("-", "_"))
+                installed_version = getattr(mod, "__version__", "Installed")
+                installed = True
+            except Exception:
+                installed = False
+                installed_version = None
+                all_packages_ok = False
+                
+        package_results.append({
+            "name": pkg["name"],
+            "required": pkg["required"],
+            "description": pkg["description"],
+            "installed": installed,
+            "version": installed_version or "Not Installed"
+        })
+        
+    # 3. Database Stats
+    db_file = DATABASE_PATH
+    db_size = db_file.stat().st_size if db_file.exists() else 0
+    wf_count = 0
+    step_count = 0
+    
+    try:
+        conn = get_connection()
+        try:
+            c = conn.cursor()
+            wf_count = c.execute("SELECT count(*) FROM workflows").fetchone()[0]
+            step_count = c.execute("SELECT count(*) FROM workflow_steps").fetchone()[0]
+        finally:
+            conn.close()
+        db_connected = True
+    except Exception:
+        db_connected = False
+        
+    # 4. Ollama AI Status
+    try:
+        ollama_info = get_ai_status()
+    except Exception:
+        ollama_info = {"running": False, "models": []}
+    
+    # 5. Extension Folder Check
+    ext_dir = BASE_DIR.parent / "extension"
+    manifest_file = ext_dir / "manifest.json"
+    extension_ready = ext_dir.exists() and manifest_file.exists()
+    
+    # 6. Windows Shortcuts Check
+    desktop_shortcut = False
+    start_shortcut = False
+    try:
+        desktop_dir = Path(os.path.expandvars("%USERPROFILE%")) / "Desktop"
+        desktop_shortcut = (desktop_dir / "ProcSnap.lnk").exists()
+        
+        programs_dir = Path(os.path.expandvars("%APPDATA%")) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+        start_shortcut = (programs_dir / "ProcSnap.lnk").exists()
+    except Exception:
+        pass
+        
+    return {
+        "success": True,
+        "status": "ready" if all_packages_ok and db_connected else "needs_attention",
+        "python": {
+            "version": py_version,
+            "executable": py_executable,
+            "in_venv": in_venv,
+            "os": platform.platform()
+        },
+        "packages": {
+            "all_ok": all_packages_ok,
+            "items": package_results
+        },
+        "database": {
+            "connected": db_connected,
+            "path": str(db_file),
+            "size_bytes": db_size,
+            "workflows_count": wf_count,
+            "steps_count": step_count
+        },
+        "ollama": ollama_info,
+        "extension": {
+            "ready": extension_ready,
+            "path": str(ext_dir)
+        },
+        "shortcuts": {
+            "desktop": desktop_shortcut,
+            "start_menu": start_shortcut
+        }
+    }
+
+
+@app.post("/system/reinstall-packages")
+def reinstall_packages():
+    """
+    Runs pip install -r requirements.txt using the active Python executable.
+    """
+    req_file = BASE_DIR / "requirements.txt"
+    if not req_file.exists():
+        raise HTTPException(status_code=404, detail="requirements.txt not found")
+        
+    try:
+        cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "-r", str(req_file)]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        
+        output = result.stdout + "\n" + result.stderr
+        success = (result.returncode == 0)
+        
+        return {
+            "success": success,
+            "return_code": result.returncode,
+            "output": output.strip() or "Installation completed."
+        }
+    except subprocess.TimeoutExpired:
+        return {"success": False, "output": "Installation timed out after 120 seconds."}
+    except Exception as e:
+        return {"success": False, "output": f"Error running package installer: {str(e)}"}
+
+
+@app.post("/system/repair-shortcuts")
+def repair_shortcuts():
+    """
+    Re-creates Desktop and Start Menu shortcuts for ProcSnap.
+    """
+    install_dir = BASE_DIR.parent
+    vbs_path = Path(os.path.expandvars("%TEMP%")) / "create_procsnap_shortcuts.vbs"
+    
+    script_content = f"""Set WshShell = CreateObject("WScript.Shell")
+strDesktop = WshShell.SpecialFolders("Desktop")
+strPrograms = WshShell.SpecialFolders("Programs")
+
+' Desktop shortcut
+Set oLink1 = WshShell.CreateShortcut(strDesktop & "\\ProcSnap.lnk")
+oLink1.TargetPath = "{install_dir}\\start.bat"
+oLink1.WorkingDirectory = "{install_dir}"
+oLink1.Description = "ProcSnap - Local Process Recorder & SOP Studio"
+oLink1.IconLocation = "shell32.dll, 220"
+oLink1.Save
+
+' Start Menu shortcut
+Set oLink2 = WshShell.CreateShortcut(strPrograms & "\\ProcSnap.lnk")
+oLink2.TargetPath = "{install_dir}\\start.bat"
+oLink2.WorkingDirectory = "{install_dir}"
+oLink2.Description = "ProcSnap - Local Process Recorder & SOP Studio"
+oLink2.IconLocation = "shell32.dll, 220"
+oLink2.Save
+"""
+    try:
+        vbs_path.write_text(script_content, encoding="utf-8")
+        subprocess.run(["cscript", "//nologo", str(vbs_path)], check=True, capture_output=True)
+        if vbs_path.exists():
+            vbs_path.unlink()
+        return {"success": True, "message": "Shortcuts created successfully on Desktop and Start Menu."}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to create shortcuts: {str(e)}"}
+
+
+@app.post("/system/open-extension-installer")
+def open_extension_installer():
+    """
+    Opens the multi-browser extension helper tool.
+    """
+    helper_bat = BASE_DIR.parent / "install_extension.bat"
+    if helper_bat.exists():
+        try:
+            subprocess.Popen(["cmd.exe", "/c", "start", "", str(helper_bat)], shell=True)
+            return {"success": True, "message": "Browser extension installer launched."}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+    return {"success": False, "message": "install_extension.bat not found."}
+

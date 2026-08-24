@@ -1924,4 +1924,222 @@ svg {
     display: none !important;
 }
 
+/* =========================================================
+   SYSTEM REQUIREMENTS & DIAGNOSTICS MODAL
+========================================================= */
+
+.req-modal-dialog {
+    max-width: 820px !important;
+    width: 90% !important;
+}
+
+.req-modal-body {
+    padding: 20px 24px;
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+.req-overall-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 18px;
+    border: 1px solid;
+    transition: all 0.3s ease;
+}
+
+.req-overall-banner.ok {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.25);
+    color: #10b981;
+}
+
+.req-overall-banner.needs_attention {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.25);
+    color: #f59e0b;
+}
+
+.req-overall-banner .banner-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: currentColor;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.req-overall-banner .banner-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.req-overall-banner .banner-info strong {
+    font-size: 14px;
+    color: #fff;
+}
+
+.req-overall-banner .banner-info span {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.req-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.req-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    gap: 8px;
+}
+
+.req-card-icon {
+    font-size: 20px;
+}
+
+.req-card-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.req-card-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.req-card-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.req-badge-ok {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.req-badge-missing {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.req-badge-warn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.req-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.req-table-container {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.req-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    text-align: left;
+}
+
+.req-table th {
+    background: rgba(255, 255, 255, 0.04);
+    padding: 9px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.req-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #d1d5db;
+}
+
+.req-table tr:last-child td {
+    border-bottom: none;
+}
+
+.diagnostics-terminal {
+    background: #090d16;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 11px;
+    color: #86efac;
+    max-height: 180px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+.req-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+
 

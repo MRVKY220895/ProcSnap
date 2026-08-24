@@ -248,6 +248,13 @@ async function init() {
         };
     }
 
+    // System Requirements Diagnostic Modal binding
+    if ($("systemRequirementsBtn")) {
+        $("systemRequirementsBtn").onclick = () => {
+            openSystemRequirementsModal();
+        };
+    }
+
     // Toggle sidebar listener
     const toggleSidebarBtn = $("toggleSidebarBtn");
     if (toggleSidebarBtn) {
@@ -4100,5 +4107,222 @@ if ($("dcCapturePickerBtn")) {
             if ($("dcCapturePickerBtn")) $("dcCapturePickerBtn").disabled = false;
         }
     };
+}
+
+
+/* =========================================================
+   SYSTEM REQUIREMENTS & DIAGNOSTICS CONTROLLER
+========================================================= */
+
+function openSystemRequirementsModal() {
+    const modal = $("systemRequirementsModal");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+
+    // Close button listeners
+    const closeBtn = $("closeRequirementsModalBtn");
+    const closeBtn2 = $("closeRequirementsModalBtn2");
+    if (closeBtn) closeBtn.onclick = () => modal.classList.add("hidden");
+    if (closeBtn2) closeBtn2.onclick = () => modal.classList.add("hidden");
+
+    // Re-scan button
+    const refreshBtn = $("refreshReqBtn");
+    if (refreshBtn) refreshBtn.onclick = loadSystemRequirements;
+
+    // Fix shortcuts
+    const btnShortcuts = $("btnRepairShortcuts");
+    if (btnShortcuts) {
+        btnShortcuts.onclick = async () => {
+            btnShortcuts.disabled = true;
+            try {
+                const res = await api("/system/repair-shortcuts", { method: "POST" });
+                showToast(res.message || "Shortcuts verified!");
+                await loadSystemRequirements();
+            } catch(e) {
+                showToast("Shortcuts repair failed: " + e.message);
+            } finally {
+                btnShortcuts.disabled = false;
+            }
+        };
+    }
+
+    // Launch extension installer helper
+    const btnExt = $("btnLaunchExtHelper");
+    if (btnExt) {
+        btnExt.onclick = async () => {
+            try {
+                const res = await api("/system/open-extension-installer", { method: "POST" });
+                showToast(res.message || "Extension installer launched!");
+            } catch(e) {
+                showToast("Extension helper error: " + e.message);
+            }
+        };
+    }
+
+    // Start Ollama inside modal
+    const btnAi = $("btnStartOllamaInModal");
+    if (btnAi) {
+        btnAi.onclick = async () => {
+            btnAi.disabled = true;
+            btnAi.textContent = "Starting AI...";
+            try {
+                const res = await api("/ai/start-ollama", { method: "POST" });
+                showToast(res.message || "Ollama started");
+                setTimeout(loadSystemRequirements, 2500);
+            } catch(e) {
+                showToast("Ollama error: " + e.message);
+            } finally {
+                btnAi.disabled = false;
+                btnAi.textContent = "🤖 Start Ollama AI";
+            }
+        };
+    }
+
+    // Reinstall Packages Button (Pip)
+    const btnReinstall = $("reinstallPackagesBtn");
+    if (btnReinstall) {
+        btnReinstall.onclick = async () => {
+            const terminalWrap = $("repairTerminalWrapper");
+            const terminalOut = $("repairTerminalOutput");
+            const terminalStatus = $("repairTerminalStatus");
+            if (terminalWrap) terminalWrap.classList.remove("hidden");
+            if (terminalStatus) {
+                terminalStatus.textContent = "Running pip install...";
+                terminalStatus.style.color = "#a5b4fc";
+            }
+            if (terminalOut) terminalOut.textContent = "Running: python -m pip install --upgrade -r requirements.txt\nPlease wait...\n";
+
+            btnReinstall.disabled = true;
+            btnReinstall.textContent = "🔄 Installing...";
+
+            try {
+                const res = await api("/system/reinstall-packages", { method: "POST" });
+                if (terminalOut) terminalOut.textContent = res.output || "Installation finished.";
+                if (res.success) {
+                    if (terminalStatus) {
+                        terminalStatus.textContent = "✓ Success";
+                        terminalStatus.style.color = "#34d399";
+                    }
+                    showToast("Dependencies installed / updated successfully!");
+                } else {
+                    if (terminalStatus) {
+                        terminalStatus.textContent = "✗ Error (Exit code " + (res.return_code || 1) + ")";
+                        terminalStatus.style.color = "#f87171";
+                    }
+                    showToast("Some packages encountered issues during install.");
+                }
+                await loadSystemRequirements();
+            } catch(e) {
+                if (terminalOut) terminalOut.textContent = "Execution failed: " + e.message;
+                if (terminalStatus) {
+                    terminalStatus.textContent = "✗ Error";
+                    terminalStatus.style.color = "#f87171";
+                }
+                showToast("Pip execution failed: " + e.message);
+            } finally {
+                btnReinstall.disabled = false;
+                btnReinstall.textContent = "🔄 Re-install / Update Packages";
+            }
+        };
+    }
+
+    loadSystemRequirements();
+}
+
+async function loadSystemRequirements() {
+    try {
+        const data = await api("/system/requirements");
+        if (!data || !data.success) throw new Error("Invalid response");
+
+        // 1. Overall Banner
+        const banner = $("reqStatusBanner");
+        const bIcon = $("reqBannerIcon");
+        const bTitle = $("reqBannerTitle");
+        const bDesc = $("reqBannerDesc");
+
+        if (data.status === "ready") {
+            if (banner) banner.className = "req-overall-banner ok";
+            if (bIcon) bIcon.textContent = "✓";
+            if (bTitle) bTitle.textContent = "System Fully Operational";
+            if (bDesc) bDesc.textContent = "All core packages, database, and background services are active and healthy.";
+        } else {
+            if (banner) banner.className = "req-overall-banner needs_attention";
+            if (bIcon) bIcon.textContent = "!";
+            if (bTitle) bTitle.textContent = "Attention Needed";
+            if (bDesc) bDesc.textContent = "Some required dependencies or components are not yet installed.";
+        }
+
+        // 2. Python Card
+        if (data.python) {
+            setText("valPyVer", `Python ${data.python.version}`);
+            setText("valPyVenv", data.python.in_venv ? "Virtualenv: Isolated" : "System Python");
+            const badgePy = $("badgePython");
+            if (badgePy) badgePy.className = "req-badge-ok";
+        }
+
+        // 3. Database Card
+        if (data.database) {
+            setText("valDbStatus", data.database.connected ? "Connected" : "Disconnected");
+            const mb = (data.database.size_bytes / (1024 * 1024)).toFixed(2);
+            setText("valDbStats", `${data.database.workflows_count} workflows • ${data.database.steps_count} steps (${mb} MB)`);
+            const badgeDb = $("badgeDatabase");
+            if (badgeDb) {
+                badgeDb.className = data.database.connected ? "req-badge-ok" : "req-badge-missing";
+                badgeDb.textContent = data.database.connected ? "✓ OK" : "✗ Error";
+            }
+        }
+
+        // 4. AI Card
+        if (data.ollama) {
+            setText("valAiStatus", data.ollama.running ? "Ollama Active" : "Ollama Offline");
+            const modelsCount = (data.ollama.models || []).length;
+            setText("valAiModels", `${modelsCount} model${modelsCount === 1 ? "" : "s"} installed`);
+            const badgeAi = $("badgeAI");
+            if (badgeAi) {
+                if (data.ollama.running && data.ollama.required_models_present) {
+                    badgeAi.className = "req-badge-ok";
+                    badgeAi.textContent = "✓ Ready";
+                } else if (data.ollama.running) {
+                    badgeAi.className = "req-badge-warn";
+                    badgeAi.textContent = "Pull Models";
+                } else {
+                    badgeAi.className = "req-badge-warn";
+                    badgeAi.textContent = "Optional";
+                }
+            }
+        }
+
+        // 5. Extension Card
+        if (data.extension) {
+            setText("valExtStatus", data.extension.ready ? "Extension Ready" : "Missing Folder");
+            const badgeExt = $("badgeExtension");
+            if (badgeExt) {
+                badgeExt.className = data.extension.ready ? "req-badge-ok" : "req-badge-missing";
+                badgeExt.textContent = data.extension.ready ? "✓ Ready" : "✗ Missing";
+            }
+        }
+
+        // 6. Packages Table
+        const tbody = $("reqPackagesTbody");
+        if (tbody && data.packages && data.packages.items) {
+            tbody.innerHTML = data.packages.items.map(p => `
+                <tr>
+                    <td style="font-weight: 700; color: #fff;">${esc(p.name)}</td>
+                    <td><code>${esc(p.version)}</code></td>
+                    <td style="color: var(--text-muted);">${esc(p.required)}</td>
+                    <td>
+                        <span class="${p.installed ? 'req-badge-ok' : 'req-badge-missing'}" style="position: static;">
+                            ${p.installed ? '✓ Installed' : '✗ Missing'}
+                        </span>
+                    </td>
+                    <td style="font-size: 11px; color: var(--text-muted);">${esc(p.description)}</td>
+                </tr>
+            `).join("");
+        }
+
+    } catch (e) {
+        console.error("Failed to load system requirements:", e);
+        showToast("Error checking requirements: " + e.message);
+    }
 }
 
