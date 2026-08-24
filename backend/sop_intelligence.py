@@ -1,4 +1,4 @@
-﻿"""
+"""
 ProcSnap SOP Intelligence Engine - Phase 3
 Auto Title Generation, Description Generation, Process Metadata, Intent Markers
 All rule-based — no external AI required.
@@ -164,13 +164,18 @@ class MetadataGenerator:
                 'estimated_duration_min': duration_min, 'total_steps': total_steps,
                 'suggested_tags': applications[:3]}
 
-    def generate_step_titles(self, steps: List[dict]) -> dict:
+    def generate_step_titles(self, steps: List[dict], force: bool = True) -> dict:
         gen = TitleGenerator()
+        if force:
+            return {s['id']: gen.generate(s) for s in steps}
         return {s['id']: gen.generate(s) for s in steps if not (s.get('edited_title') or '').strip()}
 
-    def generate_step_descriptions(self, steps: List[dict]) -> dict:
+    def generate_step_descriptions(self, steps: List[dict], force: bool = False) -> dict:
         gen = DescriptionGenerator()
+        if force:
+            return {s['id']: gen.generate(s, s.get('semantic_class')) for s in steps}
         return {s['id']: gen.generate(s, s.get('semantic_class')) for s in steps if not (s.get('edited_description') or '').strip()}
+
 
     def _extract_applications(self, steps: List[dict]) -> List[str]:
         seen: dict = {}
