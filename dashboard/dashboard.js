@@ -5224,8 +5224,8 @@ async function loadSystemRequirements() {
         if (tbody && data.packages && data.packages.items) {
             tbody.innerHTML = data.packages.items.map(p => `
                 <tr>
-                    <td style="font-weight: 700; color: #fff;">${esc(p.name)}</td>
-                    <td><code>${esc(p.version)}</code></td>
+                    <td style="font-weight: 700; color: var(--text-primary);">${esc(p.name)}</td>
+                    <td><code style="background: var(--code-bg); color: var(--code-text); padding: 2px 6px; border-radius: 4px;">${esc(p.version)}</code></td>
                     <td style="color: var(--text-muted);">${esc(p.required)}</td>
                     <td>
                         <span class="${p.installed ? 'req-badge-ok' : 'req-badge-missing'}" style="position: static;">

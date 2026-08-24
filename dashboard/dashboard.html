@@ -847,12 +847,12 @@
     <!-- System Requirements & Health Diagnostics Modal -->
     <div id="systemRequirementsModal" class="modal-backdrop hidden">
         <div class="modal-dialog req-modal-dialog">
-            <div class="modal-header">
+            <div class="modal-header req-modal-header">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span style="font-size: 24px;">🛠️</span>
                     <div>
-                        <h2 style="font-size: 17px; font-weight: 700; margin: 0; color: #fff;">System Requirements & Diagnostics</h2>
-                        <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Live environment verification, dependency health & auto-repair tools</p>
+                        <h2 class="req-title-h2">System Requirements &amp; Diagnostics</h2>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Live environment verification, dependency health &amp; auto-repair tools</p>
                     </div>
                 </div>
                 <button id="closeRequirementsModalBtn" class="modal-close-btn" title="Close modal">✕</button>
@@ -913,7 +913,7 @@
 
                 <!-- Package Dependencies Section -->
                 <div class="req-section-header">
-                    <h3 style="font-size: 14px; font-weight: 700; color: #fff; margin: 0;">📦 Required Package Dependencies</h3>
+                    <h3 class="req-section-h3">📦 Required Package Dependencies</h3>
                     <div style="display: flex; gap: 8px;">
                         <button id="reinstallPackagesBtn" class="btn btn-primary btn-sm" style="font-weight: 600; display: inline-flex; align-items: center; gap: 5px;">
                             🔄 Re-install / Update Packages
@@ -949,7 +949,7 @@
 
                 <!-- GitHub Update Section -->
                 <div class="req-section-header" style="margin-top: 16px;">
-                    <h3 style="font-size: 14px; font-weight: 700; color: #fff; margin: 0;">⬇️ Update ProcSnap from GitHub</h3>
+                    <h3 class="req-section-h3">⬇️ Update ProcSnap from GitHub</h3>
                     <button id="btnGitPull" class="btn btn-primary btn-sm" style="font-weight: 600; display: inline-flex; align-items: center; gap: 5px;">
                         ⬇️ Pull Latest Update
                     </button>
