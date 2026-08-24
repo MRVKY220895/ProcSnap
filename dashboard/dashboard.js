@@ -3479,44 +3479,63 @@ setOnclick("addNewStepBtn", async () => {
 ========================================================= */
 
 function renderPlaybackTab() {
-    const visibleSteps = (workflow.steps || []).filter(s => !s.hidden);
+    if (!workflow) return;
+    const allSteps = workflow.steps || [];
+    const visibleSteps = allSteps.filter(s => !s.hidden);
     
     if (visibleSteps.length === 0) {
-        $("tab-play").innerHTML = '<div class="no-results">No visible steps to play</div>';
+        if ($("playStepTitle")) $("playStepTitle").textContent = "No visible steps to play";
+        if ($("playStepBadge")) $("playStepBadge").textContent = "-";
+        if ($("playStepDesc")) $("playStepDesc").textContent = "Add steps or unhide steps to enable presentation playback.";
+        if ($("playImg")) {
+            $("playImg").src = "";
+            $("playImg").classList.add("hidden");
+        }
+        if ($("playProgress")) $("playProgress").textContent = "0 of 0";
+        if ($("pptPrevCard")) $("pptPrevCard").style.visibility = "hidden";
+        if ($("pptNextCard")) $("pptNextCard").style.visibility = "hidden";
+        if ($("pptDeckFilmstrip")) $("pptDeckFilmstrip").innerHTML = "";
         return;
     }
 
-    let playIdx = 0;
+    let playIdx = Math.max(0, Math.min(visibleSteps.length - 1, currentStepIndex));
+    const currentSeq = allSteps[currentStepIndex] ? allSteps[currentStepIndex].sequence : null;
+    if (currentSeq) {
+        const foundIdx = visibleSteps.findIndex(s => s.sequence === currentSeq);
+        if (foundIdx !== -1) playIdx = foundIdx;
+    }
     
     const showPlayStep = () => {
         const s = visibleSteps[playIdx];
         if (!s) return;
         
-        $("playStepTitle").textContent = s.title || getDefaultTitle(s);
-        $("playStepBadge").textContent = s.sequence;
-        $("playStepDesc").textContent = s.description || getDefaultDescription(s);
+        if ($("playStepTitle")) $("playStepTitle").textContent = s.title || getDefaultTitle(s);
+        if ($("playStepBadge")) $("playStepBadge").textContent = s.sequence;
+        if ($("playStepDesc")) $("playStepDesc").textContent = s.description || getDefaultDescription(s);
         if ($("playVoiceText")) {
             $("playVoiceText").value = s.voiceover || s.description || getDefaultDescription(s);
         }
         
-        if (s.note) {
+        if (s.note && $("playStepNotesBox") && $("playStepNoteText")) {
             $("playStepNotesBox").classList.remove("hidden");
             $("playStepNoteText").textContent = s.note;
-        } else {
+        } else if ($("playStepNotesBox")) {
             $("playStepNotesBox").classList.add("hidden");
         }
         
-        if (s.screenshotUrl) {
-            $("playImg").src = API_BASE + s.screenshotUrl;
-            $("playImg").classList.remove("hidden");
-        } else {
-            $("playImg").src = "";
-            $("playImg").classList.add("hidden");
+        if ($("playImg")) {
+            if (s.screenshotUrl) {
+                $("playImg").src = API_BASE + s.screenshotUrl;
+                $("playImg").classList.remove("hidden");
+            } else {
+                $("playImg").src = "";
+                $("playImg").classList.add("hidden");
+            }
         }
         
-        $("playProgress").textContent = `Step ${playIdx + 1} of ${visibleSteps.length}`;
-        $("playPrevBtn").disabled = playIdx === 0;
-        $("playNextBtn").disabled = playIdx === visibleSteps.length - 1;
+        if ($("playProgress")) $("playProgress").textContent = `Step ${playIdx + 1} of ${visibleSteps.length}`;
+        if ($("playPrevBtn")) $("playPrevBtn").disabled = playIdx === 0;
+        if ($("playNextBtn")) $("playNextBtn").disabled = playIdx === visibleSteps.length - 1;
 
         // Decision Branching in Playback / Presentation View
         let playBranchWrap = $("playBranchActionsWrap");
@@ -3616,6 +3635,22 @@ function renderPlaybackTab() {
         }
     });
 
+    // Keyboard navigation in playback mode
+    if (!window._playbackKeyBound) {
+        window._playbackKeyBound = true;
+        window.addEventListener("keydown", (e) => {
+            if (activeTab !== "play") return;
+            if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+            if (e.key === "ArrowRight" || e.key === "PageDown") {
+                e.preventDefault();
+                $("playNextBtn")?.click();
+            } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+                e.preventDefault();
+                $("playPrevBtn")?.click();
+            }
+        });
+    }
+
     setOnclick("playVoiceBtn", async () => {
         const step = visibleSteps[playIdx];
         if (!step) return;
@@ -3654,11 +3689,212 @@ function renderPlaybackTab() {
 
 
 /* =========================================================
-   EXPORT LOGIC (Phase 7)
+   EXPORT LOGIC & UNIVERSAL LIVE PREVIEWER (Phase 7)
 ========================================================= */
 
+let currentExportPreviewText = "";
+let currentExportDownloadAction = null;
+
+async function openExportPreview(type) {
+    if (!workflow) {
+        showToast("No workflow selected");
+        return;
+    }
+    
+    const modal = $("exportPreviewModal");
+    const titleEl = $("previewModalTitle");
+    const iconEl = $("previewModalIcon");
+    const subEl = $("previewModalSub");
+    const iframe = $("previewIframe");
+    const textWrap = $("previewTextContainer");
+    const visualWrap = $("previewVisualContainer");
+    const spinner = $("previewLoadingSpinner");
+    const copyBtn = $("btnCopyPreviewContent");
+    const downloadBtn = $("btnDownloadFromPreview");
+    
+    if (!modal) return;
+    
+    modal.classList.remove("hidden");
+    iframe.classList.add("hidden");
+    textWrap.classList.add("hidden");
+    visualWrap.classList.add("hidden");
+    spinner.classList.remove("hidden");
+    copyBtn.classList.add("hidden");
+    currentExportPreviewText = "";
+    currentExportDownloadAction = null;
+    
+    const titles = {
+        interactive: { title: "Interactive Guided Walkthrough (.html)", icon: "🎯", sub: "Live interactive simulator mode preview" },
+        docx: { title: "Microsoft Word Document (.docx)", icon: "📄", sub: "Document structure & embedded step layout preview" },
+        pptx: { title: "PowerPoint Presentation (.pptx)", icon: "📊", sub: "Widescreen 16:9 slide deck layout preview" },
+        json: { title: "JSON Portable Backup (.json)", icon: "💾", sub: "Formatted JSON data backup preview" },
+        html: { title: "Self-Contained Standalone HTML (.html)", icon: "📁", sub: "Complete offline HTML documentation preview" },
+        markdown: { title: "GitHub Flavored Markdown (.md)", icon: "📝", sub: "Formatted markdown text preview" },
+        confluence: { title: "Confluence Wiki Markup", icon: "⚡", sub: "Storage format wiki markup preview" },
+        csv: { title: "Structured Spreadsheet CSV", icon: "📊", sub: "Tabular step data preview" },
+        pdf: { title: "Print / PDF Document Preview", icon: "🖨️", sub: "Printable page-break layout preview" }
+    };
+    
+    const meta = titles[type] || { title: "Export Preview", icon: "👁️", sub: "Live export rendering" };
+    titleEl.textContent = meta.title;
+    iconEl.textContent = meta.icon;
+    subEl.textContent = meta.sub;
+    
+    try {
+        if (type === "interactive") {
+            const html = await generateInteractiveWalkthroughHtml();
+            iframe.srcdoc = html;
+            iframe.classList.remove("hidden");
+            currentExportDownloadAction = () => $("exportInteractiveBtn")?.click();
+        } else if (type === "html" || type === "pdf") {
+            const html = await generateOfflineHtml();
+            iframe.srcdoc = html;
+            iframe.classList.remove("hidden");
+            currentExportDownloadAction = () => (type === "pdf" ? $("exportPdfBtn")?.click() : $("exportHtmlBtn")?.click());
+        } else if (type === "markdown") {
+            const md = await generateMarkdown();
+            currentExportPreviewText = md;
+            textWrap.textContent = md;
+            textWrap.classList.remove("hidden");
+            copyBtn.classList.remove("hidden");
+            currentExportDownloadAction = () => $("exportMarkdownBtn")?.click();
+        } else if (type === "confluence") {
+            const markup = generateConfluenceMarkup();
+            currentExportPreviewText = markup;
+            textWrap.textContent = markup;
+            textWrap.classList.remove("hidden");
+            copyBtn.classList.remove("hidden");
+            currentExportDownloadAction = () => $("exportConfluenceBtn")?.click();
+        } else if (type === "csv") {
+            const csv = generateCsv();
+            currentExportPreviewText = csv;
+            textWrap.textContent = csv;
+            textWrap.classList.remove("hidden");
+            copyBtn.classList.remove("hidden");
+            currentExportDownloadAction = () => $("exportCsvBtn")?.click();
+        } else if (type === "json") {
+            try {
+                const res = await fetch(`${API_BASE}/sessions/${encodeURIComponent(workflow.id)}/export/json`);
+                if (res.ok) {
+                    const jsonVal = await res.json();
+                    currentExportPreviewText = JSON.stringify(jsonVal, null, 2);
+                } else {
+                    currentExportPreviewText = JSON.stringify(workflow, null, 2);
+                }
+            } catch (_) {
+                currentExportPreviewText = JSON.stringify(workflow, null, 2);
+            }
+            textWrap.textContent = currentExportPreviewText;
+            textWrap.classList.remove("hidden");
+            copyBtn.classList.remove("hidden");
+            currentExportDownloadAction = () => $("exportJsonBtn")?.click();
+        } else if (type === "docx") {
+            const steps = (workflow.steps || []).filter(s => !s.hidden);
+            visualWrap.innerHTML = `
+                <div style="max-width: 820px; margin: 0 auto; background: #ffffff; color: #1e293b; padding: 48px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif;">
+                    <div style="border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 28px;">
+                        <h1 style="font-size: 26px; color: #1e40af; margin: 0 0 8px 0;">${esc(workflow.name)}</h1>
+                        <div style="font-size: 13px; color: #64748b;">Application: <strong>${esc(workflow.application)}</strong> • Steps: <strong>${steps.length}</strong> • Created with ProcSnap</div>
+                    </div>
+                    ${steps.map(st => `
+                        <div style="margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #e2e8f0;">
+                            <h2 style="font-size: 17px; color: #1e293b; margin: 0 0 10px 0;">
+                                <span style="background: #2563eb; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 13px; margin-right: 8px;">Step ${st.sequence}</span>
+                                ${esc(st.title || getDefaultTitle(st))}
+                            </h2>
+                            <p style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 14px 0;">${esc(st.description || getDefaultDescription(st))}</p>
+                            ${st.screenshotUrl ? `<img src="${API_BASE + st.screenshotUrl}" style="max-width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; display: block;">` : ''}
+                            ${st.note ? `<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #92400e; margin-bottom: 8px;"><strong>Note:</strong> ${esc(st.note)}</div>` : ''}
+                            ${st.expected ? `<div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #065f46;"><strong>Expected Result:</strong> ${esc(st.expected)}</div>` : ''}
+                        </div>
+                    `).join("")}
+                </div>
+            `;
+            visualWrap.classList.remove("hidden");
+            currentExportDownloadAction = () => $("exportDocxBtn")?.click();
+        } else if (type === "pptx") {
+            const steps = (workflow.steps || []).filter(s => !s.hidden);
+            visualWrap.innerHTML = `
+                <div style="max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px;">
+                    <div style="aspect-ratio: 16/9; background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; border-radius: 12px; padding: 48px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 30px rgba(0,0,0,0.4);">
+                        <div style="font-size: 14px; font-weight: 700; color: #d97706; text-transform: uppercase; letter-spacing: 0.1em;">Standard Operating Procedure</div>
+                        <div>
+                            <h1 style="font-size: 32px; font-weight: 800; margin: 0 0 10px 0; color: #fff;">${esc(workflow.name)}</h1>
+                            <p style="font-size: 16px; color: #94a3b8; margin: 0;">Application: ${esc(workflow.application)} • Total Steps: ${steps.length}</p>
+                        </div>
+                        <div style="font-size: 12px; color: #64748b;">ProcSnap SOP Presentation</div>
+                    </div>
+                    ${steps.map((st, i) => `
+                        <div style="aspect-ratio: 16/9; background: #ffffff; color: #1e293b; border-radius: 12px; padding: 28px 36px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 8px 30px rgba(0,0,0,0.25); border: 1px solid #e2e8f0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">
+                                <div style="font-size: 18px; font-weight: 700; color: #0f172a;">
+                                    <span style="background: #d97706; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 13px; margin-right: 8px;">Slide ${i + 1}</span>
+                                    ${esc(st.title || getDefaultTitle(st))}
+                                </div>
+                                <div style="font-size: 12px; font-weight: 600; color: #64748b;">Step ${st.sequence} of ${steps.length}</div>
+                            </div>
+                            <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; margin: 12px 0;">
+                                ${st.screenshotUrl ? `<img src="${API_BASE + st.screenshotUrl}" style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;">` : '<div style="color: #94a3b8;">No Screenshot</div>'}
+                            </div>
+                            <div style="background: #f8fafc; padding: 10px 14px; border-radius: 6px; font-size: 13px; color: #334155; border-left: 3px solid #d97706;">
+                                ${esc(st.description || getDefaultDescription(st))}
+                            </div>
+                        </div>
+                    `).join("")}
+                </div>
+            `;
+            visualWrap.classList.remove("hidden");
+            currentExportDownloadAction = () => $("exportPptxBtn")?.click();
+        }
+    } catch (err) {
+        textWrap.textContent = `Error rendering export preview: ${err.message}`;
+        textWrap.classList.remove("hidden");
+    } finally {
+        spinner.classList.add("hidden");
+    }
+}
+
 function renderExportTab() {
-    // Simply holds UI buttons trigger bindings
+    // Preview buttons
+    document.querySelectorAll(".btn-preview-export").forEach(btn => {
+        btn.onclick = () => {
+            const type = btn.dataset.type;
+            if (type) openExportPreview(type);
+        };
+    });
+
+    // Preview modal actions
+    setOnclick("btnCloseExportPreview", () => {
+        $("exportPreviewModal")?.classList.add("hidden");
+    });
+    
+    setOnclick("btnDownloadFromPreview", () => {
+        if (typeof currentExportDownloadAction === "function") {
+            currentExportDownloadAction();
+        }
+    });
+
+    setOnclick("btnCopyPreviewContent", async () => {
+        if (!currentExportPreviewText) return;
+        try {
+            await navigator.clipboard.writeText(currentExportPreviewText);
+            const btn = $("btnCopyPreviewContent");
+            const prev = btn.textContent;
+            btn.textContent = "✓ Copied!";
+            setTimeout(() => { btn.textContent = prev; }, 2000);
+        } catch (_) {
+            showToast("Failed to copy to clipboard");
+        }
+    });
+
+    const exportModal = $("exportPreviewModal");
+    if (exportModal) {
+        exportModal.onclick = (e) => {
+            if (e.target === exportModal) exportModal.classList.add("hidden");
+        };
+    }
+
+    // Direct Export triggers
     setOnclick("exportInteractiveBtn", async () => {
         if (!workflow) return;
         showToast("Generating Interactive Guided Walkthrough...");

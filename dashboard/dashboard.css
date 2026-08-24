@@ -4102,3 +4102,46 @@ textarea {
     border-color: #cbd5e1 !important;
     color: #0f172a !important;
 }
+
+/* =========================================================
+   UNIVERSAL EXPORT PREVIEW MODAL
+========================================================= */
+.export-card-actions-row {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.btn-preview-export {
+    transition: all 0.2s ease;
+}
+
+.btn-preview-export:hover {
+    border-color: var(--primary, #6366f1) !important;
+    color: var(--primary, #6366f1) !important;
+}
+
+[data-theme="light"] .export-preview-card {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme="light"] .preview-modal-header {
+    background: #f8fafc !important;
+    border-bottom-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] #previewModalTitle {
+    color: #0f172a !important;
+}
+
+[data-theme="light"] #previewModalBody {
+    background: #f1f5f9 !important;
+}
+
+[data-theme="light"] .preview-text-wrap {
+    color: #1e293b !important;
+    background: #ffffff !important;
+}
+
