@@ -300,6 +300,58 @@ async function init() {
         };
     }
 
+    // ── Start / Record Web Extension Modal ──────────────────────────────────────
+    const extModal = $("extensionModal");
+    const extClose = $("extensionModalClose");
+    const extDone = $("extensionModalDoneBtn");
+    const startExtTopbar = $("startExtensionTopbarBtn");
+    const startExtHeader = $("startExtensionHeaderBtn");
+    const btnLaunchExt = $("btnLaunchExtInstaller");
+    const btnCopyExt = $("btnCopyExtPath");
+
+    const openExtModal = () => {
+        if (extModal) extModal.classList.remove("hidden");
+    };
+    if (startExtTopbar) startExtTopbar.onclick = openExtModal;
+    if (startExtHeader) startExtHeader.onclick = openExtModal;
+    if (extClose) extClose.onclick = () => extModal && extModal.classList.add("hidden");
+    if (extDone) extDone.onclick = () => extModal && extModal.classList.add("hidden");
+    if (extModal) {
+        extModal.onclick = (e) => {
+            if (e.target === extModal) extModal.classList.add("hidden");
+        };
+    }
+
+    if (btnLaunchExt) {
+        btnLaunchExt.onclick = async () => {
+            try {
+                btnLaunchExt.disabled = true;
+                btnLaunchExt.textContent = "⏳ Launching...";
+                const res = await api("/system/open-extension-installer", { method: "POST" });
+                showToast(res.message || "Opened browser extension setup!");
+            } catch (e) {
+                showToast("Failed to launch installer: " + e.message);
+            } finally {
+                btnLaunchExt.disabled = false;
+                btnLaunchExt.textContent = "🚀 One-Click Browser Installer";
+            }
+        };
+    }
+
+    if (btnCopyExt) {
+        btnCopyExt.onclick = async () => {
+            try {
+                const extPath = window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
+                    ? "C:\\Users\\HP\\Downloads\\tango-local\\tango-local\\extension"
+                    : "extension";
+                await navigator.clipboard.writeText(extPath);
+                showToast("📋 Extension path copied to clipboard!");
+            } catch (e) {
+                showToast("Path: C:\\Users\\HP\\Downloads\\tango-local\\tango-local\\extension");
+            }
+        };
+    }
+
     // ── Theme Toggle (Light/Dark) ──────────────────────────────────────────────
     const themeToggleBtn = $("themeToggleBtn");
     const applyTheme = (theme) => {

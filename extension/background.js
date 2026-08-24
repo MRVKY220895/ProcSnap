@@ -776,7 +776,21 @@ chrome.runtime.onMessage.addListener(
 
 
 /* =========================================================
-   STARTUP
+   STARTUP & KEYBOARD SHORTCUTS
 ========================================================= */
 
 loadState();
+
+if (typeof chrome !== "undefined" && chrome.commands && chrome.commands.onCommand) {
+    chrome.commands.onCommand.addListener(async (command) => {
+        if (command === "toggle-recording") {
+            if (recording) {
+                console.log("[ProcSnap] Keyboard shortcut triggered: Stopping recording...");
+                await stopRecording();
+            } else {
+                console.log("[ProcSnap] Keyboard shortcut triggered: Starting recording...");
+                await startRecording("Browser Workflow");
+            }
+        }
+    });
+}

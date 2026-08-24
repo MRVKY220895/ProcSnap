@@ -33,6 +33,9 @@
                     <span id="aiErrorText"></span>
                     <button id="dismissAiErrorBtn" class="dismiss-btn" title="Dismiss error">✕</button>
                 </div>
+                <button id="startExtensionTopbarBtn" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="Start recording web workflows with ProcSnap extension">
+                    🔴 Start Extension
+                </button>
                 <button id="donateBtn" class="btn btn-secondary btn-sm donate-topbar-btn" style="padding: 4px 10px; font-size: 12px; font-weight: 700; color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Support ProcSnap development">
                     ☕ Support
                 </button>
@@ -111,6 +114,9 @@
                             </div>
                         </div>
                         <div class="header-actions">
+                            <button id="startExtensionHeaderBtn" class="btn btn-primary" style="padding: 6px 12px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;" title="Start recording web workflows with browser extension">
+                                🔴 Record Web App
+                            </button>
                             <button id="captureDesktopBtn" class="btn btn-secondary" title="Capture full Windows Desktop screen (Excel, SAP, Word, etc.)" style="padding: 6px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
                                 🖥️ Capture Desktop Screen
                             </button>
@@ -1008,6 +1014,57 @@
             </div>
             <div class="modal-footer req-modal-footer" style="justify-content: flex-end;">
                 <button id="donateModalDoneBtn" class="btn btn-primary btn-sm">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start / Install Extension Modal -->
+    <div id="extensionModal" class="modal-backdrop hidden">
+        <div class="modal-dialog" style="max-width: 580px;">
+            <div class="req-modal-header">
+                <div class="req-modal-title">
+                    <span class="req-modal-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">🧩</span>
+                    <div>
+                        <h2>Start Browser Recording</h2>
+                        <p class="req-modal-sub">Record any website or web application with the ProcSnap Extension</p>
+                    </div>
+                </div>
+                <button id="extensionModalClose" class="req-close-btn" title="Close">✕</button>
+            </div>
+            <div class="donate-modal-body" style="padding: 20px;">
+                <!-- If Already Installed -->
+                <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+                    <div style="font-weight: 700; font-size: 13.5px; color: #34d399; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <span>⚡</span> Ready to Record? (3 Quick Steps)
+                    </div>
+                    <ol style="margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.6; color: var(--text-light);">
+                        <li>Open the website or web application you want to document in a new tab.</li>
+                        <li>Click the <strong>ProcSnap (P)</strong> icon in your browser toolbar (click the 🧩 puzzle icon and pin 📌 ProcSnap).</li>
+                        <li>Click <strong>Start Recording</strong> — your clicks, inputs, and screens will be captured!</li>
+                        <li>Click <strong>Stop & Open Studio</strong> when finished.</li>
+                    </ol>
+                </div>
+
+                <!-- If Not Yet Installed -->
+                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); padding: 14px;">
+                    <div style="font-weight: 700; font-size: 13px; color: #fff; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <span>🛠️</span> Extension Setup (If Not Installed Yet)
+                    </div>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+                        Load the extension folder into Chrome, Edge, Brave, Opera, or Vivaldi in 15 seconds.
+                    </p>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button id="btnLaunchExtInstaller" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px;">
+                            🚀 One-Click Browser Installer
+                        </button>
+                        <button id="btnCopyExtPath" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px;">
+                            📋 Copy Extension Path
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer req-modal-footer" style="justify-content: flex-end;">
+                <button id="extensionModalDoneBtn" class="btn btn-secondary btn-sm">Close</button>
             </div>
         </div>
     </div>
