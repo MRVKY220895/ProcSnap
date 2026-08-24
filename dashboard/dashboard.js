@@ -8557,10 +8557,23 @@ class BpmnFlowchartEngine {
             showToast(`🔀 Decision branch added: ${label} ➔ Step ${targetSeq}`);
         });
 
-        // 6. Export Actions
+        // 6. Auto-Align & Reset Layout Action
+        setOnclick("btnBpmnAutoAlign", () => this.autoAlignLayout());
+
+        // 7. Export Actions
         setOnclick("btnBpmnExportSvg", () => this.exportSvg());
         setOnclick("btnBpmnExportPng", () => this.exportPng());
         setOnclick("btnBpmnCopyMermaid", () => this.copyMermaid());
+    }
+
+    autoAlignLayout() {
+        if (!workflow || !workflow.steps) return;
+        workflow.steps.forEach(s => {
+            delete s.bpmn_pos;
+        });
+        saveActiveStepEditsSilent();
+        this.render();
+        showToast("⚡ Flowchart auto-aligned into clean serpentine layout!");
     }
 
     setMode(mode) {
@@ -8655,20 +8668,23 @@ class BpmnFlowchartEngine {
         this.nodes.push(startNode);
 
         nodesLayer.innerHTML += `
-            <g class="bpmn-node-group" transform="translate(${startNode.x}, ${startNode.y})">
+            <g class="bpmn-node-group" id="bpmnNode-start" data-id="start" transform="translate(${startNode.x}, ${startNode.y})">
                 <circle cx="20" cy="20" r="20" class="bpmn-start-event" />
                 <polygon points="15,11 28,20 15,29" fill="#ffffff" />
                 <text x="20" y="52" font-size="10.5" font-weight="800" fill="#10b981" text-anchor="middle">START</text>
             </g>
         `;
 
-        // 2. Compute 4-Column Serpentine Grid Positions
+        // 2. Compute 4-Column Serpentine Grid Positions (Respecting Manual Custom Positions)
         steps.forEach((st, idx) => {
             const row = Math.floor(idx / colsPerRow);
             const col = idx % colsPerRow;
 
-            const nodeX = rowStartX + col * (cardW + gapX);
-            const nodeY = startY + row * (cardH + gapY);
+            const defaultX = rowStartX + col * (cardW + gapX);
+            const defaultY = startY + row * (cardH + gapY);
+
+            const nodeX = st.bpmn_pos?.x ?? defaultX;
+            const nodeY = st.bpmn_pos?.y ?? defaultY;
 
             const taskNode = {
                 id: `step-${st.sequence}`,
@@ -8680,14 +8696,14 @@ class BpmnFlowchartEngine {
                 h: cardH,
                 row: row,
                 col: col,
-                isRowStart: col === 0,
-                isRowEnd: col === (colsPerRow - 1) || idx === (steps.length - 1)
+                isCustom: !!st.bpmn_pos
             };
             this.nodes.push(taskNode);
 
             // Connect previous node
             const prevNode = (idx === 0) ? startNode : this.nodes[this.nodes.length - 2];
             this.connections.push({
+                id: `conn-${prevNode.id}-${taskNode.id}`,
                 from: prevNode,
                 to: taskNode,
                 type: "sequence"
@@ -8695,8 +8711,9 @@ class BpmnFlowchartEngine {
 
             // Branching decision
             if (st.branches && st.branches.length > 0) {
-                st.branches.forEach(b => {
+                st.branches.forEach((b, bIdx) => {
                     this.connections.push({
+                        id: `conn-branch-${taskNode.id}-${b.target_sequence}-${bIdx}`,
                         from: taskNode,
                         toSeq: b.target_sequence,
                         label: b.label,
@@ -8711,20 +8728,19 @@ class BpmnFlowchartEngine {
         const lastCol = (steps.length - 1) % colsPerRow;
         const lastRow = Math.floor((steps.length - 1) / colsPerRow);
 
-        let endX = lastTask.x + cardW + gapX;
-        let endY = lastTask.y + (cardH / 2) - 20;
+        let defaultEndX = lastTask.x + cardW + gapX;
+        let defaultEndY = lastTask.y + (cardH / 2) - 20;
 
-        // If last node is at row end, place end node nicely below or adjacent
         if (lastCol === colsPerRow - 1) {
-            endX = lastTask.x + (cardW / 2) - 20;
-            endY = lastTask.y + cardH + 40;
+            defaultEndX = lastTask.x + (cardW / 2) - 20;
+            defaultEndY = lastTask.y + cardH + 40;
         }
 
         const endNode = {
             id: "end",
             type: "end",
-            x: endX,
-            y: endY,
+            x: defaultEndX,
+            y: defaultEndY,
             w: 40,
             h: 40,
             row: lastRow,
@@ -8733,87 +8749,21 @@ class BpmnFlowchartEngine {
         this.nodes.push(endNode);
 
         this.connections.push({
+            id: `conn-${lastTask.id}-end`,
             from: lastTask,
             to: endNode,
             type: "sequence"
         });
 
         nodesLayer.innerHTML += `
-            <g class="bpmn-node-group" transform="translate(${endNode.x}, ${endNode.y})">
+            <g class="bpmn-node-group" id="bpmnNode-end" data-id="end" transform="translate(${endNode.x}, ${endNode.y})">
                 <circle cx="20" cy="20" r="20" class="bpmn-end-event" />
                 <rect x="13" y="13" width="14" height="14" rx="2" fill="#ffffff" />
                 <text x="20" y="52" font-size="10.5" font-weight="800" fill="#ef4444" text-anchor="middle">END</text>
             </g>
         `;
 
-        // 4. Draw Orthogonal & Serpentine Manhattan Connections
-        this.connections.forEach(conn => {
-            let startPt, endPt;
-            let targetNode = conn.to;
-
-            if (conn.type === "branch") {
-                targetNode = this.nodes.find(n => n.step && n.step.sequence === conn.toSeq);
-            }
-
-            if (!conn.from || !targetNode) return;
-
-            const fromNode = conn.from;
-            let pathD = "";
-
-            if (fromNode.type === "start") {
-                startPt = { x: fromNode.x + fromNode.w, y: fromNode.y + (fromNode.h / 2) };
-                endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
-                pathD = `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`;
-            } else if (targetNode.type === "end" && targetNode.y > fromNode.y + 20) {
-                startPt = { x: fromNode.x + (fromNode.w / 2), y: fromNode.y + fromNode.h };
-                endPt = { x: targetNode.x + 20, y: targetNode.y };
-                pathD = `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`;
-            } else if (fromNode.row === targetNode.row) {
-                // Same Row: Straight horizontal connector
-                startPt = { x: fromNode.x + fromNode.w, y: fromNode.y + (fromNode.h / 2) };
-                endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
-                pathD = `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`;
-            } else if (targetNode.row === fromNode.row + 1) {
-                // Row Wrap (End of Row N -> Start of Row N+1): Serpentine Manhattan S-Curve
-                startPt = { x: fromNode.x + fromNode.w, y: fromNode.y + (fromNode.h / 2) };
-                endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
-                const midY = fromNode.y + cardH + (gapY / 2);
-                const loopRight = startPt.x + 35;
-                const loopLeft = rowStartX - 35;
-
-                pathD = `M ${startPt.x} ${startPt.y} 
-                         C ${loopRight} ${startPt.y}, ${loopRight} ${midY}, ${startPt.x} ${midY}
-                         L ${rowStartX} ${midY}
-                         C ${loopLeft} ${midY}, ${loopLeft} ${endPt.y}, ${endPt.x - 20} ${endPt.y}
-                         L ${endPt.x} ${endPt.y}`;
-            } else {
-                // Multi-row jump / Branching: Clean curved elbow
-                startPt = { x: fromNode.x + fromNode.w, y: fromNode.y + (fromNode.h / 2) };
-                endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
-                const midX = (startPt.x + endPt.x) / 2;
-                pathD = `M ${startPt.x} ${startPt.y} C ${midX} ${startPt.y}, ${midX} ${endPt.y}, ${endPt.x} ${endPt.y}`;
-            }
-
-            const markerAttr = (conn.type === "branch") ? 'marker-end="url(#bpmnBranchArrow)"' : 'marker-end="url(#bpmnArrowhead)"';
-            const lineClass = (conn.type === "branch") ? 'bpmn-connector-line branch-line' : 'bpmn-connector-line';
-
-            connectorsLayer.innerHTML += `<path d="${pathD}" class="${lineClass}" ${markerAttr} />`;
-
-            // Draw Branch Decision Label
-            if (conn.label) {
-                const labelX = (startPt.x + endPt.x) / 2;
-                const labelY = (startPt.y + endPt.y) / 2 - 12;
-                const labelW = Math.max(75, conn.label.length * 6.5);
-                connectorsLayer.innerHTML += `
-                    <g transform="translate(${labelX - (labelW/2)}, ${labelY})">
-                        <rect width="${labelW}" height="18" class="bpmn-branch-label-bg" />
-                        <text x="${labelW/2}" y="12" class="bpmn-branch-label-text">${esc(conn.label)}</text>
-                    </g>
-                `;
-            }
-        });
-
-        // 5. Render Rich Miro-Grade Step Nodes
+        // 4. Render Rich Miro-Grade Step Nodes
         this.nodes.forEach(node => {
             if (node.type === "task") {
                 const st = node.step;
@@ -8830,7 +8780,7 @@ class BpmnFlowchartEngine {
                 }
 
                 const nodeMarkup = `
-                    <g class="bpmn-node-group ${isSelected ? 'active' : ''}" data-seq="${st.sequence}" transform="translate(${node.x}, ${node.y})">
+                    <g class="bpmn-node-group ${isSelected ? 'active' : ''}" id="bpmnNode-${st.sequence}" data-seq="${st.sequence}" transform="translate(${node.x}, ${node.y})">
                         <rect width="${node.w}" height="${node.h}" class="bpmn-node-card" />
                         
                         <!-- Step Badge Pill -->
@@ -8857,24 +8807,185 @@ class BpmnFlowchartEngine {
             }
         });
 
-        // 6. Node Click Sync & Inline Inspector Trigger
-        nodesLayer.querySelectorAll(".bpmn-node-group[data-seq]").forEach(grp => {
-            grp.onclick = (e) => {
+        // 5. Draw Dynamic Smart Connecting Arrows
+        this.updateConnectors();
+
+        // 6. Wire Interactive Freeform Node Dragging & Selection
+        this.initNodeDragAndSelect();
+
+        this.updateTransform();
+    }
+
+    computeDynamicPath(fromNode, targetNode) {
+        const fromCenterX = fromNode.x + (fromNode.w / 2);
+        const fromCenterY = fromNode.y + (fromNode.h / 2);
+        const targetCenterX = targetNode.x + (targetNode.w / 2);
+        const targetCenterY = targetNode.y + (targetNode.h / 2);
+
+        const dx = targetCenterX - fromCenterX;
+        const dy = targetCenterY - fromCenterY;
+
+        let startPt, endPt;
+
+        // If target is to the right
+        if (Math.abs(dx) >= Math.abs(dy) && dx > 0) {
+            startPt = { x: fromNode.x + fromNode.w, y: fromCenterY };
+            endPt = { x: targetNode.x, y: targetCenterY };
+            
+            if (Math.abs(dy) < 25) {
+                // Straight line
+                return `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`;
+            } else {
+                // Smooth Manhattan Bezier S-Curve
+                const midX = (startPt.x + endPt.x) / 2;
+                return `M ${startPt.x} ${startPt.y} C ${midX} ${startPt.y}, ${midX} ${endPt.y}, ${endPt.x} ${endPt.y}`;
+            }
+        } 
+        // If target is to the left (e.g. wrapping to next line or dragged backwards)
+        else if (Math.abs(dx) >= Math.abs(dy) && dx < 0) {
+            startPt = { x: fromNode.x + fromNode.w, y: fromCenterY };
+            endPt = { x: targetNode.x, y: targetCenterY };
+            const midY = (startPt.y + endPt.y) / 2;
+            const loopRight = startPt.x + 35;
+            const loopLeft = targetNode.x - 35;
+
+            return `M ${startPt.x} ${startPt.y} 
+                    C ${loopRight} ${startPt.y}, ${loopRight} ${midY}, ${startPt.x} ${midY}
+                    L ${targetNode.x} ${midY}
+                    C ${loopLeft} ${midY}, ${loopLeft} ${endPt.y}, ${endPt.x - 20} ${endPt.y}
+                    L ${endPt.x} ${endPt.y}`;
+        }
+        // If target is below
+        else if (dy > 0) {
+            startPt = { x: fromCenterX, y: fromNode.y + fromNode.h };
+            endPt = { x: targetCenterX, y: targetNode.y };
+            const midY = (startPt.y + endPt.y) / 2;
+            return `M ${startPt.x} ${startPt.y} C ${startPt.x} ${midY}, ${endPt.x} ${midY}, ${endPt.x} ${endPt.y}`;
+        }
+        // If target is above
+        else {
+            startPt = { x: fromCenterX, y: fromNode.y };
+            endPt = { x: targetCenterX, y: targetNode.y + targetNode.h };
+            const midY = (startPt.y + endPt.y) / 2;
+            return `M ${startPt.x} ${startPt.y} C ${startPt.x} ${midY}, ${endPt.x} ${midY}, ${endPt.x} ${endPt.y}`;
+        }
+    }
+
+    updateConnectors() {
+        const connectorsLayer = $("bpmnConnectorsLayer");
+        if (!connectorsLayer) return;
+        connectorsLayer.innerHTML = "";
+
+        this.connections.forEach(conn => {
+            let targetNode = conn.to;
+            if (conn.type === "branch") {
+                targetNode = this.nodes.find(n => n.step && n.step.sequence === conn.toSeq);
+            }
+
+            if (!conn.from || !targetNode) return;
+
+            const pathD = this.computeDynamicPath(conn.from, targetNode);
+            const markerAttr = (conn.type === "branch") ? 'marker-end="url(#bpmnBranchArrow)"' : 'marker-end="url(#bpmnArrowhead)"';
+            const lineClass = (conn.type === "branch") ? 'bpmn-connector-line branch-line' : 'bpmn-connector-line';
+
+            connectorsLayer.innerHTML += `<path id="${conn.id}" d="${pathD}" class="${lineClass}" ${markerAttr} />`;
+
+            // Draw Branch Decision Label
+            if (conn.label) {
+                const labelX = (conn.from.x + targetNode.x) / 2;
+                const labelY = (conn.from.y + targetNode.y) / 2 - 12;
+                const labelW = Math.max(75, conn.label.length * 6.5);
+                connectorsLayer.innerHTML += `
+                    <g transform="translate(${labelX - (labelW/2)}, ${labelY})">
+                        <rect width="${labelW}" height="18" class="bpmn-branch-label-bg" />
+                        <text x="${labelW/2}" y="12" class="bpmn-branch-label-text">${esc(conn.label)}</text>
+                    </g>
+                `;
+            }
+        });
+    }
+
+    initNodeDragAndSelect() {
+        const nodesLayer = $("bpmnNodesLayer");
+        if (!nodesLayer) return;
+
+        let activeDragNode = null;
+        let dragStartMouse = { x: 0, y: 0 };
+        let dragStartNodePos = { x: 0, y: 0 };
+        let hasMoved = false;
+
+        nodesLayer.querySelectorAll(".bpmn-node-group").forEach(grp => {
+            grp.addEventListener("mousedown", (e) => {
                 e.stopPropagation();
-                const seq = parseInt(grp.dataset.seq, 10);
-                const stepIdx = (workflow.steps || []).findIndex(s => s.sequence === seq);
-                if (stepIdx !== -1) {
-                    currentStepIndex = stepIdx;
-                    this.openInspector(workflow.steps[stepIdx]);
-                    
-                    // Highlight selected node
-                    nodesLayer.querySelectorAll(".bpmn-node-group").forEach(g => g.classList.remove("active"));
-                    grp.classList.add("active");
-                }
-            };
+                const seqStr = grp.dataset.seq;
+                const idStr = grp.dataset.id;
+                
+                const node = this.nodes.find(n => (seqStr && n.step && n.step.sequence === parseInt(seqStr, 10)) || (idStr && n.id === idStr));
+                if (!node) return;
+
+                activeDragNode = node;
+                hasMoved = false;
+                dragStartMouse = { x: e.clientX, y: e.clientY };
+                dragStartNodePos = { x: node.x, y: node.y };
+            });
         });
 
-        // Close inspector when clicking empty canvas
+        window.addEventListener("mousemove", (e) => {
+            if (!activeDragNode) return;
+
+            const deltaX = (e.clientX - dragStartMouse.x) / this.zoom;
+            const deltaY = (e.clientY - dragStartMouse.y) / this.zoom;
+
+            if (Math.hypot(deltaX, deltaY) > 3) {
+                hasMoved = true;
+            }
+
+            if (hasMoved) {
+                // Snap to 10px grid
+                activeDragNode.x = Math.round((dragStartNodePos.x + deltaX) / 10) * 10;
+                activeDragNode.y = Math.round((dragStartNodePos.y + deltaY) / 10) * 10;
+
+                // Update element transform live
+                const grpEl = (activeDragNode.type === "task") 
+                    ? $(`bpmnNode-${activeDragNode.step.sequence}`) 
+                    : $(`bpmnNode-${activeDragNode.id}`);
+                
+                if (grpEl) {
+                    grpEl.setAttribute("transform", `translate(${activeDragNode.x}, ${activeDragNode.y})`);
+                }
+
+                // Update all connecting arrow paths in real-time
+                this.updateConnectors();
+            }
+        });
+
+        window.addEventListener("mouseup", () => {
+            if (!activeDragNode) return;
+
+            if (hasMoved) {
+                if (activeDragNode.step) {
+                    activeDragNode.step.bpmn_pos = { x: activeDragNode.x, y: activeDragNode.y };
+                    saveActiveStepEditsSilent();
+                    showToast(`📍 Box ${activeDragNode.step.sequence} position saved`);
+                }
+            } else {
+                // Click (No Drag): Select node and open Inspector
+                if (activeDragNode.step) {
+                    const stepIdx = (workflow.steps || []).findIndex(s => s.id === activeDragNode.step.id);
+                    if (stepIdx !== -1) {
+                        currentStepIndex = stepIdx;
+                        this.openInspector(activeDragNode.step);
+                        nodesLayer.querySelectorAll(".bpmn-node-group").forEach(g => g.classList.remove("active"));
+                        $(`bpmnNode-${activeDragNode.step.sequence}`)?.classList.add("active");
+                    }
+                }
+            }
+
+            activeDragNode = null;
+            hasMoved = false;
+        });
+
+        // Close inspector when clicking canvas
         const stage = $("bpmnCanvasStage");
         if (stage) {
             stage.onclick = (e) => {
@@ -8887,8 +8998,6 @@ class BpmnFlowchartEngine {
         // Close Inspector Button
         const closeBtn = $("bpmnInspCloseBtn");
         if (closeBtn) closeBtn.onclick = () => this.closeInspector();
-
-        this.updateTransform();
     }
 
     openInspector(step) {
