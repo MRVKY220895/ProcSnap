@@ -267,102 +267,125 @@
                     <section id="tab-guide" class="tab-panel">
                         <div class="guide-layout">
                             <div class="canvas-workspace">
-                                <div class="canvas-toolbar">
-                                    <div class="tool-group">
-                                        <button id="prevBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 30px; padding: 0 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;" title="Previous step (Left Arrow)">← Prev</button>
-                                        <span id="stepProgress" class="step-progress-label" style="font-size: 11.5px; font-weight: 700; min-width: 70px; text-align: center; white-space: nowrap;">Step 1 of 1</span>
-                                        <button id="nextBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 30px; padding: 0 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;" title="Next step (Right Arrow)">Next →</button>
-                                        <!-- Step Jump-To Input -->
-                                        <input id="stepJumpInput" type="number" min="1" value="1" title="Jump to step number" class="step-jump-input">
-                                        <button id="deleteCurrentStepBtn" class="btn btn-danger btn-sm" style="white-space: nowrap; height: 30px; padding: 0 8px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;" title="Permanently delete current step">
-                                            <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                                            Delete
+                                <div class="canvas-toolbar-dock" id="canvasToolbarDock">
+                                    <!-- ISLAND 1: STEP NAVIGATION & CONTEXT -->
+                                    <div class="dock-island dock-island-nav">
+                                        <button id="prevBtn" class="dock-btn dock-btn-nav" title="Previous step (Left Arrow)">
+                                            <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
                                         </button>
-                                        <span class="tool-divider"></span>
-                                        <button class="tool-btn active" id="tool-select" title="Select & Move (V)">
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M13.64 21.97c-.2-.07-.36-.25-.43-.46l-2.43-6.85-4.8 4.8c-.3.3-.77.34-1.12.1a.8.8 0 0 1-.29-.61V3.2c0-.44.36-.8.8-.8.21 0 .42.08.57.23l15 15c.31.31.31.82 0 1.13-.23.23-.58.28-.87.12l-5.18-2.5 2.53 7.14c.07.2-.01.43-.18.57l-3.32 1.34c-.1.05-.28.09-.41.07z"/></svg>
-                                        </button>
-                                        <button class="tool-btn" id="tool-pan" title="Drag & Move Screenshot (Hand Tool)">
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M10 9a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2.5a.5.5 0 0 0 1 0V4a1 1 0 0 1 2 0v7.5a.5.5 0 0 0 1 0V6a1 1 0 0 1 2 0v7a8 8 0 0 1-16 0V9a1 1 0 0 1 2 0v4.5a.5.5 0 0 0 1 0V3a1 1 0 0 1 2 0v6z"/></svg>
-                                        </button>
-                                        <span class="tool-divider"></span>
-                                        <button class="tool-btn" id="tool-circle" title="Numbered Circle (C)">
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                                        </button>
-                                        <button class="tool-btn" id="tool-arrow" title="Arrow Pointer (A)">
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M5 3l3.057-3 11.943 12-11.943 12-3.057-3 9-9z"/></svg>
-                                        </button>
-                                        <button class="tool-btn" id="tool-rect" title="Rectangle Overlay (R)">
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 3v18h18V3H3zm16 16H5V5h14v14z"/></svg>
-                                        </button>
-                                        <button class="tool-btn" id="tool-highlight" title="Highlight Marker (H)">
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                                        </button>
-                                        <!-- Text tool with dropdown -->
-                                        <div class="tool-text-wrapper" id="textToolWrapper">
-                                            <button class="tool-btn" id="tool-text" title="Text Callout (T)">
-                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12.5 4v16h-2V4H4V2h15v2h-6.5z"/></svg>
-                                            </button>
-                                            <button class="tool-text-caret" id="tool-text-caret" title="Choose text style">▾</button>
+                                        <div class="dock-step-pill" id="dockStepPill" title="Current Step / Quick Jump">
+                                            <span id="stepProgress" class="dock-step-text">Step 1 of 1</span>
+                                            <input id="stepJumpInput" type="number" min="1" value="1" title="Jump to step" class="dock-jump-input">
                                         </div>
-                                        <button class="tool-btn" id="tool-blur" title="Blur / Redact (B)">
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8c1.5 0 2.9.41 4.11 1.13L5.13 16.11A7.95 7.95 0 0 1 4 12c0-4.41 3.59-8 8-8 1.63 0 3.13.49 4.39 1.33l-10 10A7.88 7.88 0 0 1 12 20zm5.87-4.13A7.95 7.95 0 0 1 20 12c0-4.41-3.59-8-8-8-1.5 0-2.9.41-4.11 1.13l11.98 11.98A7.88 7.88 0 0 1 17.87 15.87z"/></svg>
+                                        <button id="nextBtn" class="dock-btn dock-btn-nav" title="Next step (Right Arrow)">
+                                            <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
                                         </button>
-                                        <span class="tool-divider"></span>
-                                        <!-- Color Palette Toggle -->
-                                        <button class="tool-btn" id="tool-color-picker" title="Toggle Color Palette">
-                                            <div id="currentColorIndicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #ef4444; border: 1.5px solid var(--text-muted);"></div>
+                                        <div class="dock-divider"></div>
+                                        <button id="deleteCurrentStepBtn" class="dock-btn dock-btn-danger" title="Delete current step">
+                                            <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                                         </button>
-                                        <!-- Crop Tool -->
-                                        <button class="tool-btn" id="tool-crop" title="Crop Screenshot (K)">
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M17 15h2V7c0-1.1-.9-2-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10c0 1.1.9 2 2 2h10v4h2v-4h4v-2H7z"/></svg>
+                                    </div>
+
+                                    <!-- ISLAND 2: CREATIVE ANNOTATIONS, AI & SMART HOTSPOT DOCK -->
+                                    <div class="dock-island dock-island-tools">
+                                        <!-- Pointer & Hand Navigation -->
+                                        <div class="dock-btn-group">
+                                            <button class="dock-tool-btn active" id="tool-select" title="Select & Move (V)">
+                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M13.64 21.97c-.2-.07-.36-.25-.43-.46l-2.43-6.85-4.8 4.8c-.3.3-.77.34-1.12.1a.8.8 0 0 1-.29-.61V3.2c0-.44.36-.8.8-.8.21 0 .42.08.57.23l15 15c.31.31.31.82 0 1.13-.23.23-.58.28-.87.12l-5.18-2.5 2.53 7.14c.07.2-.01.43-.18.57l-3.32 1.34c-.1.05-.28.09-.41.07z"/></svg>
+                                            </button>
+                                            <button class="dock-tool-btn" id="tool-pan" title="Pan Screenshot (Hand Tool)">
+                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M10 9a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2.5a.5.5 0 0 0 1 0V4a1 1 0 0 1 2 0v7.5a.5.5 0 0 0 1 0V6a1 1 0 0 1 2 0v7a8 8 0 0 1-16 0V9a1 1 0 0 1 2 0v4.5a.5.5 0 0 0 1 0V3a1 1 0 0 1 2 0v6z"/></svg>
+                                            </button>
+                                        </div>
+
+                                        <div class="dock-divider"></div>
+
+                                        <!-- Shape & Annotation Tools -->
+                                        <div class="dock-btn-group">
+                                            <button class="dock-tool-btn" id="tool-circle" title="Numbered Step Circle (C)">
+                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                                            </button>
+                                            <button class="dock-tool-btn" id="tool-arrow" title="Arrow Pointer (A)">
+                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M5 3l3.057-3 11.943 12-11.943 12-3.057-3 9-9z"/></svg>
+                                            </button>
+                                            <button class="dock-tool-btn" id="tool-rect" title="Rectangle Overlay (R)">
+                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 3v18h18V3H3zm16 16H5V5h14v14z"/></svg>
+                                            </button>
+                                            <button class="dock-tool-btn" id="tool-highlight" title="Pen / Marker (P)">
+                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                                            </button>
+                                            <!-- Text Tool -->
+                                            <div class="tool-text-wrapper" id="textToolWrapper">
+                                                <button class="dock-tool-btn" id="tool-text" title="Text Callout (T)">
+                                                    <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12.5 4v16h-2V4H4V2h15v2h-6.5z"/></svg>
+                                                </button>
+                                                <button class="tool-text-caret" id="tool-text-caret" title="Choose text style">▾</button>
+                                            </div>
+                                            <button class="dock-tool-btn" id="tool-blur" title="Blur / Redact (B)">
+                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8c1.5 0 2.9.41 4.11 1.13L5.13 16.11A7.95 7.95 0 0 1 4 12c0-4.41 3.59-8 8-8 1.63 0 3.13.49 4.39 1.33l-10 10A7.88 7.88 0 0 1 12 20zm5.87-4.13A7.95 7.95 0 0 1 20 12c0-4.41-3.59-8-8-8-1.5 0-2.9.41-4.11 1.13l11.98 11.98A7.88 7.88 0 0 1 17.87 15.87z"/></svg>
+                                            </button>
+                                        </div>
+
+                                        <div class="dock-divider"></div>
+
+                                        <!-- Color & Crop & Auto-Redact -->
+                                        <div class="dock-btn-group">
+                                            <button class="dock-tool-btn" id="tool-color-picker" title="Color Palette">
+                                                <div id="currentColorIndicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #ef4444; border: 1.5px solid var(--text-muted);"></div>
+                                            </button>
+                                            <button class="dock-tool-btn" id="tool-crop" title="Crop Screenshot (K)">
+                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M17 15h2V7c0-1.1-.9-2-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10c0 1.1.9 2 2 2h10v4h2v-4h4v-2H7z"/></svg>
+                                            </button>
+                                            <button class="dock-pill-btn" id="btnAutoRedactPII" title="AI One-Click Auto Redact Sensitive Data">
+                                                <span>🛡️</span> Auto-Redact
+                                            </button>
+                                        </div>
+
+                                        <div class="dock-divider"></div>
+
+                                        <!-- Smart Hotspot & Spotlight & Demo Hub -->
+                                        <div class="dock-btn-group">
+                                            <button class="dock-pill-btn" id="btnToggleFocusSpotlight" title="Toggle Spotlight focus">
+                                                <span id="focusToggleDot" class="dock-status-dot green"></span>
+                                                <span id="focusToggleLabel">Focus</span>
+                                            </button>
+                                            <button class="dock-pill-btn" id="btnTogglePinVisibility" title="Toggle Red Pin Target Reticle">
+                                                <span>🎯</span>
+                                                <span id="pinVisibilityLabel" style="color: #10b981;">Pin ON</span>
+                                            </button>
+                                            <button class="dock-pill-btn" id="btnPickHotspotTool" title="Click anywhere on image to place target (H)">
+                                                <span>📍</span> Place
+                                            </button>
+                                            <button class="dock-tool-btn" id="btnToggleLockHotspot" title="Lock/Unlock Target Hotspot">
+                                                <span id="hotspotLockIcon">🔓</span>
+                                            </button>
+                                            <button class="dock-pill-btn dock-btn-purple" id="btnGenerateAnimation" title="Generate 2s Animated Micro-Demo GIF">
+                                                <span>🎬</span> Micro-Demo
+                                            </button>
+                                            <button class="dock-tool-btn dock-btn-danger hidden" id="btnRemoveAnimation" title="Remove Micro-Demo">
+                                                ✕
+                                            </button>
+                                            <button class="dock-tool-btn" id="clearAnnotationsBtn" title="Clear all annotations on this step">
+                                                <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- ISLAND 3: HISTORY & VIEWPORT HUB -->
+                                    <div class="dock-island dock-island-view">
+                                        <button class="dock-tool-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+                                            <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
                                         </button>
-                                        <!-- Spotlight / Focus Toggle Button -->
-                                        <button class="btn btn-secondary btn-sm" id="btnToggleFocusSpotlight" style="padding: 0 10px; height: 30px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;" title="Toggle Step Focus & Spotlight on/off">
-                                            <span id="focusToggleDot" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
-                                            <span id="focusToggleLabel">Focus: Enabled</span>
+                                        <button class="dock-tool-btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
+                                            <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
                                         </button>
-                                        <!-- Interactive Click-to-Place Hotspot Finder Button -->
-                                        <button class="btn btn-secondary btn-sm" id="btnPickHotspotTool" style="padding: 0 9px; height: 30px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;" title="Click anywhere on the screenshot to place the hotspot target (H)">
-                                            <span>🎯</span> Pin Target
-                                        </button>
-                                        <!-- Hotspot Lock/Unlock Toggle -->
-                                        <button class="btn btn-secondary btn-sm" id="btnToggleLockHotspot" style="padding: 0 8px; height: 30px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="Lock or unlock hotspot target to prevent accidental dragging">
-                                            <span id="hotspotLockIcon">🔓</span>
-                                            <span id="hotspotLockLabel">Unlocked</span>
-                                        </button>
-                                        <!-- Option to Hide / Show Pin Target Reticle -->
-                                        <button class="btn btn-secondary btn-sm" id="btnTogglePinVisibility" style="padding: 0 9px; height: 30px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="Hide or show the red pin target reticle on the screenshot">
-                                            <span>🎯 Pin:</span>
-                                            <span id="pinVisibilityLabel" style="color: #10b981;">ON</span>
-                                        </button>
-                                        <button class="btn btn-secondary btn-sm" id="clearAnnotationsBtn" style="padding: 0 8px; height: 30px; font-size: 11.5px;">Clear</button>
-                                        <button class="btn btn-secondary btn-sm" id="btnAutoRedactPII" style="padding: 0 8px; height: 30px; font-size: 11.5px; font-weight: 700; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Auto-detect & blur sensitive information (PII, credentials, emails)">
-                                            🛡️ Auto-Redact
-                                        </button>
-                                        <button class="btn btn-secondary btn-sm" id="btnGenerateAnimation" style="padding: 0 8px; height: 30px; font-size: 11.5px; font-weight: 700; color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Generate 2-second animated cursor demo GIF">
-                                            🎬 Micro-Demo
-                                        </button>
-                                        <button class="btn btn-secondary btn-sm hidden" id="btnRemoveAnimation" style="padding: 0 8px; height: 30px; font-size: 11.5px; font-weight: 700; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Remove animated micro-demo and restore static screenshot">
-                                            ✕ Remove Demo
-                                        </button>
-                                        <label class="approve-checkbox-label" style="text-transform: none; margin: 0 4px; font-size: 11px; font-weight: 600;">
-                                            <input type="checkbox" id="snapToGridCheckbox"> Snap
-                                        </label>
-                                        <!-- Undo / Redo -->
-                                        <div class="tool-divider"></div>
-                                        <button class="tool-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
-                                        </button>
-                                        <button class="tool-btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
-                                        </button>
-                                        <!-- Zoom Controls -->
-                                        <div class="tool-divider"></div>
-                                        <button id="zoomOutBtn" class="btn btn-secondary btn-sm" style="padding: 0 6px; height: 26px; min-width: 22px;" title="Zoom Out">-</button>
-                                        <span id="zoomLabel" style="font-size: 11px; font-weight: 700; min-width: 28px; text-align: center; color: var(--text-muted);">Fit</span>
-                                        <button id="zoomInBtn" class="btn btn-secondary btn-sm" style="padding: 0 6px; height: 26px; min-width: 22px;" title="Zoom In">+</button>
-                                        <button id="zoomFitBtn" class="btn btn-secondary btn-sm" style="padding: 0 6px; height: 26px; font-size: 10px;" title="Fit to screen">Reset</button>
+                                        <div class="dock-divider"></div>
+                                        <div class="dock-zoom-group">
+                                            <button id="zoomOutBtn" class="dock-zoom-btn" title="Zoom Out">−</button>
+                                            <span id="zoomLabel" class="dock-zoom-label">Fit</span>
+                                            <button id="zoomInBtn" class="dock-zoom-btn" title="Zoom In">+</button>
+                                            <button id="zoomFitBtn" class="dock-zoom-btn dock-zoom-fit" title="Fit to Screen">Fit</button>
+                                        </div>
                                     </div>
                                 </div>
 

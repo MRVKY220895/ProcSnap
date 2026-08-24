@@ -4935,6 +4935,287 @@ textarea {
     color: #475569 !important;
 }
 
+/* =========================================================
+   🏝️ 3-ISLAND FLOATING STUDIO DOCK (GOD-LEVEL UI/UX)
+========================================================= */
+
+.canvas-toolbar-dock {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: transparent;
+    width: 100%;
+    box-sizing: border-box;
+    user-select: none;
+    z-index: 50;
+    flex-wrap: nowrap;
+}
+
+.dock-island {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dock-island:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.dock-island-nav {
+    flex-shrink: 0;
+}
+
+.dock-island-tools {
+    flex-shrink: 0;
+    justify-content: center;
+}
+
+.dock-island-view {
+    flex-shrink: 0;
+}
+
+.dock-btn-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.dock-divider {
+    width: 1px;
+    height: 18px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 3px;
+}
+
+/* Base Dock Buttons */
+.dock-btn, .dock-tool-btn, .dock-pill-btn, .dock-zoom-btn {
+    appearance: none;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted, #94a3b8);
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    outline: none;
+    line-height: 1;
+}
+
+.dock-btn:hover, .dock-tool-btn:hover, .dock-zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+.dock-tool-btn {
+    width: 32px;
+    height: 32px;
+}
+
+.dock-btn-nav {
+    width: 28px;
+    height: 28px;
+}
+
+.dock-pill-btn {
+    padding: 0 9px;
+    height: 30px;
+    gap: 5px;
+    font-size: 11.5px;
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+}
+
+.dock-pill-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+.dock-pill-btn.dock-btn-purple {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.35);
+    color: #c4b5fd;
+}
+
+.dock-pill-btn.dock-btn-purple:hover {
+    background: rgba(139, 92, 246, 0.25);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.3);
+}
+
+.dock-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Active Tool State */
+.dock-tool-btn.active, .dock-pill-btn.active {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.45);
+}
+
+/* Step Navigation Pill */
+.dock-step-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    height: 28px;
+}
+
+.dock-step-text {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #f1f5f9;
+    white-space: nowrap;
+}
+
+.dock-jump-input {
+    width: 32px;
+    height: 22px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    padding: 0;
+}
+
+.dock-jump-input:focus {
+    border-color: #6366f1;
+    outline: none;
+}
+
+/* Status Indicator Dot */
+.dock-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.dock-status-dot.green {
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+}
+
+.dock-status-dot.grey {
+    background: #64748b;
+}
+
+/* Zoom Dock Controls */
+.dock-zoom-group {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 2px;
+    height: 28px;
+}
+
+.dock-zoom-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 5px;
+}
+
+.dock-zoom-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted, #94a3b8);
+    min-width: 30px;
+    text-align: center;
+}
+
+.dock-zoom-fit {
+    width: auto;
+    padding: 0 6px;
+    font-size: 10.5px;
+    color: var(--text-muted, #94a3b8);
+}
+
+/* Light Theme Perfection */
+[data-theme="light"] .dock-island {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .dock-island:hover {
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .dock-divider {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .dock-btn, [data-theme="light"] .dock-tool-btn, [data-theme="light"] .dock-zoom-btn {
+    color: #475569;
+}
+
+[data-theme="light"] .dock-btn:hover, [data-theme="light"] .dock-tool-btn:hover, [data-theme="light"] .dock-zoom-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #0f172a;
+}
+
+[data-theme="light"] .dock-pill-btn {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #1e293b;
+}
+
+[data-theme="light"] .dock-pill-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+[data-theme="light"] .dock-step-pill {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+[data-theme="light"] .dock-step-text {
+    color: #0f172a;
+}
+
+[data-theme="light"] .dock-jump-input {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+[data-theme="light"] .dock-zoom-group {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+
 
 
 
