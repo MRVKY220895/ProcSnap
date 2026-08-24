@@ -4731,6 +4731,73 @@ textarea {
     100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
 }
 
+/* =========================================================
+   🎛️ STEP LIST EDITOR ENHANCEMENTS & BULK SELECTION
+========================================================= */
+
+.editor-step-row.is-selected-row {
+    border-color: rgba(99, 102, 241, 0.6) !important;
+    background: rgba(99, 102, 241, 0.08) !important;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.12);
+}
+
+.inline-editable-title:hover {
+    border-bottom-color: rgba(99, 102, 241, 0.5) !important;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+}
+
+.inline-editable-title:focus {
+    background: rgba(99, 102, 241, 0.12) !important;
+    border-bottom-color: #6366f1 !important;
+    border-radius: 4px;
+    padding: 1px 4px;
+}
+
+.inline-editable-desc:hover {
+    color: var(--text-main, #fff) !important;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+}
+
+.inline-editable-desc:focus {
+    background: rgba(99, 102, 241, 0.08) !important;
+    color: var(--text-main, #fff) !important;
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+[data-theme="light"] .editor-step-row.is-selected-row {
+    background: #eef2ff !important;
+    border-color: #6366f1 !important;
+}
+
+[data-theme="light"] .step-filter-subbar {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .step-chip-btn {
+    border-color: #e2e8f0 !important;
+    color: #64748b !important;
+}
+
+[data-theme="light"] .step-chip-btn.active {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="light"] .step-bulk-action-bar {
+    background: rgba(255, 255, 255, 0.96) !important;
+    border-color: #6366f1 !important;
+    box-shadow: 0 12px 35px rgba(15, 23, 42, 0.18) !important;
+}
+
+[data-theme="light"] #bulkSelectedText {
+    color: #0f172a !important;
+}
+
+
 
 
 

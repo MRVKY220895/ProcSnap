@@ -3309,56 +3309,208 @@ function hideHoverPreview() {
    STEP LIST EDITOR LOGIC (Tab 2)
 ========================================================= */
 
-function renderStepsTab() {
-    const steps = workflow.steps || [];
-    const container = $("stepListContainer");
+let currentStepFilter = 'all';
+let stepSearchQuery = '';
+const selectedStepIds = new Set();
 
-    if (steps.length === 0) {
+function renderStepsTab() {
+    const allSteps = workflow?.steps || [];
+    const container = $("stepListContainer");
+    const bulkBar = $("stepBulkActionBar");
+    const bulkText = $("bulkSelectedText");
+    const selectAllCb = $("selectAllStepsCb");
+
+    if (!container) return;
+
+    if (allSteps.length === 0) {
         container.innerHTML = '<div class="no-results">No steps in this workflow</div>';
+        if (bulkBar) bulkBar.classList.add("hidden");
         return;
     }
 
-    container.innerHTML = steps.map((s, index) => `
-        <div class="editor-step-row ${s.hidden ? 'is-deleted' : ''}" data-id="${s.id}" data-index="${index}">
-            <div class="editor-step-row-left">
-                <span class="drag-handle">☰</span>
-                <div class="row-badge">${s.sequence}</div>
+    // Filter steps
+    const filteredSteps = allSteps.filter(s => {
+        // Category filter
+        if (currentStepFilter === "approved" && !s.approved) return false;
+        if (currentStepFilter === "pending" && s.approved) return false;
+        if (currentStepFilter === "hidden" && !s.hidden) return false;
+
+        // Search query
+        if (stepSearchQuery) {
+            const q = stepSearchQuery.toLowerCase();
+            const title = (s.title || getDefaultTitle(s)).toLowerCase();
+            const desc = (s.description || getDefaultDescription(s)).toLowerCase();
+            const note = (s.note || '').toLowerCase();
+            if (!title.includes(q) && !desc.includes(q) && !note.includes(q)) {
+                return false;
+            }
+        }
+        return true;
+    });
+
+    if (filteredSteps.length === 0) {
+        container.innerHTML = `<div class="no-results" style="padding: 30px; text-align: center; color: var(--text-muted);">No steps match the active filter "${currentStepFilter}".</div>`;
+        if (bulkBar) bulkBar.classList.add("hidden");
+        return;
+    }
+
+    container.innerHTML = filteredSteps.map((s, index) => {
+        const isSelected = selectedStepIds.has(s.id);
+        const originalIndex = allSteps.findIndex(item => item.id === s.id);
+
+        return `
+        <div class="editor-step-row ${s.hidden ? 'is-deleted' : ''} ${isSelected ? 'is-selected-row' : ''}" data-id="${s.id}" data-index="${originalIndex}">
+            <div class="editor-step-row-left" style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                <input type="checkbox" class="step-select-cb" data-id="${s.id}" ${isSelected ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #6366f1; flex-shrink: 0;">
+                <span class="drag-handle" style="cursor: grab; color: var(--text-muted);">☰</span>
+                <div class="row-badge" style="${s.approved ? 'background: linear-gradient(135deg, #10b981, #059669);' : ''}">${s.sequence}</div>
                 <div class="editor-step-thumb ${s.hidden ? 'is-deleted-thumb' : ''}" data-thumb-url="${s.screenshotUrl ? esc(API_BASE + s.screenshotUrl) : ''}" data-thumb-title="${esc(s.title || getDefaultTitle(s))}">
                     ${s.screenshotUrl ? `<img src="${esc(API_BASE + s.screenshotUrl)}" alt="Step ${s.sequence}">` : '<div class="no-thumb">No img</div>'}
                 </div>
-                <div class="row-info">
-                    <div class="row-title">
-                        ${esc(s.title || getDefaultTitle(s))}
-                        ${s.hidden ? '<span class="deleted-badge">🗑️ DELETED / HIDDEN</span>' : ''}
+                <div class="row-info" style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
+                        <div class="row-title inline-editable-title" contenteditable="true" data-id="${s.id}" title="Click to edit step title inline" style="font-weight: 700; color: var(--text-main, #fff); outline: none; border-bottom: 1px dashed transparent; transition: all 0.15s ease;">
+                            ${esc(s.title || getDefaultTitle(s))}
+                        </div>
+                        ${s.approved ? '<span class="badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 9.5px; padding: 1px 6px;">APPROVED</span>' : ''}
+                        ${s.hidden ? '<span class="deleted-badge" style="font-size: 10px;">👁️ HIDDEN</span>' : ''}
                     </div>
-                    <div class="row-desc">${esc(s.description || getDefaultDescription(s))}</div>
+                    <div class="row-desc inline-editable-desc" contenteditable="true" data-id="${s.id}" title="Click to edit description inline" style="font-size: 12px; color: var(--text-muted, #94a3b8); outline: none; line-height: 1.35;">
+                        ${esc(s.description || getDefaultDescription(s))}
+                    </div>
                 </div>
             </div>
-            <div class="editor-step-row-actions">
-                ${s.hidden ? `
-                    <button class="btn btn-restore btn-sm btn-restore-step">↺ Restore Step</button>
-                    <button class="btn btn-danger btn-sm btn-perm-del" title="Permanently delete from database">✖ Delete</button>
-                ` : `
-                    <button class="btn btn-secondary btn-sm btn-up" ${index === 0 ? "disabled" : ""}>▲</button>
-                    <button class="btn btn-secondary btn-sm btn-down" ${index === steps.length - 1 ? "disabled" : ""}>▼</button>
-                    <button class="btn btn-secondary btn-sm btn-hide-step" title="Hide this step from SOP exports">Hide</button>
-                    <button class="btn btn-danger btn-sm btn-perm-del" title="Permanently delete from database">Delete</button>
-                `}
+            <div class="editor-step-row-actions" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                <button class="btn btn-secondary btn-xs btn-approve-step" data-id="${s.id}" title="${s.approved ? 'Approved' : 'Mark as Approved'}" style="${s.approved ? 'color: #10b981;' : ''}">
+                    ${s.approved ? '✓' : 'Approve'}
+                </button>
+                <button class="btn btn-secondary btn-xs btn-dup-step" data-id="${s.id}" title="Duplicate this step">📋 Duplicate</button>
+                <button class="btn btn-secondary btn-xs btn-up" ${originalIndex === 0 ? "disabled" : ""} title="Move Up">▲</button>
+                <button class="btn btn-secondary btn-xs btn-down" ${originalIndex === allSteps.length - 1 ? "disabled" : ""} title="Move Down">▼</button>
+                <button class="btn btn-secondary btn-xs btn-hide-step" title="${s.hidden ? 'Restore' : 'Hide'}">${s.hidden ? '👁️ Restore' : 'Hide'}</button>
+                <button class="btn btn-danger btn-xs btn-perm-del" title="Permanently delete from database">✖</button>
             </div>
         </div>
-    `).join("");
+        `;
+    }).join("");
 
-    // Bind hover preview on thumbnails
-    container.querySelectorAll(".editor-step-thumb").forEach(thumb => {
-        const url = thumb.dataset.thumbUrl;
-        const title = thumb.dataset.thumbTitle;
-        if (url) {
-            thumb.addEventListener("mouseenter", (e) => showHoverPreview(url, title, e));
-            thumb.addEventListener("mouseleave", hideHoverPreview);
+    // Update bulk bar state
+    if (bulkBar && bulkText) {
+        if (selectedStepIds.size > 0) {
+            bulkBar.classList.remove("hidden");
+            bulkText.textContent = `${selectedStepIds.size} step${selectedStepIds.size === 1 ? '' : 's'} selected`;
+        } else {
+            bulkBar.classList.add("hidden");
         }
+    }
+
+    if (selectAllCb) {
+        selectAllCb.checked = filteredSteps.length > 0 && filteredSteps.every(s => selectedStepIds.has(s.id));
+    }
+
+    // Checkbox toggles
+    container.querySelectorAll(".step-select-cb").forEach(cb => {
+        cb.onchange = (e) => {
+            const id = parseInt(e.target.dataset.id);
+            if (e.target.checked) {
+                selectedStepIds.add(id);
+            } else {
+                selectedStepIds.delete(id);
+            }
+            renderStepsTab();
+        };
     });
 
-    // Bind movements
+    // Select all handler
+    if (selectAllCb) {
+        selectAllCb.onchange = () => {
+            if (selectAllCb.checked) {
+                filteredSteps.forEach(s => selectedStepIds.add(s.id));
+            } else {
+                filteredSteps.forEach(s => selectedStepIds.delete(s.id));
+            }
+            renderStepsTab();
+        };
+    }
+
+    // Inline title editing auto-save
+    container.querySelectorAll(".inline-editable-title").forEach(el => {
+        el.onblur = async () => {
+            const stepId = parseInt(el.dataset.id);
+            const newTitle = el.innerText.trim();
+            const step = workflow.steps.find(s => s.id === stepId);
+            if (step && newTitle && step.title !== newTitle) {
+                step.title = newTitle;
+                try {
+                    await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${stepId}/edits`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ title: newTitle })
+                    });
+                    showToast("Step title auto-saved ✓");
+                } catch(err) {
+                    console.error("Auto-save error:", err);
+                }
+            }
+        };
+    });
+
+    // Inline description editing auto-save
+    container.querySelectorAll(".inline-editable-desc").forEach(el => {
+        el.onblur = async () => {
+            const stepId = parseInt(el.dataset.id);
+            const newDesc = el.innerText.trim();
+            const step = workflow.steps.find(s => s.id === stepId);
+            if (step && step.description !== newDesc) {
+                step.description = newDesc;
+                try {
+                    await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${stepId}/edits`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ description: newDesc })
+                    });
+                    showToast("Step description auto-saved ✓");
+                } catch(err) {
+                    console.error("Auto-save error:", err);
+                }
+            }
+        };
+    });
+
+    // Approve step button
+    container.querySelectorAll(".btn-approve-step").forEach(btn => {
+        btn.onclick = async (e) => {
+            const stepId = parseInt(btn.dataset.id);
+            const step = workflow.steps.find(s => s.id === stepId);
+            if (!step) return;
+            step.approved = !step.approved;
+            showToast(step.approved ? "Step marked as approved ✓" : "Step approval cleared");
+            renderStepsTab();
+        };
+    });
+
+    // Duplicate step button
+    container.querySelectorAll(".btn-dup-step").forEach(btn => {
+        btn.onclick = async (e) => {
+            const stepId = parseInt(btn.dataset.id);
+            const origIndex = workflow.steps.findIndex(s => s.id === stepId);
+            if (origIndex === -1) return;
+            const orig = workflow.steps[origIndex];
+
+            // Create cloned step
+            const clonedStep = {
+                ...orig,
+                id: Date.now(),
+                title: `${orig.title || getDefaultTitle(orig)} (Copy)`,
+                sequence: orig.sequence + 1
+            };
+            workflow.steps.splice(origIndex + 1, 0, clonedStep);
+            workflow.steps.forEach((s, idx) => s.sequence = idx + 1);
+            showToast("Step duplicated successfully!");
+            renderStepsTab();
+            renderStepThumbnails();
+        };
+    });
+
+    // Up / Down movements
     container.querySelectorAll(".btn-up").forEach(btn => {
         btn.onclick = (e) => {
             const index = parseInt(e.target.closest(".editor-step-row").dataset.index);
@@ -3373,44 +3525,26 @@ function renderStepsTab() {
         };
     });
 
-    // Hide step
+    // Toggle hide/unhide step
     container.querySelectorAll(".btn-hide-step").forEach(btn => {
         btn.onclick = async (e) => {
             const row = e.target.closest(".editor-step-row");
             const id = parseInt(row.dataset.id);
-            const index = parseInt(row.dataset.index);
+            const step = workflow.steps.find(s => s.id === id);
+            if (!step) return;
+
+            const nextHidden = !step.hidden;
             try {
                 await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${id}/edits`, {
                     method: "PATCH",
-                    body: JSON.stringify({ hidden: true })
+                    body: JSON.stringify({ hidden: nextHidden })
                 });
-                workflow.steps[index].hidden = true;
-                showToast("Step hidden from SOP exports");
+                step.hidden = nextHidden;
+                showToast(nextHidden ? "Step hidden from exports" : "Step restored to exports ✓");
                 renderStepsTab();
                 renderStepThumbnails();
             } catch(err) {
                 showToast(`Failed: ${err.message}`);
-            }
-        };
-    });
-
-    // Restore hidden/deleted step
-    container.querySelectorAll(".btn-restore-step").forEach(btn => {
-        btn.onclick = async (e) => {
-            const row = e.target.closest(".editor-step-row");
-            const id = parseInt(row.dataset.id);
-            const index = parseInt(row.dataset.index);
-            try {
-                await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${id}/edits`, {
-                    method: "PATCH",
-                    body: JSON.stringify({ hidden: false })
-                });
-                workflow.steps[index].hidden = false;
-                showToast("Step restored to SOP!");
-                renderStepsTab();
-                renderStepThumbnails();
-            } catch(err) {
-                showToast(`Failed to restore: ${err.message}`);
             }
         };
     });
@@ -3420,30 +3554,99 @@ function renderStepsTab() {
         btn.onclick = async (e) => {
             const row = e.target.closest(".editor-step-row");
             const id = parseInt(row.dataset.id);
-            const index = parseInt(row.dataset.index);
-            if (confirm("Are you sure you want to PERMANENTLY delete this step? This will erase its screenshot and data from disk.")) {
+            const index = workflow.steps.findIndex(s => s.id === id);
+            if (confirm("Are you sure you want to delete this step?")) {
                 try {
                     await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${id}`, {
                         method: "DELETE"
                     });
                     workflow.steps.splice(index, 1);
-                    // Renumber sequences locally
+                    selectedStepIds.delete(id);
                     workflow.steps.forEach((st, i) => st.sequence = i + 1);
-                    if (currentStepIndex >= workflow.steps.length) {
-                        currentStepIndex = Math.max(0, workflow.steps.length - 1);
-                    }
-                    showToast("Step permanently deleted");
+                    showToast("Step deleted");
                     renderStepsTab();
                     renderStepThumbnails();
-                    if (workflow.steps.length > 0) {
-                        loadActiveStepDetails();
-                    }
                 } catch(err) {
                     showToast(`Delete failed: ${err.message}`);
                 }
             }
         };
     });
+}
+
+// =========================================================
+// 🎛️ STEP LIST FILTER CHIPS & BULK ACTIONS CONTROLLER
+// =========================================================
+
+function initStepListFilterAndBulkActions() {
+    // Filter chips
+    document.querySelectorAll(".step-chip-btn").forEach(chip => {
+        chip.onclick = () => {
+            document.querySelectorAll(".step-chip-btn").forEach(c => {
+                c.classList.remove("active");
+                c.style.background = "transparent";
+                c.style.color = "var(--text-muted)";
+            });
+            chip.classList.add("active");
+            chip.style.background = "#6366f1";
+            chip.style.color = "#fff";
+            currentStepFilter = chip.dataset.filter;
+            renderStepsTab();
+        };
+    });
+
+    // Live search input
+    const searchInput = $("stepSearchInput");
+    if (searchInput) {
+        searchInput.oninput = (e) => {
+            stepSearchQuery = e.target.value.trim();
+            renderStepsTab();
+        };
+    }
+
+    // Bulk Approve
+    const btnApprove = $("btnBulkApproveSelected");
+    if (btnApprove) {
+        btnApprove.onclick = () => {
+            selectedStepIds.forEach(id => {
+                const s = workflow?.steps?.find(st => st.id === id);
+                if (s) s.approved = true;
+            });
+            showToast(`Approved ${selectedStepIds.size} steps ✓`);
+            selectedStepIds.clear();
+            renderStepsTab();
+        };
+    }
+
+    // Bulk Toggle Hide
+    const btnHide = $("btnBulkHideSelected");
+    if (btnHide) {
+        btnHide.onclick = () => {
+            selectedStepIds.forEach(id => {
+                const s = workflow?.steps?.find(st => st.id === id);
+                if (s) s.hidden = !s.hidden;
+            });
+            showToast(`Updated visibility for selected steps`);
+            selectedStepIds.clear();
+            renderStepsTab();
+            renderStepThumbnails();
+        };
+    }
+
+    // Bulk Delete
+    const btnDel = $("btnBulkDeleteSelected");
+    if (btnDel) {
+        btnDel.onclick = () => {
+            if (confirm(`Permanently delete all ${selectedStepIds.size} selected steps?`)) {
+                workflow.steps = (workflow.steps || []).filter(s => !selectedStepIds.has(s.id));
+                workflow.steps.forEach((s, idx) => s.sequence = idx + 1);
+                showToast(`Deleted ${selectedStepIds.size} steps`);
+                selectedStepIds.clear();
+                renderStepsTab();
+                renderStepThumbnails();
+            }
+        };
+    }
 }
 
 // Reordering steps swap logic
@@ -7593,5 +7796,6 @@ initSlideshowPracticeAndTeleprompter();
 initScormExport();
 initCopyRichSopToClipboard();
 initWorkflowMergeModal();
+initStepListFilterAndBulkActions();
 
 

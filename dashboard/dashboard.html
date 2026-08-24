@@ -621,9 +621,9 @@
                     <!-- 2. Step Editor Tab -->
                     <section id="tab-steps" class="tab-panel hidden">
                         <div class="editor-workspace">
-                            <div class="editor-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                            <div class="editor-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
                                 <div>
-                                    <p style="margin: 0 0 6px 0;">Drag and drop steps to reorder, insert new steps, delete steps or bulk hide steps from the output.</p>
+                                    <h2 style="font-size: 18px; font-weight: 800; color: var(--text-main, #fff); margin: 0 0 4px 0;">Step List &amp; Procedure Sequence</h2>
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <span id="sopDurationBadge" class="badge" style="background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px;">⏱️ 0m 0s total • 0 steps</span>
                                     </div>
@@ -633,10 +633,42 @@
                                     <button id="bulkApproveAllBtn" class="btn btn-secondary btn-sm" title="Mark all steps as approved">✓ Approve All</button>
                                     <button id="bulkUnhideAllBtn" class="btn btn-secondary btn-sm" title="Restore/unhide all steps">👁 Unhide All</button>
                                     <button id="aiPolishBtn" class="btn btn-secondary btn-sm" title="AI Polish descriptions of all steps">🤖 AI Polish SOP</button>
-                                    <button id="addNewStepBtn" class="btn btn-primary btn-sm">+ Insert Manual Step</button>
+                                    <button id="addNewStepBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700;">+ Insert Manual Step</button>
                                 </div>
                             </div>
+
+                            <!-- Filter & Search Sub-Bar -->
+                            <div class="step-filter-subbar" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(0,0,0,0.15); padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.06)); margin-bottom: 12px; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text-muted, #94a3b8); cursor: pointer; margin-right: 6px;">
+                                        <input type="checkbox" id="selectAllStepsCb" style="cursor: pointer; accent-color: #6366f1;"> Select All
+                                    </label>
+                                    <div class="step-filter-chips" style="display: flex; gap: 4px;">
+                                        <button class="step-chip-btn active" data-filter="all" style="padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 999px; border: 1px solid transparent; cursor: pointer; background: #6366f1; color: #fff;">All</button>
+                                        <button class="step-chip-btn" data-filter="approved" style="padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 999px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); cursor: pointer; background: transparent; color: var(--text-muted);">✓ Approved</button>
+                                        <button class="step-chip-btn" data-filter="pending" style="padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 999px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); cursor: pointer; background: transparent; color: var(--text-muted);">⏳ Pending</button>
+                                        <button class="step-chip-btn" data-filter="hidden" style="padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 999px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); cursor: pointer; background: transparent; color: var(--text-muted);">👁️ Hidden</button>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="text" id="stepSearchInput" placeholder="🔍 Filter steps..." class="form-control" style="font-size: 12px; padding: 4px 10px; border-radius: 6px; width: 180px; height: 28px;">
+                                </div>
+                            </div>
+
                             <div id="stepListContainer" class="step-list-rows"></div>
+
+                            <!-- Floating Multi-Select Bulk Actions Bar -->
+                            <div id="stepBulkActionBar" class="step-bulk-action-bar hidden" style="position: sticky; bottom: 20px; z-index: 100; margin-top: 16px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 12px; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 12px 35px rgba(0,0,0,0.6);">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span id="bulkSelectedText" style="font-size: 12.5px; font-weight: 800; color: #fff;">0 steps selected</span>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="btnBulkApproveSelected" class="btn btn-secondary btn-xs" style="color: #10b981; border-color: rgba(16,185,129,0.3); font-weight: 700;">✓ Approve</button>
+                                    <button id="btnBulkHideSelected" class="btn btn-secondary btn-xs" style="color: #f59e0b; border-color: rgba(245,158,11,0.3); font-weight: 700;">👁️ Toggle Hide</button>
+                                    <button id="btnBulkAiPolishSelected" class="btn btn-secondary btn-xs" style="color: #818cf8; border-color: rgba(99,102,241,0.3); font-weight: 700;">✨ AI Polish</button>
+                                    <button id="btnBulkDeleteSelected" class="btn btn-danger btn-xs" style="font-weight: 700;">🗑️ Delete</button>
+                                </div>
+                            </div>
                         </div>
                     </section>
 
