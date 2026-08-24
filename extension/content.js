@@ -975,3 +975,327 @@ window.addEventListener(
 );
 
 setInterval(checkNavigation, 500);
+
+
+/* =========================================================
+   TANGO-STYLE "GUIDE ME" LIVE IN-BROWSER OVERLAY ENGINE
+========================================================= */
+
+let guideMeActive = false;
+let guideMeWorkflow = null;
+let guideMeStepIndex = 0;
+let currentTargetEl = null;
+
+// Listen for window messages (from dashboard) or runtime messages (from background)
+window.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "START_GUIDE_ME") {
+        initGuideMe(event.data.workflow, 0);
+    }
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "START_GUIDE_ME") {
+        initGuideMe(message.workflow, message.startStepIndex || 0);
+        if (typeof sendResponse === "function") sendResponse({ success: true });
+        return false;
+    } else if (message.type === "GUIDE_ME_NEXT") {
+        advanceGuideMeStep(1);
+        if (typeof sendResponse === "function") sendResponse({ success: true });
+        return false;
+    } else if (message.type === "GUIDE_ME_PREV") {
+        advanceGuideMeStep(-1);
+        if (typeof sendResponse === "function") sendResponse({ success: true });
+        return false;
+    } else if (message.type === "GUIDE_ME_STOP") {
+        teardownGuideMe();
+        if (typeof sendResponse === "function") sendResponse({ success: true });
+        return false;
+    }
+});
+
+// Restore Guide Me state if persisted across navigations
+chrome.storage.local.get(["ps_guide_me_active", "ps_guide_me_workflow", "ps_guide_me_index"], (res) => {
+    if (res.ps_guide_me_active && res.ps_guide_me_workflow) {
+        initGuideMe(res.ps_guide_me_workflow, res.ps_guide_me_index || 0, false);
+    }
+});
+
+function initGuideMe(wf, stepIdx = 0, shouldSaveStorage = true) {
+    if (!wf || !wf.steps || wf.steps.length === 0) return;
+    guideMeActive = true;
+    guideMeWorkflow = wf;
+    guideMeStepIndex = Math.max(0, Math.min(wf.steps.length - 1, stepIdx));
+
+    if (shouldSaveStorage) {
+        chrome.storage.local.set({
+            ps_guide_me_active: true,
+            ps_guide_me_workflow: wf,
+            ps_guide_me_index: guideMeStepIndex
+        });
+    }
+
+    renderGuideMeBar();
+    renderGuideMeSpotlight();
+}
+
+function advanceGuideMeStep(delta = 1) {
+    if (!guideMeActive || !guideMeWorkflow) return;
+    const newIdx = guideMeStepIndex + delta;
+    if (newIdx >= 0 && newIdx < guideMeWorkflow.steps.length) {
+        guideMeStepIndex = newIdx;
+        chrome.storage.local.set({ ps_guide_me_index: guideMeStepIndex });
+        renderGuideMeBar();
+        renderGuideMeSpotlight();
+    } else if (newIdx >= guideMeWorkflow.steps.length) {
+        showGuideMeCelebration();
+    }
+}
+
+function teardownGuideMe() {
+    guideMeActive = false;
+    guideMeWorkflow = null;
+    chrome.storage.local.remove(["ps_guide_me_active", "ps_guide_me_workflow", "ps_guide_me_index"]);
+
+    const bar = document.getElementById("procsnap-guide-bar");
+    if (bar) bar.remove();
+
+    const spotlight = document.getElementById("procsnap-guide-spotlight");
+    if (spotlight) spotlight.remove();
+
+    const beacon = document.getElementById("procsnap-guide-beacon");
+    if (beacon) beacon.remove();
+}
+
+function renderGuideMeBar() {
+    let bar = document.getElementById("procsnap-guide-bar");
+    if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "procsnap-guide-bar";
+        bar.style.cssText = `
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2147483647;
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 14px;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.25);
+            padding: 14px 18px;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            width: min(520px, 92vw);
+            box-sizing: border-box;
+            user-select: none;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        `;
+        document.body.appendChild(bar);
+    }
+
+    const steps = guideMeWorkflow.steps;
+    const step = steps[guideMeStepIndex];
+    const total = steps.length;
+    const isFirst = guideMeStepIndex === 0;
+    const isLast = guideMeStepIndex === total - 1;
+
+    bar.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff; font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 12px;">
+                    STEP ${guideMeStepIndex + 1} OF ${total}
+                </span>
+                <span style="font-size: 12px; color: #94a3b8; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px;">
+                    ${escapeHtml(guideMeWorkflow.name || "Live Guide")}
+                </span>
+            </div>
+            <button id="ps-gm-close" style="background: rgba(255,255,255,0.08); border: none; color: #94a3b8; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; line-height: 1;" title="Exit Guide Me">✕</button>
+        </div>
+        <div style="font-size: 14px; font-weight: 700; color: #ffffff; margin-bottom: 4px; line-height: 1.3;">
+            ${escapeHtml(step.title || `Action ${guideMeStepIndex + 1}`)}
+        </div>
+        ${step.description && step.description !== step.title ? `
+            <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px; line-height: 1.4;">
+                ${escapeHtml(step.description)}
+            </div>
+        ` : '<div style="height: 8px;"></div>'}
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <button id="ps-gm-pulse" style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); color: #818cf8; border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                🎯 Spotlight
+            </button>
+            <div style="display: flex; gap: 6px;">
+                <button id="ps-gm-prev" ${isFirst ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : 'style="cursor: pointer;"'} style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 600;">
+                    ← Prev
+                </button>
+                <button id="ps-gm-next" style="background: #6366f1; border: none; color: #fff; border-radius: 6px; padding: 4px 14px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);">
+                    ${isLast ? "Finish ✓" : "Next →"}
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("ps-gm-close").onclick = teardownGuideMe;
+    document.getElementById("ps-gm-prev").onclick = () => advanceGuideMeStep(-1);
+    document.getElementById("ps-gm-next").onclick = () => advanceGuideMeStep(1);
+    document.getElementById("ps-gm-pulse").onclick = renderGuideMeSpotlight;
+}
+
+function findTargetElement(step) {
+    if (!step) return null;
+    
+    // 1. Try CSS selector if present
+    if (step.element && step.element.cssSelector) {
+        try {
+            const el = document.querySelector(step.element.cssSelector);
+            if (el && el.offsetParent !== null) return el;
+        } catch (_) {}
+    }
+
+    // 2. Try XPath if present
+    if (step.element && step.element.xpath) {
+        try {
+            const result = document.evaluate(
+                step.element.xpath,
+                document,
+                null,
+                XPathResult.FIRST_ORDERED_NODE_TYPE,
+                null
+            );
+            if (result && result.singleNodeValue && result.singleNodeValue.offsetParent !== null) {
+                return result.singleNodeValue;
+            }
+        } catch (_) {}
+    }
+
+    // 3. Fallback: match by inner text or button value
+    if (step.title) {
+        const words = step.title.replace(/^(Click|Type|Press|Select)\s+/i, "").trim();
+        if (words.length > 2) {
+            const allClickables = document.querySelectorAll("button, a, input, [role='button']");
+            for (const el of allClickables) {
+                if (el.textContent && el.textContent.trim().toLowerCase().includes(words.toLowerCase())) {
+                    return el;
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+function renderGuideMeSpotlight() {
+    const step = guideMeWorkflow.steps[guideMeStepIndex];
+    currentTargetEl = findTargetElement(step);
+
+    let spotlight = document.getElementById("procsnap-guide-spotlight");
+    if (spotlight) spotlight.remove();
+
+    let beacon = document.getElementById("procsnap-guide-beacon");
+    if (beacon) beacon.remove();
+
+    if (!currentTargetEl) return;
+
+    // Scroll element smoothly to center of viewport
+    try {
+        currentTargetEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    } catch (_) {}
+
+    const updatePosition = () => {
+        if (!currentTargetEl || !guideMeActive) return;
+        const rect = currentTargetEl.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) return;
+
+        let s = document.getElementById("procsnap-guide-spotlight");
+        if (!s) {
+            s = document.createElement("div");
+            s.id = "procsnap-guide-spotlight";
+            s.style.cssText = `
+                position: fixed;
+                z-index: 2147483640;
+                pointer-events: none;
+                border-radius: 8px;
+                border: 3px solid #6366f1;
+                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45), 0 0 25px #6366f1;
+                transition: all 0.25s ease-out;
+            `;
+            document.body.appendChild(s);
+        }
+
+        s.style.top = `${Math.max(0, rect.top - 4)}px`;
+        s.style.left = `${Math.max(0, rect.left - 4)}px`;
+        s.style.width = `${rect.width + 8}px`;
+        s.style.height = `${rect.height + 8}px`;
+
+        // Add floating pulsating beacon pointer
+        let b = document.getElementById("procsnap-guide-beacon");
+        if (!b) {
+            b = document.createElement("div");
+            b.id = "procsnap-guide-beacon";
+            b.style.cssText = `
+                position: fixed;
+                z-index: 2147483645;
+                pointer-events: none;
+                width: 20px;
+                height: 20px;
+                background: #6366f1;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                box-shadow: 0 0 16px rgba(99, 102, 241, 0.8);
+                transform: translate(-50%, -50%);
+                animation: psBeaconPulse 1.2s infinite;
+            `;
+            document.body.appendChild(b);
+        }
+
+        b.style.top = `${rect.top + rect.height / 2}px`;
+        b.style.left = `${rect.left + rect.width / 2}px`;
+    };
+
+    setTimeout(updatePosition, 250);
+    window.addEventListener("scroll", updatePosition, { passive: true });
+    window.addEventListener("resize", updatePosition, { passive: true });
+
+    // Auto-advance on click
+    const clickHandler = () => {
+        advanceGuideMeStep(1);
+        currentTargetEl.removeEventListener("click", clickHandler);
+    };
+    currentTargetEl.addEventListener("click", clickHandler, { once: true });
+}
+
+function showGuideMeCelebration() {
+    let bar = document.getElementById("procsnap-guide-bar");
+    if (bar) {
+        bar.innerHTML = `
+            <div style="text-align: center; padding: 8px;">
+                <div style="font-size: 28px; margin-bottom: 4px;">🎉</div>
+                <div style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 4px;">
+                    Workflow Completed!
+                </div>
+                <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">
+                    You successfully completed all steps in <strong>${escapeHtml(guideMeWorkflow.name || "this guide")}</strong>.
+                </div>
+                <button id="ps-gm-finish" style="background: #10b981; border: none; color: #fff; border-radius: 8px; padding: 6px 20px; font-size: 13px; font-weight: 700; cursor: pointer;">
+                    Done
+                </button>
+            </div>
+        `;
+        document.getElementById("ps-gm-finish").onclick = teardownGuideMe;
+    }
+    const spotlight = document.getElementById("procsnap-guide-spotlight");
+    if (spotlight) spotlight.remove();
+    const beacon = document.getElementById("procsnap-guide-beacon");
+    if (beacon) beacon.remove();
+}
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/[&<>"']/g, (m) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    }[m]));
+}

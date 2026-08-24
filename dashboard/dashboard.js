@@ -372,6 +372,155 @@ async function init() {
         };
     }
 
+    // ── Video & GIF to SOP Import Modal ─────────────────────────────────────────
+    const videoImportModal = $("videoImportModal");
+    const btnOpenVideoImport = $("btnOpenVideoImportModal");
+    const videoImportClose = $("videoImportModalClose");
+    const videoImportCancel = $("videoImportCancelBtn");
+    const videoDropZone = $("videoDropZone");
+    const videoFileInput = $("videoFileInput");
+    const videoImportStartBtn = $("videoImportStartBtn");
+    let selectedVideoFile = null;
+
+    if (btnOpenVideoImport) {
+        btnOpenVideoImport.onclick = () => {
+            selectedVideoFile = null;
+            if ($("videoDropTitle")) $("videoDropTitle").textContent = "Click or Drag & Drop Video Here";
+            if ($("videoWorkflowNameInput")) $("videoWorkflowNameInput").value = "";
+            if ($("videoImportProgressWrap")) $("videoImportProgressWrap").classList.add("hidden");
+            if (videoImportModal) videoImportModal.classList.remove("hidden");
+        };
+    }
+    if (videoImportClose) videoImportClose.onclick = () => videoImportModal && videoImportModal.classList.add("hidden");
+    if (videoImportCancel) videoImportCancel.onclick = () => videoImportModal && videoImportModal.classList.add("hidden");
+
+    if (videoDropZone && videoFileInput) {
+        videoDropZone.onclick = (e) => {
+            if (e.target !== videoFileInput) videoFileInput.click();
+        };
+        videoDropZone.ondragover = (e) => {
+            e.preventDefault();
+            videoDropZone.style.borderColor = "#a855f7";
+            videoDropZone.style.background = "rgba(168, 85, 247, 0.1)";
+        };
+        videoDropZone.ondragleave = () => {
+            videoDropZone.style.borderColor = "rgba(168, 85, 247, 0.4)";
+            videoDropZone.style.background = "rgba(168, 85, 247, 0.04)";
+        };
+        videoDropZone.ondrop = (e) => {
+            e.preventDefault();
+            videoDropZone.style.borderColor = "rgba(168, 85, 247, 0.4)";
+            videoDropZone.style.background = "rgba(168, 85, 247, 0.04)";
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                selectedVideoFile = e.dataTransfer.files[0];
+                if ($("videoDropTitle")) $("videoDropTitle").textContent = `Selected: ${selectedVideoFile.name} (${(selectedVideoFile.size / (1024*1024)).toFixed(1)}MB)`;
+                if ($("videoWorkflowNameInput") && !$("videoWorkflowNameInput").value) {
+                    $("videoWorkflowNameInput").value = selectedVideoFile.name.replace(/\.[^/.]+$/, "");
+                }
+            }
+        };
+        videoFileInput.onchange = () => {
+            if (videoFileInput.files && videoFileInput.files[0]) {
+                selectedVideoFile = videoFileInput.files[0];
+                if ($("videoDropTitle")) $("videoDropTitle").textContent = `Selected: ${selectedVideoFile.name} (${(selectedVideoFile.size / (1024*1024)).toFixed(1)}MB)`;
+                if ($("videoWorkflowNameInput") && !$("videoWorkflowNameInput").value) {
+                    $("videoWorkflowNameInput").value = selectedVideoFile.name.replace(/\.[^/.]+$/, "");
+                }
+            }
+        };
+    }
+
+    if (videoImportStartBtn) {
+        videoImportStartBtn.onclick = async () => {
+            if (!selectedVideoFile) {
+                showToast("Please select a video file first");
+                return;
+            }
+
+            const name = $("videoWorkflowNameInput") ? $("videoWorkflowNameInput").value.trim() : "";
+            const sens = $("videoSensitivitySelect") ? $("videoSensitivitySelect").value : "medium";
+
+            const progressWrap = $("videoImportProgressWrap");
+            const progressBar = $("videoImportProgressBar");
+            const statusText = $("videoImportStatusText");
+
+            if (progressWrap) progressWrap.classList.remove("hidden");
+            if (progressBar) progressBar.style.width = "35%";
+            if (statusText) statusText.textContent = "Uploading & extracting keyframe steps...";
+            videoImportStartBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append("file", selectedVideoFile);
+            if (name) formData.append("workflow_name", name);
+            formData.append("sensitivity", sens);
+
+            try {
+                if (progressBar) progressBar.style.width = "65%";
+                const res = await fetch(`${API_BASE}/workflows/import-video`, {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || "Failed to import video");
+                }
+                if (progressBar) progressBar.style.width = "100%";
+                if (statusText) statusText.textContent = `✓ Generated ${data.step_count} steps!`;
+                showToast(`🪄 SOP generated with ${data.step_count} steps!`);
+                setTimeout(async () => {
+                    if (videoImportModal) videoImportModal.classList.add("hidden");
+                    await loadWorkflows();
+                    if (data.session_id) await openWorkflow(data.session_id);
+                }, 1000);
+            } catch (err) {
+                showToast(`❌ Error: ${err.message}`);
+                if (statusText) statusText.textContent = `Failed: ${err.message}`;
+            } finally {
+                videoImportStartBtn.disabled = false;
+            }
+        };
+    }
+
+    // ── Guide Me Live In-Browser Beacon ─────────────────────────────────────────
+    const btnGuideMeLive = $("btnGuideMeLive");
+    if (btnGuideMeLive) {
+        btnGuideMeLive.onclick = async () => {
+            if (!workflow || !workflow.steps || workflow.steps.length === 0) {
+                showToast("No steps available in this workflow to guide");
+                return;
+            }
+
+            const firstStep = workflow.steps[0];
+            let targetUrl = firstStep.url;
+            if (!targetUrl || targetUrl.startsWith("video://") || targetUrl.startsWith("file://") || targetUrl.startsWith("chrome://")) {
+                targetUrl = "https://www.google.com";
+            }
+
+            const guidePayload = {
+                type: "START_GUIDE_ME",
+                workflow: {
+                    id: workflow.id,
+                    name: workflow.name,
+                    steps: workflow.steps.map(s => ({
+                        sequence: s.sequence,
+                        title: s.title,
+                        description: s.description || s.title,
+                        action: s.action,
+                        url: s.url,
+                        element: s.element || null,
+                        hotspot: s.hotspot || null
+                    }))
+                }
+            };
+
+            localStorage.setItem("ps_guide_me_active", JSON.stringify(guidePayload));
+            window.postMessage(guidePayload, "*");
+            
+            showToast("🎯 Starting Guide Me on live site...");
+            window.open(targetUrl, "_blank");
+        };
+    }
+
     // ── Global Keyboard Shortcuts & Modal Escape Handler ───────────────────────
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {

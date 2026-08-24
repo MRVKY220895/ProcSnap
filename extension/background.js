@@ -500,6 +500,24 @@ chrome.runtime.onMessage.addListener(
             message.type
         );
 
+        if (message.type === "START_GUIDE_ME") {
+            chrome.storage.local.set({
+                ps_guide_me_active: true,
+                ps_guide_me_workflow: message.workflow,
+                ps_guide_me_index: message.startStepIndex || 0
+            });
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs && tabs[0]) {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        type: "START_GUIDE_ME",
+                        workflow: message.workflow,
+                        startStepIndex: message.startStepIndex || 0
+                    });
+                }
+            });
+            sendResponse({ success: true });
+            return true;
+        }
 
         /* -----------------------------------------------
            START

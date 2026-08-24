@@ -29,7 +29,7 @@ try:
 except ImportError:
     pptx = None
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -3279,3 +3279,165 @@ def git_pull_latest():
         return {"success": False, "output": "\n".join(output_lines) + "\n\n⏰ Timed out after 2 minutes."}
     except Exception as e:
         return {"success": False, "output": "\n".join(output_lines) + f"\n\n❌ Error: {str(e)}"}
+
+
+# =========================================================
+# VIDEO / GIF TO STEP SOP IMPORT (OpenCV Keyframe Engine)
+# =========================================================
+@app.post("/workflows/import-video")
+async def import_video_workflow(
+    file: UploadFile = File(...),
+    workflow_name: Optional[str] = Form(None),
+    sensitivity: Optional[str] = Form("medium")
+):
+    """
+    Extracts keyframe transitions from an uploaded video/GIF (Loom, MP4, WebM)
+    and converts them into an editable ProcSnap SOP workflow with screenshots.
+    """
+    import tempfile
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        raise HTTPException(
+            status_code=500,
+            detail="OpenCV (cv2) or NumPy is not installed. Please install opencv-python."
+        )
+
+    filename = file.filename or "video.mp4"
+    ext = Path(filename).suffix.lower() or ".mp4"
+    
+    # Save uploaded video to temp file
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp_video:
+        content = await file.read()
+        tmp_video.write(content)
+        tmp_video_path = tmp_video.name
+
+    try:
+        cap = cv2.VideoCapture(tmp_video_path)
+        if not cap.isOpened():
+            raise HTTPException(status_code=400, detail="Could not open video file.")
+
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total_frames <= 0:
+            raise HTTPException(status_code=400, detail="Video contains no readable frames.")
+
+        duration_sec = total_frames / fps
+        
+        # Sample rate: 1 frame every 0.4 seconds (2.5 fps)
+        sample_step = max(1, int(fps * 0.4))
+        
+        # Thresholds based on sensitivity
+        sens_map = {
+            "high": 4.0,
+            "medium": 8.0,
+            "low": 15.0
+        }
+        threshold = sens_map.get((sensitivity or "").lower(), 8.0)
+
+        selected_frames = []
+        prev_gray = None
+        frame_idx = 0
+        last_selected_time = -10.0
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            if frame_idx % sample_step == 0:
+                current_time = frame_idx / fps
+                small = cv2.resize(frame, (320, 180))
+                gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+                gray = cv2.GaussianBlur(gray, (5, 5), 0)
+
+                if prev_gray is None:
+                    # Always capture the initial starting screen
+                    selected_frames.append((current_time, frame.copy()))
+                    last_selected_time = current_time
+                    prev_gray = gray
+                else:
+                    diff = cv2.absdiff(prev_gray, gray)
+                    score = np.mean(diff)
+
+                    # If significant screen change detected and at least 0.8s elapsed
+                    if score >= threshold and (current_time - last_selected_time) >= 0.8:
+                        selected_frames.append((current_time, frame.copy()))
+                        last_selected_time = current_time
+                        prev_gray = gray
+
+                        if len(selected_frames) >= 40:
+                            break  # Cap at 40 key steps per import
+
+            frame_idx += 1
+
+        cap.release()
+
+        if not selected_frames:
+            raise HTTPException(status_code=400, detail="Could not extract any distinct steps from video.")
+
+        # Create session in DB
+        session_id = str(uuid4())
+        wf_name = (workflow_name or Path(filename).stem or "Imported Video Workflow").strip()
+        now = datetime.now(timezone.utc).isoformat()
+
+        session_dir = SCREENSHOTS_DIR / session_id
+        session_dir.mkdir(parents=True, exist_ok=True)
+
+        connection = get_connection()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                INSERT INTO workflows (id, name, application, status, started_at, ended_at, created_at, updated_at, tags)
+                VALUES (?, ?, ?, 'completed', ?, ?, ?, ?, 'Video Import')
+                """,
+                (session_id, wf_name, "Video Import", now, now, now, now)
+            )
+
+            for i, (timestamp, img_frame) in enumerate(selected_frames):
+                img_path = session_dir / f"step_{i+1}.png"
+                # Save screenshot as high-quality PNG
+                cv2.imwrite(str(img_path), img_frame, [cv2.IMWRITE_PNG_COMPRESSION, 3])
+                
+                rel_path = f"screenshots/{session_id}/step_{i+1}.png"
+                step_title = f"Step {i+1}: Screen at {int(timestamp // 60)}m {int(timestamp % 60)}s"
+                step_desc = f"Video capture key transition at timestamp {timestamp:.1f}s."
+
+                cursor.execute(
+                    """
+                    INSERT INTO workflow_steps (workflow_id, sequence, action, url, title, screenshot_path, timestamp)
+                    VALUES (?, ?, 'screen_capture', 'video://import', ?, ?, ?)
+                    """,
+                    (session_id, i + 1, step_title, rel_path, now)
+                )
+                step_id = cursor.lastrowid
+
+                # Initial step edit record
+                cursor.execute(
+                    """
+                    INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, hidden, updated_at)
+                    VALUES (?, ?, ?, ?, '', '', 0, ?)
+                    """,
+                    (step_id, session_id, step_title, step_desc, now)
+                )
+
+            connection.commit()
+        finally:
+            connection.close()
+
+        return {
+            "success": True,
+            "session_id": session_id,
+            "name": wf_name,
+            "step_count": len(selected_frames),
+            "duration_sec": round(duration_sec, 1),
+            "message": f"Successfully extracted {len(selected_frames)} steps from video!"
+        }
+    finally:
+        if os.path.exists(tmp_video_path):
+            try:
+                os.remove(tmp_video_path)
+            except Exception:
+                pass
