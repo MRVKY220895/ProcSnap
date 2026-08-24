@@ -2906,6 +2906,13 @@ function loadActiveStepDetails() {
     setVal("guideStepNote", step.note || "");
     setVal("guideStepVoiceover", step.voiceover || "");
     renderStepBranches(step);
+
+    // Detect if step has an active GIF micro-demo
+    step.hasActiveDemo = Boolean(
+        step.hasActiveDemo ||
+        (step.screenshotUrl && (step.screenshotUrl.includes("-demo") || step.screenshotUrl.endsWith(".gif")))
+    );
+
     if (typeof updateDemoButtonState === "function") updateDemoButtonState(step);
     if (typeof updateFocusToggleUI === "function") updateFocusToggleUI();
     if (typeof updateHotspotReticlePosition === "function") updateHotspotReticlePosition(step);
@@ -6469,7 +6476,9 @@ function initHotspotReticle() {
         const curXPct = leftVal + (wVal / 2);
         const curYPct = topVal + (hVal / 2);
 
-        if (step.hasActiveDemo) {
+        const isDemo = Boolean(step.hasActiveDemo || (step.screenshotUrl && (step.screenshotUrl.includes("-demo") || step.screenshotUrl.endsWith(".gif"))));
+
+        if (isDemo) {
             showToast("🔄 Re-generating Micro-Demo at dragged location...", 2500);
             await triggerAnimateGeneration(step, curXPct, curYPct);
         } else {
@@ -6521,7 +6530,8 @@ function initHotspotReticle() {
 
         const label = $("reticleCoordsLabel");
         if (label) {
-            if (step?.hasActiveDemo) {
+            const isDemoActive = Boolean(step?.hasActiveDemo || (step?.screenshotUrl && (step.screenshotUrl.includes("-demo") || step.screenshotUrl.endsWith(".gif"))));
+            if (isDemoActive) {
                 label.textContent = `🎯 Drag to Adjust GIF (${Math.round(xPct)}%, ${Math.round(yPct)}%)`;
             } else {
                 label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
@@ -6531,7 +6541,8 @@ function initHotspotReticle() {
         createCanvasClickRipple(e.clientX - rect.left, e.clientY - rect.top, wrapper);
         toggleHotspotClickMode(false);
 
-        if (step?.hasActiveDemo) {
+        const isDemo = Boolean(step?.hasActiveDemo || (step?.screenshotUrl && (step.screenshotUrl.includes("-demo") || step.screenshotUrl.endsWith(".gif"))));
+        if (isDemo) {
             showToast("🔄 Re-generating Micro-Demo at clicked location...", 2500);
             await triggerAnimateGeneration(step, xPct, yPct);
         } else {
