@@ -2380,7 +2380,11 @@ def generate_step_animation(session_id: str, step_id: int, payload: Optional[Ste
             raise HTTPException(status_code=404, detail="Step or screenshot not found")
 
         raw_path = step["screenshot_path"]
+        seq = int(step["sequence"])
         candidate_paths = [
+            # Check for original png first
+            SCREENSHOTS_DIR / session_id / f"step-{seq:03d}.png",
+            SCREENSHOTS_DIR / session_id / f"step_{seq}.png",
             BASE_DIR / raw_path,
             BASE_DIR / "screenshots" / session_id / Path(raw_path).name,
             SCREENSHOTS_DIR / session_id / Path(raw_path).name,
@@ -2388,9 +2392,14 @@ def generate_step_animation(session_id: str, step_id: int, payload: Optional[Ste
         ]
         img_path = None
         for p in candidate_paths:
-            if p.is_file():
+            if p.is_file() and not p.name.endswith("-demo.gif"):
                 img_path = p
                 break
+        if not img_path:
+            for p in candidate_paths:
+                if p.is_file():
+                    img_path = p
+                    break
 
         if not img_path:
             raise HTTPException(status_code=404, detail="Screenshot file missing on disk")
@@ -2400,14 +2409,14 @@ def generate_step_animation(session_id: str, step_id: int, payload: Optional[Ste
 
         target_x, target_y = None, None
 
-        # 1. Client-provided coordinates (exact frontend canvas/DOM alignment)
+        # 1. Percentage coordinates from client (exact frontend percentage alignment)
         if payload:
-            if payload.target_x is not None and payload.target_y is not None:
+            if payload.x_pct is not None and payload.y_pct is not None:
+                target_x = (float(payload.x_pct) / 100.0) * float(width)
+                target_y = (float(payload.y_pct) / 100.0) * float(height)
+            elif payload.target_x is not None and payload.target_y is not None:
                 target_x = float(payload.target_x)
                 target_y = float(payload.target_y)
-            elif payload.x_pct is not None and payload.y_pct is not None:
-                target_x = (float(payload.x_pct) / 100.0) * width
-                target_y = (float(payload.y_pct) / 100.0) * height
 
         # 2. Check annotations for custom hotspot coordinates
         if target_x is None:
