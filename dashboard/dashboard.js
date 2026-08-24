@@ -2313,45 +2313,83 @@ function renderGuideTab() {
 
         // Bind drawing tool triggers (excluding text, which has its own caret)
         ["select", "pan", "circle", "arrow", "rect", "highlight", "blur", "crop"].forEach(tool => {
-            $(`tool-${tool}`).onclick = () => {
-                document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
-                $(`tool-${tool}`).classList.add("active");
-                canvasEngine.setTool(tool);
-                // Close text picker if open
-                $("textStylePicker").classList.add("hidden");
-            };
+            const btn = $(`tool-${tool}`);
+            if (btn) {
+                btn.onclick = () => {
+                    document.querySelectorAll(".dock-tool-btn, .tool-btn").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    canvasEngine.setTool(tool);
+                    // Close text picker if open
+                    $("textStylePicker")?.classList.add("hidden");
+                    $("palettePanel")?.classList.add("hidden");
+                };
+            }
         });
 
         // Text tool main button
-        $("tool-text").onclick = () => {
-            document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
-            $("tool-text").classList.add("active");
-            canvasEngine.setTool("text");
-            $("textStylePicker").classList.add("hidden");
-        };
+        const textBtn = $("tool-text");
+        if (textBtn) {
+            textBtn.onclick = () => {
+                document.querySelectorAll(".dock-tool-btn, .tool-btn").forEach(b => b.classList.remove("active"));
+                textBtn.classList.add("active");
+                canvasEngine.setTool("text");
+                $("textStylePicker")?.classList.toggle("hidden");
+                $("palettePanel")?.classList.add("hidden");
+            };
+        }
 
         // Text style caret toggle
-        $("tool-text-caret").onclick = (e) => {
-            e.stopPropagation();
-            $("textStylePicker").classList.toggle("hidden");
-        };
+        const textCaret = $("tool-text-caret");
+        if (textCaret) {
+            textCaret.onclick = (e) => {
+                e.stopPropagation();
+                $("textStylePicker")?.classList.toggle("hidden");
+                $("palettePanel")?.classList.add("hidden");
+            };
+        }
 
-        // Text style buttons (color schemes)
-        document.querySelectorAll(".text-style-btn").forEach(btn => {
+        // Text style options (Info, Warning, Tip, Note, Plain)
+        document.querySelectorAll(".text-style-opt").forEach(btn => {
             btn.onclick = () => {
-                document.querySelectorAll(".text-style-btn").forEach(b => b.classList.remove("active"));
+                document.querySelectorAll(".text-style-opt").forEach(b => b.classList.remove("active"));
                 btn.classList.add("active");
-                canvasEngine.textStyle = {
-                    color: btn.dataset.color,
-                    bgColor: btn.dataset.bg,
-                    textColor: btn.dataset.text,
-                    styleName: btn.dataset.style
+                const styleName = btn.dataset.style || "info";
+                
+                const styleMap = {
+                    info: { color: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.15)", textColor: "#ffffff" },
+                    warning: { color: "#f59e0b", bgColor: "rgba(245, 158, 11, 0.15)", textColor: "#ffffff" },
+                    tip: { color: "#10b981", bgColor: "rgba(16, 185, 129, 0.15)", textColor: "#ffffff" },
+                    note: { color: "#8b5cf6", bgColor: "rgba(139, 92, 246, 0.15)", textColor: "#ffffff" },
+                    plain: { color: "#ffffff", bgColor: "transparent", textColor: "#ffffff" }
                 };
+
+                const s = styleMap[styleName] || styleMap.info;
+                canvasEngine.textStyle = {
+                    color: s.color,
+                    bgColor: s.bgColor,
+                    textColor: s.textColor,
+                    styleName: styleName,
+                    fontSize: canvasEngine.textStyle?.fontSize || 16
+                };
+
                 // Activate text tool
-                document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
-                $("tool-text").classList.add("active");
+                document.querySelectorAll(".dock-tool-btn, .tool-btn").forEach(b => b.classList.remove("active"));
+                $("tool-text")?.classList.add("active");
                 canvasEngine.setTool("text");
-                $("textStylePicker").classList.add("hidden");
+                showToast(`🔤 Callout style: ${styleName.toUpperCase()}`);
+            };
+        });
+
+        // Font size options for Text
+        document.querySelectorAll(".text-size-btn").forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll(".text-size-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                const size = parseInt(btn.dataset.size || "16", 10);
+                if (canvasEngine.textStyle) {
+                    canvasEngine.textStyle.fontSize = size;
+                }
+                showToast(`Font size: ${size}px`);
             };
         });
 
@@ -2359,21 +2397,80 @@ function renderGuideTab() {
         document.querySelectorAll(".text-preset-btn").forEach(btn => {
             btn.onclick = () => {
                 canvasEngine.textPreset = btn.dataset.preset;
-                // Activate text tool
-                document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
-                $("tool-text").classList.add("active");
+                document.querySelectorAll(".dock-tool-btn, .tool-btn").forEach(b => b.classList.remove("active"));
+                $("tool-text")?.classList.add("active");
                 canvasEngine.setTool("text");
-                $("textStylePicker").classList.add("hidden");
+                $("textStylePicker")?.classList.add("hidden");
+                showToast(`Preset: "${btn.dataset.preset}"`);
             };
         });
 
         // Color Picker toggle
-        if ($("tool-color-picker")) {
-            $("tool-color-picker").onclick = (e) => {
+        const colorPickerBtn = $("tool-color-picker");
+        if (colorPickerBtn) {
+            colorPickerBtn.onclick = (e) => {
                 e.stopPropagation();
-                $("palettePanel").classList.toggle("hidden");
+                $("palettePanel")?.classList.toggle("hidden");
+                $("textStylePicker")?.classList.add("hidden");
             };
         }
+
+        // Color Swatches in Palette Panel
+        document.querySelectorAll(".color-swatch").forEach(swatch => {
+            swatch.onclick = () => {
+                document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("active"));
+                swatch.classList.add("active");
+                const color = swatch.dataset.color || "#ef4444";
+                canvasEngine.currentColor = color;
+                
+                const indicator = $("currentColorIndicator");
+                if (indicator) indicator.style.backgroundColor = color;
+
+                const customInput = $("customColorInput");
+                if (customInput) customInput.value = color;
+
+                if (canvasEngine.activeShape) {
+                    canvasEngine.activeShape.color = color;
+                    canvasEngine.drawAll();
+                    saveStepAnnotations(canvasEngine.annotations);
+                }
+                showToast(`🎨 Color updated: ${color}`);
+            };
+        });
+
+        // Custom Color Picker input
+        const customColorInput = $("customColorInput");
+        if (customColorInput) {
+            customColorInput.oninput = (e) => {
+                const color = e.target.value;
+                canvasEngine.currentColor = color;
+                const indicator = $("currentColorIndicator");
+                if (indicator) indicator.style.backgroundColor = color;
+
+                if (canvasEngine.activeShape) {
+                    canvasEngine.activeShape.color = color;
+                    canvasEngine.drawAll();
+                    saveStepAnnotations(canvasEngine.annotations);
+                }
+            };
+        }
+
+        // Stroke Width Buttons
+        document.querySelectorAll(".stroke-opt-btn").forEach(sBtn => {
+            sBtn.onclick = () => {
+                document.querySelectorAll(".stroke-opt-btn").forEach(b => b.classList.remove("active"));
+                sBtn.classList.add("active");
+                const strokeWidth = parseInt(sBtn.dataset.width || "4", 10);
+                canvasEngine.strokeWidth = strokeWidth;
+
+                if (canvasEngine.activeShape) {
+                    canvasEngine.activeShape.strokeWidth = strokeWidth;
+                    canvasEngine.drawAll();
+                    saveStepAnnotations(canvasEngine.annotations);
+                }
+                showToast(`Stroke width: ${strokeWidth}px`);
+            };
+        });
 
         // Close pickers when clicking elsewhere
         document.addEventListener("click", (e) => {

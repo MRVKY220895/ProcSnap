@@ -389,12 +389,42 @@
                                     </div>
                                 </div>
 
+                                <!-- Floating Color & Stroke Palette Popover -->
+                                <div class="palette-panel hidden" id="palettePanel">
+                                    <div class="palette-header">🎨 Color & Stroke</div>
+                                    <div class="palette-color-grid">
+                                        <button class="color-swatch active" data-color="#ef4444" style="background: #ef4444;" title="Red"></button>
+                                        <button class="color-swatch" data-color="#f59e0b" style="background: #f59e0b;" title="Amber"></button>
+                                        <button class="color-swatch" data-color="#10b981" style="background: #10b981;" title="Emerald"></button>
+                                        <button class="color-swatch" data-color="#3b82f6" style="background: #3b82f6;" title="Blue"></button>
+                                        <button class="color-swatch" data-color="#6366f1" style="background: #6366f1;" title="Indigo"></button>
+                                        <button class="color-swatch" data-color="#ec4899" style="background: #ec4899;" title="Pink"></button>
+                                        <button class="color-swatch" data-color="#0f172a" style="background: #0f172a;" title="Black"></button>
+                                        <button class="color-swatch" data-color="#ffffff" style="background: #ffffff; border: 1px solid #cbd5e1;" title="White"></button>
+                                    </div>
+                                    <div class="palette-custom-row">
+                                        <label>Custom Color:</label>
+                                        <input type="color" id="customColorInput" value="#ef4444" class="custom-color-picker">
+                                    </div>
+                                    <div class="palette-stroke-row">
+                                        <label>Stroke Width:</label>
+                                        <div class="stroke-buttons">
+                                            <button class="stroke-opt-btn" data-width="2">2px</button>
+                                            <button class="stroke-opt-btn active" data-width="4">4px</button>
+                                            <button class="stroke-opt-btn" data-width="6">6px</button>
+                                            <button class="stroke-opt-btn" data-width="8">8px</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Floating Text & Callout Options Popover -->
                                 <div class="text-style-picker hidden" id="textStylePicker">
-                                    <div class="text-style-header">Choose Callout Style</div>
+                                    <div class="text-style-header">🔤 Text & Callout Options</div>
+                                    <div class="text-options-section-label">Callout Style</div>
                                     <div class="text-style-grid">
                                         <div class="text-style-opt active" data-style="info">
                                             <div class="style-badge info">Info</div>
-                                            <span>Blue Callout</span>
+                                            <span>Blue Pill</span>
                                         </div>
                                         <div class="text-style-opt" data-style="warning">
                                             <div class="style-badge warning">Warning</div>
@@ -412,6 +442,20 @@
                                             <div class="style-badge plain">Plain</div>
                                             <span>Text Only</span>
                                         </div>
+                                    </div>
+                                    <div class="text-options-section-label" style="margin-top: 10px;">Font Size</div>
+                                    <div class="text-size-buttons">
+                                        <button class="text-size-btn" data-size="13">Small</button>
+                                        <button class="text-size-btn active" data-size="16">Medium</button>
+                                        <button class="text-size-btn" data-size="20">Large</button>
+                                        <button class="text-size-btn" data-size="26">Title</button>
+                                    </div>
+                                    <div class="text-options-section-label" style="margin-top: 10px;">Quick Presets</div>
+                                    <div class="text-presets-grid">
+                                        <button class="text-preset-btn" data-preset="Click here">📍 Click here</button>
+                                        <button class="text-preset-btn" data-preset="Type text">⌨️ Type text</button>
+                                        <button class="text-preset-btn" data-preset="Important">⚠️ Important</button>
+                                        <button class="text-preset-btn" data-preset="Select option">👉 Select</button>
                                     </div>
                                 </div>
 
