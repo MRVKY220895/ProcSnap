@@ -1289,10 +1289,12 @@ svg {
 .editor-workspace {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    max-width: 900px;
-    margin: 0 auto;
+    gap: 14px;
+    max-width: 100%;
+    margin: 0;
     width: 100%;
+    padding: 0 4px;
+    box-sizing: border-box;
 }
 
 .editor-header-bar {
@@ -5565,26 +5567,37 @@ textarea {
 .bpmn-flowchart-workspace {
     display: flex;
     flex-direction: column;
-    background: radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.95) 100%);
+    background-color: #0b0f17;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1.2px, transparent 1.2px);
+    background-size: 24px 24px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
+    border-radius: 16px;
     overflow: hidden;
     position: relative;
-    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.4), 0 8px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5), 0 8px 30px rgba(0, 0, 0, 0.3);
+    height: calc(100vh - 180px);
+    min-height: 640px;
+    width: 100%;
 }
 
-/* BPMN HUD Toolbar */
+/* BPMN Floating Studio HUD */
 .bpmn-hud-toolbar {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 14px;
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    z-index: 20;
-    gap: 8px;
-    flex-wrap: wrap;
+    padding: 6px 16px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 50;
+    gap: 12px;
 }
 
 .bpmn-hud-left, .bpmn-hud-right {
@@ -5600,7 +5613,7 @@ textarea {
     background: rgba(99, 102, 241, 0.18);
     border: 1px solid rgba(99, 102, 241, 0.35);
     padding: 3px 9px;
-    border-radius: 6px;
+    border-radius: 999px;
     margin-right: 4px;
 }
 
@@ -5637,7 +5650,6 @@ textarea {
     flex: 1;
     width: 100%;
     height: 100%;
-    min-height: 480px;
     cursor: grab;
     user-select: none;
     position: relative;
@@ -5673,9 +5685,9 @@ textarea {
 
 .bpmn-node-card {
     fill: #1e293b;
-    stroke: rgba(255, 255, 255, 0.12);
+    stroke: rgba(255, 255, 255, 0.14);
     stroke-width: 1.5px;
-    rx: 12px;
+    rx: 14px;
 }
 
 .bpmn-node-badge {
@@ -5722,7 +5734,7 @@ textarea {
 .bpmn-connector-line {
     fill: none;
     stroke: #6366f1;
-    stroke-width: 2px;
+    stroke-width: 2.2px;
     stroke-linecap: round;
     stroke-linejoin: round;
     transition: stroke 0.2s ease, stroke-width 0.2s ease;
@@ -5730,16 +5742,16 @@ textarea {
 
 .bpmn-connector-line.branch-line {
     stroke: #f59e0b;
-    stroke-dasharray: 4 3;
+    stroke-dasharray: 5 4;
 }
 
 .bpmn-connector-line:hover {
     stroke: #a5b4fc;
-    stroke-width: 3px;
+    stroke-width: 3.5px;
 }
 
 .bpmn-branch-label-bg {
-    fill: rgba(15, 23, 42, 0.9);
+    fill: rgba(15, 23, 42, 0.95);
     stroke: #f59e0b;
     stroke-width: 1px;
     rx: 4px;
@@ -5774,6 +5786,10 @@ textarea {
 }
 
 /* Light Theme Support */
+[data-theme="light"] .editor-header-bar h2 {
+    color: #0f172a !important;
+}
+
 [data-theme="light"] .step-view-mode-pill {
     background: #f1f5f9;
     border-color: #cbd5e1;
@@ -5789,13 +5805,17 @@ textarea {
 }
 
 [data-theme="light"] .bpmn-flowchart-workspace {
-    background: radial-gradient(circle at 50% 50%, #f8fafc 0%, #e2e8f0 100%);
+    background-color: #f8fafc;
+    background-image: radial-gradient(rgba(100, 116, 139, 0.25) 1.2px, transparent 1.2px);
+    background-size: 24px 24px;
     border-color: #cbd5e1;
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.04);
 }
 
 [data-theme="light"] .bpmn-hud-toolbar {
     background: rgba(255, 255, 255, 0.95);
-    border-bottom-color: #e2e8f0;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
 }
 
 [data-theme="light"] .bpmn-hud-badge {
@@ -5823,6 +5843,7 @@ textarea {
 [data-theme="light"] .bpmn-node-sub {
     fill: #64748b;
 }
+
 
 
 

@@ -8629,183 +8629,124 @@ class BpmnFlowchartEngine {
         connectorsLayer.innerHTML = "";
         nodesLayer.innerHTML = "";
 
-        const nodeW = 210;
-        const nodeH = 76;
+        const cardW = 240;
+        const cardH = 86;
         const gapX = 70;
-        const gapY = 120;
-        const startX = 60;
+        const gapY = 110;
+        const colsPerRow = 4;
+        const startX = 40;
+        const rowStartX = 140;
         const startY = 80;
-
-        let curX = startX;
-        let curY = startY;
 
         this.nodes = [];
         this.connections = [];
 
-        // 1. Draw Start Event Node (BPMN Green Circle)
+        // 1. Start Event Node (Green Circle)
         const startNode = {
             id: "start",
             type: "start",
-            x: curX,
-            y: curY + (nodeH / 2) - 18,
-            w: 36,
-            h: 36
+            x: startX,
+            y: startY + (cardH / 2) - 20,
+            w: 40,
+            h: 40,
+            row: 0,
+            col: -1
         };
         this.nodes.push(startNode);
 
         nodesLayer.innerHTML += `
             <g class="bpmn-node-group" transform="translate(${startNode.x}, ${startNode.y})">
-                <circle cx="18" cy="18" r="18" class="bpmn-start-event" />
-                <polygon points="14,10 26,18 14,26" fill="#ffffff" />
-                <text x="18" y="48" font-size="10" font-weight="700" fill="#10b981" text-anchor="middle">START</text>
+                <circle cx="20" cy="20" r="20" class="bpmn-start-event" />
+                <polygon points="15,11 28,20 15,29" fill="#ffffff" />
+                <text x="20" y="52" font-size="10.5" font-weight="800" fill="#10b981" text-anchor="middle">START</text>
             </g>
         `;
 
-        curX += 36 + gapX;
-
-        // Group steps by domain for Swimlanes
-        const domainGroups = {};
-        steps.forEach(st => {
-            let domain = "Application / Web";
-            if (st.url) {
-                try { domain = new URL(st.url).hostname || "Web App"; } catch { domain = "Web App"; }
-            }
-            if (!domainGroups[domain]) domainGroups[domain] = [];
-            domainGroups[domain].push(st);
-        });
-
-        // 2. Compute Node Positions & Generate Activity / Gateway Nodes
+        // 2. Compute 4-Column Serpentine Grid Positions
         steps.forEach((st, idx) => {
-            const hasBranches = (st.branches && st.branches.length > 0);
-            
+            const row = Math.floor(idx / colsPerRow);
+            const col = idx % colsPerRow;
+
+            const nodeX = rowStartX + col * (cardW + gapX);
+            const nodeY = startY + row * (cardH + gapY);
+
             const taskNode = {
                 id: `step-${st.sequence}`,
                 step: st,
                 type: "task",
-                x: curX,
-                y: curY,
-                w: nodeW,
-                h: nodeH
+                x: nodeX,
+                y: nodeY,
+                w: cardW,
+                h: cardH,
+                row: row,
+                col: col,
+                isRowStart: col === 0,
+                isRowEnd: col === (colsPerRow - 1) || idx === (steps.length - 1)
             };
             this.nodes.push(taskNode);
 
-            // Connect previous node to this node
-            const prevNode = idx === 0 ? startNode : this.nodes[this.nodes.length - 2];
+            // Connect previous node
+            const prevNode = (idx === 0) ? startNode : this.nodes[this.nodes.length - 2];
             this.connections.push({
                 from: prevNode,
                 to: taskNode,
                 type: "sequence"
             });
 
-            // If Step has Branching Logic, insert a BPMN Decision Gateway (Diamond)
-            if (hasBranches) {
-                const gwNode = {
-                    id: `gateway-${st.sequence}`,
-                    step: st,
-                    type: "gateway",
-                    x: curX + nodeW + 35,
-                    y: curY + (nodeH / 2) - 20,
-                    w: 40,
-                    h: 40,
-                    branches: st.branches
-                };
-                this.nodes.push(gwNode);
-
-                // Connect Task -> Gateway
-                this.connections.push({
-                    from: taskNode,
-                    to: gwNode,
-                    type: "sequence"
-                });
-
-                // Connect Gateway Branches
+            // Branching decision
+            if (st.branches && st.branches.length > 0) {
                 st.branches.forEach(b => {
                     this.connections.push({
-                        from: gwNode,
+                        from: taskNode,
                         toSeq: b.target_sequence,
                         label: b.label,
                         type: "branch"
                     });
                 });
-
-                curX += nodeW + 40 + gapX + 35;
-            } else {
-                curX += nodeW + gapX;
-            }
-
-            // Wrap to next line if flowchart exceeds 1300px width
-            if (curX > 1400) {
-                curX = startX + 50;
-                curY += gapY + 30;
             }
         });
 
-        // 3. Draw End Event Node (BPMN Red Circle)
-        const lastNode = this.nodes[this.nodes.length - 1];
+        // 3. End Event Node (Red Circle)
+        const lastTask = this.nodes[this.nodes.length - 1];
+        const lastCol = (steps.length - 1) % colsPerRow;
+        const lastRow = Math.floor((steps.length - 1) / colsPerRow);
+
+        let endX = lastTask.x + cardW + gapX;
+        let endY = lastTask.y + (cardH / 2) - 20;
+
+        // If last node is at row end, place end node nicely below or adjacent
+        if (lastCol === colsPerRow - 1) {
+            endX = lastTask.x + (cardW / 2) - 20;
+            endY = lastTask.y + cardH + 40;
+        }
+
         const endNode = {
             id: "end",
             type: "end",
-            x: curX,
-            y: curY + (nodeH / 2) - 18,
-            w: 36,
-            h: 36
+            x: endX,
+            y: endY,
+            w: 40,
+            h: 40,
+            row: lastRow,
+            col: lastCol + 1
         };
         this.nodes.push(endNode);
+
         this.connections.push({
-            from: lastNode,
+            from: lastTask,
             to: endNode,
             type: "sequence"
         });
 
         nodesLayer.innerHTML += `
             <g class="bpmn-node-group" transform="translate(${endNode.x}, ${endNode.y})">
-                <circle cx="18" cy="18" r="18" class="bpmn-end-event" />
-                <rect x="11" y="11" width="14" height="14" rx="2" fill="#ffffff" />
-                <text x="18" y="48" font-size="10" font-weight="700" fill="#ef4444" text-anchor="middle">END</text>
+                <circle cx="20" cy="20" r="20" class="bpmn-end-event" />
+                <rect x="13" y="13" width="14" height="14" rx="2" fill="#ffffff" />
+                <text x="20" y="52" font-size="10.5" font-weight="800" fill="#ef4444" text-anchor="middle">END</text>
             </g>
         `;
 
-        // 4. Render Step Task Nodes & Decision Gateways
-        this.nodes.forEach(node => {
-            if (node.type === "task") {
-                const st = node.step;
-                const icon = this.getActionIcon(st.action);
-                const title = esc(st.title || getDefaultTitle(st));
-                const isSelected = (workflow.steps[currentStepIndex]?.sequence === st.sequence);
-                const shortTitle = title.length > 26 ? title.substring(0, 24) + "..." : title;
-                const desc = esc(st.description || getDefaultDescription(st) || "");
-                const shortDesc = desc.length > 30 ? desc.substring(0, 28) + "..." : desc;
-
-                const nodeMarkup = `
-                    <g class="bpmn-node-group ${isSelected ? 'active' : ''}" data-seq="${st.sequence}" transform="translate(${node.x}, ${node.y})">
-                        <rect width="${node.w}" height="${node.h}" class="bpmn-node-card" />
-                        <!-- Step Badge Pill -->
-                        <rect x="8" y="8" width="24" height="18" rx="5" class="bpmn-node-badge" />
-                        <text x="20" y="21" font-size="10.5" font-weight="800" fill="#ffffff" text-anchor="middle">${st.sequence}</text>
-                        <!-- Action Icon & Title -->
-                        <text x="38" y="21" font-size="12" font-weight="700" class="bpmn-node-title">${icon} ${shortTitle}</text>
-                        <!-- Description Subtitle -->
-                        <text x="10" y="44" font-size="10" class="bpmn-node-sub">${shortDesc || 'Click to view & edit details'}</text>
-                        <!-- Status Tag -->
-                        <rect x="10" y="54" width="60" height="14" rx="4" fill="${st.approved ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'}" />
-                        <text x="40" y="64" font-size="8.5" font-weight="700" fill="${st.approved ? '#10b981' : '#f59e0b'}" text-anchor="middle">${st.approved ? '✓ Approved' : '⏳ Pending'}</text>
-                    </g>
-                `;
-                nodesLayer.innerHTML += nodeMarkup;
-            } else if (node.type === "gateway") {
-                const gwMarkup = `
-                    <g class="bpmn-node-group" data-gw-seq="${node.step.sequence}" transform="translate(${node.x}, ${node.y})">
-                        <!-- Diamond Polygon -->
-                        <polygon points="20,0 40,20 20,40 0,20" class="bpmn-gateway-diamond" />
-                        <text x="20" y="26" font-size="18" font-weight="900" fill="#ffffff" text-anchor="middle">✕</text>
-                        <text x="20" y="52" font-size="9" font-weight="800" fill="#f59e0b" text-anchor="middle">DECISION</text>
-                    </g>
-                `;
-                nodesLayer.innerHTML += gwMarkup;
-            }
-        });
-
-        // 5. Draw Orthogonal & Curved Connector Lines
+        // 4. Draw Orthogonal & Serpentine Manhattan Connections
         this.connections.forEach(conn => {
             let startPt, endPt;
             let targetNode = conn.to;
@@ -8816,26 +8757,53 @@ class BpmnFlowchartEngine {
 
             if (!conn.from || !targetNode) return;
 
-            // Compute connection points
-            startPt = { x: conn.from.x + conn.from.w, y: conn.from.y + (conn.from.h / 2) };
-            endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
+            const fromNode = conn.from;
+            let pathD = "";
 
-            // Orthogonal bezier elbow curve
-            const midX = (startPt.x + endPt.x) / 2;
-            const pathD = (startPt.y === endPt.y)
-                ? `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`
-                : `M ${startPt.x} ${startPt.y} C ${midX} ${startPt.y}, ${midX} ${endPt.y}, ${endPt.x} ${endPt.y}`;
+            if (fromNode.type === "start") {
+                startPt = { x: fromNode.x + fromNode.w, y: fromNode.y + (fromNode.h / 2) };
+                endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
+                pathD = `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`;
+            } else if (targetNode.type === "end" && targetNode.y > fromNode.y + 20) {
+                startPt = { x: fromNode.x + (fromNode.w / 2), y: fromNode.y + fromNode.h };
+                endPt = { x: targetNode.x + 20, y: targetNode.y };
+                pathD = `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`;
+            } else if (fromNode.row === targetNode.row) {
+                // Same Row: Straight horizontal connector
+                startPt = { x: fromNode.x + fromNode.w, y: fromNode.y + (fromNode.h / 2) };
+                endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
+                pathD = `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`;
+            } else if (targetNode.row === fromNode.row + 1) {
+                // Row Wrap (End of Row N -> Start of Row N+1): Serpentine Manhattan S-Curve
+                startPt = { x: fromNode.x + fromNode.w, y: fromNode.y + (fromNode.h / 2) };
+                endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
+                const midY = fromNode.y + cardH + (gapY / 2);
+                const loopRight = startPt.x + 35;
+                const loopLeft = rowStartX - 35;
+
+                pathD = `M ${startPt.x} ${startPt.y} 
+                         C ${loopRight} ${startPt.y}, ${loopRight} ${midY}, ${startPt.x} ${midY}
+                         L ${rowStartX} ${midY}
+                         C ${loopLeft} ${midY}, ${loopLeft} ${endPt.y}, ${endPt.x - 20} ${endPt.y}
+                         L ${endPt.x} ${endPt.y}`;
+            } else {
+                // Multi-row jump / Branching: Clean curved elbow
+                startPt = { x: fromNode.x + fromNode.w, y: fromNode.y + (fromNode.h / 2) };
+                endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
+                const midX = (startPt.x + endPt.x) / 2;
+                pathD = `M ${startPt.x} ${startPt.y} C ${midX} ${startPt.y}, ${midX} ${endPt.y}, ${endPt.x} ${endPt.y}`;
+            }
 
             const markerAttr = (conn.type === "branch") ? 'marker-end="url(#bpmnBranchArrow)"' : 'marker-end="url(#bpmnArrowhead)"';
             const lineClass = (conn.type === "branch") ? 'bpmn-connector-line branch-line' : 'bpmn-connector-line';
 
             connectorsLayer.innerHTML += `<path d="${pathD}" class="${lineClass}" ${markerAttr} />`;
 
-            // Draw Branch Decision Label Badge if applicable
+            // Draw Branch Decision Label
             if (conn.label) {
                 const labelX = (startPt.x + endPt.x) / 2;
-                const labelY = (startPt.y + endPt.y) / 2 - 10;
-                const labelW = Math.max(70, conn.label.length * 6.5);
+                const labelY = (startPt.y + endPt.y) / 2 - 12;
+                const labelW = Math.max(75, conn.label.length * 6.5);
                 connectorsLayer.innerHTML += `
                     <g transform="translate(${labelX - (labelW/2)}, ${labelY})">
                         <rect width="${labelW}" height="18" class="bpmn-branch-label-bg" />
@@ -8845,23 +8813,51 @@ class BpmnFlowchartEngine {
             }
         });
 
-        // 6. Draw Swimlanes (if enabled)
-        if (this.showSwimlanes && Object.keys(domainGroups).length > 1) {
-            let laneY = startY - 30;
-            Object.keys(domainGroups).forEach((dom, i) => {
-                const laneH = 160;
-                swimlanesLayer.innerHTML += `
-                    <g transform="translate(20, ${laneY})">
-                        <rect width="1380" height="${laneH}" class="bpmn-swimlane-rect" />
-                        <rect width="180" height="24" rx="4" class="bpmn-swimlane-header-bg" />
-                        <text x="12" y="16" class="bpmn-swimlane-header-text">🏊 Lane: ${esc(dom)}</text>
+        // 5. Render Rich Miro-Grade Step Nodes
+        this.nodes.forEach(node => {
+            if (node.type === "task") {
+                const st = node.step;
+                const icon = this.getActionIcon(st.action);
+                const title = esc(st.title || getDefaultTitle(st));
+                const isSelected = (workflow.steps[currentStepIndex]?.sequence === st.sequence);
+                const shortTitle = title.length > 24 ? title.substring(0, 22) + "..." : title;
+                const desc = esc(st.description || getDefaultDescription(st) || "");
+                const shortDesc = desc.length > 32 ? desc.substring(0, 30) + "..." : desc;
+                
+                let domain = "";
+                if (st.url) {
+                    try { domain = new URL(st.url).hostname || ""; } catch { domain = ""; }
+                }
+
+                const nodeMarkup = `
+                    <g class="bpmn-node-group ${isSelected ? 'active' : ''}" data-seq="${st.sequence}" transform="translate(${node.x}, ${node.y})">
+                        <rect width="${node.w}" height="${node.h}" class="bpmn-node-card" />
+                        
+                        <!-- Step Badge Pill -->
+                        <rect x="10" y="10" width="26" height="20" rx="6" class="bpmn-node-badge" />
+                        <text x="23" y="24" font-size="11" font-weight="900" fill="#ffffff" text-anchor="middle">${st.sequence}</text>
+                        
+                        <!-- Action Icon & Title -->
+                        <text x="42" y="24" font-size="12" font-weight="800" class="bpmn-node-title">${icon} ${shortTitle}</text>
+                        
+                        <!-- Description Subtitle -->
+                        <text x="12" y="48" font-size="10.5" class="bpmn-node-sub">${shortDesc || 'Click to focus step'}</text>
+                        
+                        <!-- Footer Status & Domain Badges -->
+                        <rect x="12" y="58" width="62" height="16" rx="4" fill="${st.approved ? 'rgba(16,185,129,0.18)' : 'rgba(245,158,11,0.18)'}" />
+                        <text x="43" y="70" font-size="9" font-weight="800" fill="${st.approved ? '#10b981' : '#f59e0b'}" text-anchor="middle">${st.approved ? '✓ Approved' : '⏳ Pending'}</text>
+                        
+                        ${domain ? `
+                            <rect x="80" y="58" width="${Math.min(145, domain.length * 6.5 + 12)}" height="16" rx="4" fill="rgba(99,102,241,0.12)" />
+                            <text x="86" y="70" font-size="8.5" font-weight="700" fill="#818cf8">🌐 ${esc(domain.slice(0, 18))}</text>
+                        ` : ''}
                     </g>
                 `;
-                laneY += laneH + 20;
-            });
-        }
+                nodesLayer.innerHTML += nodeMarkup;
+            }
+        });
 
-        // 7. Wire Node Click Sync
+        // 6. Node Click Sync
         nodesLayer.querySelectorAll(".bpmn-node-group[data-seq]").forEach(grp => {
             grp.onclick = () => {
                 const seq = parseInt(grp.dataset.seq, 10);
@@ -8870,7 +8866,7 @@ class BpmnFlowchartEngine {
                     currentStepIndex = stepIdx;
                     renderGuideTab();
                     renderStepsTab();
-                    showToast(`📍 Selected Step ${seq} in Studio`);
+                    showToast(`📍 Focused Step ${seq} in Studio`);
                 }
             };
         });
