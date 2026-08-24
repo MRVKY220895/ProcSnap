@@ -826,6 +826,45 @@
                                             </g>
                                         </svg>
                                     </div>
+
+                                    <!-- Floating BPMN Step Node Inspector / Editor -->
+                                    <div id="bpmnNodeInspector" class="bpmn-node-inspector hidden">
+                                        <div class="bpmn-inspector-header">
+                                            <div class="bpmn-inspector-title">
+                                                <span id="bpmnInspBadge" class="bpmn-insp-badge">Step 1</span>
+                                                <span id="bpmnInspActionIcon">👆</span>
+                                                <span id="bpmnInspActionType">Action</span>
+                                            </div>
+                                            <button id="bpmnInspCloseBtn" class="bpmn-insp-close" title="Close inspector">✕</button>
+                                        </div>
+                                        <div class="bpmn-inspector-body">
+                                            <div class="field-group" style="margin-bottom: 8px;">
+                                                <label style="font-size: 11px;">Step Title</label>
+                                                <input type="text" id="bpmnInspTitle" class="form-control" style="font-size: 12px; padding: 4px 8px;" placeholder="Step title...">
+                                            </div>
+                                            <div class="field-group" style="margin-bottom: 8px;">
+                                                <label style="font-size: 11px;">Description / Instructions</label>
+                                                <textarea id="bpmnInspDesc" class="form-control" rows="3" style="font-size: 12px; padding: 4px 8px;" placeholder="What to do in this step..."></textarea>
+                                            </div>
+                                            <div class="field-group" style="margin-bottom: 8px;">
+                                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                                    <label style="margin: 0; font-size: 11px;">🔀 Decision Branches</label>
+                                                    <button id="bpmnInspAddBranchBtn" class="btn btn-secondary btn-xs" style="font-size: 10.5px; padding: 2px 7px; color: #818cf8; border-color: rgba(99,102,241,0.4);">+ Branch</button>
+                                                </div>
+                                                <div id="bpmnInspBranchesList" class="bpmn-branches-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="bpmn-inspector-footer" style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08);">
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+                                                <button id="bpmnInspToggleApprove" class="btn btn-secondary btn-xs" style="font-weight: 700;">✓ Approve</button>
+                                                <button id="bpmnInspToggleHide" class="btn btn-secondary btn-xs" style="font-weight: 700;">👁️ Toggle Hide</button>
+                                            </div>
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                                <button id="bpmnInspOpenStudio" class="btn btn-primary btn-xs" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700;">🎨 Open Studio</button>
+                                                <button id="bpmnInspDeleteStep" class="btn btn-danger btn-xs" style="font-weight: 700;">🗑️ Delete</button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 

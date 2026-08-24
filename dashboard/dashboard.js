@@ -8857,21 +8857,199 @@ class BpmnFlowchartEngine {
             }
         });
 
-        // 6. Node Click Sync
+        // 6. Node Click Sync & Inline Inspector Trigger
         nodesLayer.querySelectorAll(".bpmn-node-group[data-seq]").forEach(grp => {
-            grp.onclick = () => {
+            grp.onclick = (e) => {
+                e.stopPropagation();
                 const seq = parseInt(grp.dataset.seq, 10);
                 const stepIdx = (workflow.steps || []).findIndex(s => s.sequence === seq);
                 if (stepIdx !== -1) {
                     currentStepIndex = stepIdx;
-                    renderGuideTab();
-                    renderStepsTab();
-                    showToast(`📍 Focused Step ${seq} in Studio`);
+                    this.openInspector(workflow.steps[stepIdx]);
+                    
+                    // Highlight selected node
+                    nodesLayer.querySelectorAll(".bpmn-node-group").forEach(g => g.classList.remove("active"));
+                    grp.classList.add("active");
                 }
             };
         });
 
+        // Close inspector when clicking empty canvas
+        const stage = $("bpmnCanvasStage");
+        if (stage) {
+            stage.onclick = (e) => {
+                if (!e.target.closest(".bpmn-node-group") && !e.target.closest(".bpmn-node-inspector")) {
+                    this.closeInspector();
+                }
+            };
+        }
+
+        // Close Inspector Button
+        const closeBtn = $("bpmnInspCloseBtn");
+        if (closeBtn) closeBtn.onclick = () => this.closeInspector();
+
         this.updateTransform();
+    }
+
+    openInspector(step) {
+        const panel = $("bpmnNodeInspector");
+        if (!panel || !step) return;
+
+        panel.classList.remove("hidden");
+
+        const badge = $("bpmnInspBadge");
+        if (badge) badge.textContent = `Step ${step.sequence}`;
+
+        const iconEl = $("bpmnInspActionIcon");
+        if (iconEl) iconEl.textContent = this.getActionIcon(step.action);
+
+        const typeEl = $("bpmnInspActionType");
+        if (typeEl) typeEl.textContent = (step.action || "Click Action").toUpperCase();
+
+        const titleInput = $("bpmnInspTitle");
+        if (titleInput) {
+            titleInput.value = step.title || getDefaultTitle(step);
+            titleInput.oninput = () => {
+                step.title = titleInput.value;
+                this.render();
+                saveActiveStepEditsSilent();
+            };
+        }
+
+        const descInput = $("bpmnInspDesc");
+        if (descInput) {
+            descInput.value = step.description || getDefaultDescription(step) || "";
+            descInput.oninput = () => {
+                step.description = descInput.value;
+                saveActiveStepEditsSilent();
+            };
+        }
+
+        // Render Branches List
+        this.renderInspectorBranches(step);
+
+        // Add Branch Button
+        const addBranchBtn = $("bpmnInspAddBranchBtn");
+        if (addBranchBtn) {
+            addBranchBtn.onclick = () => {
+                const targetSeq = prompt("Enter Target Step Number to branch to:", String(Math.min((workflow.steps || []).length, Number(step.sequence || 1) + 2)));
+                if (!targetSeq) return;
+                const label = prompt("Enter Branch Condition Label (e.g. 'If Approved', 'On Error'):", "If Condition Met");
+                if (!step.branches) step.branches = [];
+                step.branches.push({
+                    target_sequence: parseInt(targetSeq, 10),
+                    label: label || "Alternative Path"
+                });
+                saveActiveStepEditsSilent();
+                this.renderInspectorBranches(step);
+                this.render();
+                showToast(`🔀 Branch added to Step ${targetSeq}`);
+            };
+        }
+
+        // Toggle Approve Button
+        const appBtn = $("bpmnInspToggleApprove");
+        if (appBtn) {
+            appBtn.textContent = step.approved ? "⏳ Mark Pending" : "✓ Mark Approved";
+            appBtn.style.color = step.approved ? "#f59e0b" : "#10b981";
+            appBtn.onclick = () => {
+                step.approved = !step.approved;
+                this.openInspector(step);
+                this.render();
+                renderStepsTab();
+                showToast(step.approved ? "Step marked as approved ✓" : "Step marked as pending");
+            };
+        }
+
+        // Toggle Hide Button
+        const hideBtn = $("bpmnInspToggleHide");
+        if (hideBtn) {
+            hideBtn.textContent = step.hidden ? "👁️ Restore Step" : "👁️ Hide Step";
+            hideBtn.onclick = async () => {
+                step.hidden = !step.hidden;
+                try {
+                    await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/edits`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ hidden: step.hidden })
+                    });
+                    this.render();
+                    renderStepsTab();
+                    showToast(step.hidden ? "Step hidden from export" : "Step restored ✓");
+                } catch (e) {
+                    showToast("Failed: " + e.message);
+                }
+            };
+        }
+
+        // Open in Screenshot Studio Button
+        const studioBtn = $("bpmnInspOpenStudio");
+        if (studioBtn) {
+            studioBtn.onclick = () => {
+                switchTab("guide");
+                renderGuideTab();
+                showToast(`🎨 Loaded Step ${step.sequence} in Studio`);
+            };
+        }
+
+        // Delete Step Button
+        const delBtn = $("bpmnInspDeleteStep");
+        if (delBtn) {
+            delBtn.onclick = async () => {
+                if (confirm(`Delete Step ${step.sequence}?`)) {
+                    const idx = (workflow.steps || []).findIndex(s => s.id === step.id);
+                    if (idx !== -1) {
+                        try {
+                            await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}`, { method: "DELETE" });
+                            workflow.steps.splice(idx, 1);
+                            workflow.steps.forEach((s, i) => s.sequence = i + 1);
+                            this.closeInspector();
+                            this.render();
+                            renderStepsTab();
+                            showToast("Step deleted");
+                        } catch (e) {
+                            showToast("Delete failed: " + e.message);
+                        }
+                    }
+                }
+            };
+        }
+    }
+
+    renderInspectorBranches(step) {
+        const list = $("bpmnInspBranchesList");
+        if (!list) return;
+        list.innerHTML = "";
+
+        if (!step.branches || step.branches.length === 0) {
+            list.innerHTML = '<span style="font-size: 10px; color: var(--text-muted);">No decision branches configured.</span>';
+            return;
+        }
+
+        step.branches.forEach((b, i) => {
+            const item = document.createElement("div");
+            item.className = "bpmn-branch-item";
+            item.innerHTML = `
+                <span>🔀 <strong>${esc(b.label || 'Branch')}:</strong> ➔ Step ${b.target_sequence}</span>
+                <button title="Remove branch">✕</button>
+            `;
+            item.querySelector("button").onclick = () => {
+                step.branches.splice(i, 1);
+                saveActiveStepEditsSilent();
+                this.renderInspectorBranches(step);
+                this.render();
+                showToast("Branch removed");
+            };
+            list.appendChild(item);
+        });
+    }
+
+    closeInspector() {
+        const panel = $("bpmnNodeInspector");
+        if (panel) panel.classList.add("hidden");
+        const nodesLayer = $("bpmnNodesLayer");
+        if (nodesLayer) {
+            nodesLayer.querySelectorAll(".bpmn-node-group").forEach(g => g.classList.remove("active"));
+        }
     }
 
     exportSvg() {
