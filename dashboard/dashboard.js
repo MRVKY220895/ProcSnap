@@ -3845,7 +3845,194 @@ setOnclick("bulkUnhideAllBtn", async () => {
     loadActiveStepDetails();
 });
 
+// ============================================================
+// PHASE 2 — NORMALIZE STEPS BUTTON
+// ============================================================
+setOnclick("normalizeStepsBtn", async () => {
+    if (!workflow?.id) return showToast("⚠ Open a workflow first");
+    const btn = $("normalizeStepsBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "🧹 Running..."; }
+    try {
+        const result = await api(`/sessions/${encodeURIComponent(workflow.id)}/normalize`, {
+            method: "POST",
+            body: JSON.stringify({ reduce_noise: true, suggest_groups: true })
+        });
+
+        // Apply semantic classes back to in-memory steps
+        if (result.semantic_classes) {
+            workflow.steps.forEach(s => {
+                const cls = result.semantic_classes[String(s.id)] || result.semantic_classes[String(s.sequence)];
+                if (cls) s.semantic_class = cls;
+            });
+        }
+
+        // Build summary
+        const noiseRemoved = result.noise_removed_count || 0;
+        const groups = result.suggested_groups || [];
+        const el = $("normalizeResultSummary");
+        if (el) el.textContent = `${noiseRemoved} noisy event${noiseRemoved === 1 ? '' : 's'} removed · ${result.original_count} → ${result.cleaned_steps?.length ?? result.original_count} steps · ${groups.length} grouping suggestion${groups.length === 1 ? '' : 's'}`;
+
+        // Render grouping suggestions
+        const list = $("groupSuggestionsList");
+        if (list) {
+            if (groups.length === 0) {
+                list.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px;">
+                    ✅ No step grouping suggestions — your SOP is already well-structured!
+                </div>`;
+            } else {
+                list.innerHTML = groups.map(g => `
+                    <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2); border-radius:12px; padding:16px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                            <div>
+                                <div style="font-weight:700; font-size:14px; color:var(--text-main,#fff);">${esc(g.suggested_title)}</div>
+                                <div style="font-size:11px; color:var(--text-muted,#94a3b8); margin-top:3px;">${esc(g.suggested_description)}</div>
+                            </div>
+                            <span style="background:rgba(99,102,241,0.2); color:#818cf8; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700;">${g.confidence}% match</span>
+                        </div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Steps included: ${(g.step_ids || []).join(', ')}</div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button onclick="acceptGroupSuggestion('${g.group_id}', ${JSON.stringify(g).replace(/'/g, "&#39;")})" class="btn btn-primary btn-xs">✓ Accept</button>
+                            <button onclick="ignoreGroupSuggestion('${g.group_id}')" class="btn btn-secondary btn-xs">✗ Ignore</button>
+                        </div>
+                    </div>
+                `).join("");
+            }
+        }
+
+        const overlay = $("groupSuggestionsOverlay");
+        if (overlay) overlay.style.display = "flex";
+        renderStepsTab();
+        showToast(`🧹 Normalized! ${noiseRemoved} events removed, ${groups.length} group suggestions ready.`);
+    } catch (err) {
+        showToast("⚠ Normalization failed: " + (err.message || err));
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "🧹 Normalize"; }
+    }
+});
+
+function closeGroupSuggestions() {
+    const el = $("groupSuggestionsOverlay");
+    if (el) el.style.display = "none";
+}
+
+function acceptGroupSuggestion(groupId, group) {
+    showToast(`✓ Group "${group.suggested_title}" accepted — updating first step title`);
+    // Apply the suggested title to the first step in the group
+    if (group.step_ids && group.step_ids.length > 0) {
+        const firstId = group.step_ids[0];
+        const step = workflow.steps.find(s => s.id === firstId);
+        if (step) {
+            step.title = group.suggested_title;
+            step.description = group.suggested_description;
+            api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${firstId}/edits`, {
+                method: "PATCH",
+                body: JSON.stringify({ title: group.suggested_title, description: group.suggested_description })
+            }).catch(() => {});
+        }
+    }
+    renderStepsTab();
+}
+
+function ignoreGroupSuggestion(groupId) {
+    showToast(`✗ Group suggestion ignored`);
+}
+
+// ============================================================
+// PHASE 3 — AUTO-TITLES BUTTON
+// ============================================================
+setOnclick("autoTitlesBtn", async () => {
+    if (!workflow?.id) return showToast("⚠ Open a workflow first");
+    const btn = $("autoTitlesBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "🪄 Generating..."; }
+    try {
+        const result = await api(`/sessions/${encodeURIComponent(workflow.id)}/generate-titles`, { method: "POST" });
+        const suggestions = result.suggestions || [];
+        let applied = 0;
+
+        for (const { step_id, suggested_title } of suggestions) {
+            const step = workflow.steps.find(s => s.id === step_id);
+            if (step && suggested_title) {
+                step.title = suggested_title;
+                applied++;
+                api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step_id}/edits`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ title: suggested_title })
+                }).catch(() => {});
+            }
+        }
+
+        renderStepsTab();
+        renderStepThumbnails();
+        showToast(`🪄 ${applied} step title${applied === 1 ? '' : 's'} auto-generated!`);
+    } catch (err) {
+        showToast("⚠ Auto-titles failed: " + (err.message || err));
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "🪄 Auto-Titles"; }
+    }
+});
+
+// ============================================================
+// PHASE 3 — SOP METADATA BUTTON
+// ============================================================
+setOnclick("generateSopMetaBtn", async () => {
+    if (!workflow?.id) return showToast("⚠ Open a workflow first");
+    const btn = $("generateSopMetaBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "✨ Generating..."; }
+    try {
+        const result = await api(`/sessions/${encodeURIComponent(workflow.id)}/generate-metadata`, { method: "POST" });
+        const meta = result.sop_metadata || {};
+        const markers = result.intent_markers || [];
+
+        const body = $("sopMetadataBody");
+        if (body) {
+            const metaField = (label, value, multiline) => {
+                if (!value) return '';
+                const displayVal = Array.isArray(value) ? value.join(', ') : String(value);
+                return `
+                    <div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px 16px; border:1px solid var(--border-subtle,rgba(255,255,255,0.08)); cursor:pointer;" onclick="navigator.clipboard.writeText(${JSON.stringify(displayVal)}).then(()=>showToast('Copied!'))">
+                        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted,#94a3b8); margin-bottom:6px;">${label}</div>
+                        <div style="font-size:13px; color:var(--text-main,#fff); line-height:1.5;">${esc(displayVal)}</div>
+                        <div style="font-size:10px; color:var(--text-muted); margin-top:5px; opacity:0.7;">Click to copy</div>
+                    </div>
+                `;
+            };
+
+            body.innerHTML = `
+                ${metaField('📋 Purpose', meta.purpose)}
+                ${metaField('🎯 Scope', meta.scope)}
+                ${metaField('👤 Roles', meta.roles)}
+                ${metaField('✅ Prerequisites', meta.prerequisites)}
+                ${metaField('🖥️ Applications', meta.applications)}
+                ${metaField('🏁 Expected Outcome', meta.expected_outcome)}
+                ${meta.estimated_duration_min ? metaField('⏱️ Estimated Duration', meta.estimated_duration_min + ' minutes') : ''}
+                ${meta.total_steps ? metaField('📊 Total Steps', meta.total_steps + ' steps') : ''}
+                ${markers.length ? `
+                <div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px 16px; border:1px solid var(--border-subtle,rgba(255,255,255,0.08));">
+                    <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted,#94a3b8); margin-bottom:10px;">🔖 Intent Markers (drag to steps)</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                        ${markers.map(m => `<span style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); color:#818cf8; padding:3px 12px; border-radius:999px; font-size:12px; font-weight:600; cursor:pointer;" onclick="navigator.clipboard.writeText('${m}').then(()=>showToast('Copied intent marker!'))">${esc(m)}</span>`).join('')}
+                    </div>
+                </div>` : ''}
+            `;
+        }
+
+        const modal = $("sopMetadataModal");
+        if (modal) modal.style.display = "flex";
+        showToast("✨ SOP metadata generated!");
+    } catch (err) {
+        showToast("⚠ Metadata generation failed: " + (err.message || err));
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "✨ SOP Metadata"; }
+    }
+});
+
+function closeSopMetadataModal() {
+    const el = $("sopMetadataModal");
+    if (el) el.style.display = "none";
+}
+
 // Insert manual step logic
+
 setOnclick("addNewStepBtn", async () => {
     // Add empty placeholder step to session steps
     try {

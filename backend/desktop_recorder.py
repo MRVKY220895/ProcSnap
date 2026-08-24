@@ -1,4 +1,4 @@
-﻿"""
+"""
 ProcSnap Native Desktop Recorder Engine
 Captures OS-level global mouse clicks and application interactions outside the browser.
 """
@@ -113,26 +113,40 @@ class DesktopRecorder:
             timestamp = datetime.utcnow().isoformat()
             window_title = get_active_window_title()
 
-            # Capture entire desktop screen
+            # Smart capture: wait for screen stability + detect loading screens
             filename = f"step-{seq:03d}.png"
             filepath = self.session_dir / filename
             rel_path = f"screenshots/{self.session_id}/{filename}"
 
             screen_w, screen_h = 1920, 1080
             norm_x, norm_y = 0.5, 0.5
+            screenshot_quality = 100
+            recapture_suggested = False
 
-            with mss.mss() as sct:
-                # Primary monitor
-                monitor = sct.monitors[1] if len(sct.monitors) > 1 else sct.monitors[0]
-                screen_w = monitor["width"]
-                screen_h = monitor["height"]
-                sct_img = sct.grab(monitor)
-                img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
-                img.save(filepath, "PNG", optimize=True)
+            try:
+                from .screen_stability import SmartCaptureScheduler
+                scheduler = SmartCaptureScheduler(initial_delay_sec=0.35)
+                result = scheduler.capture_when_stable(save_path=str(filepath))
+                img = result.image
+                screenshot_quality = result.confidence
+                recapture_suggested = result.recapture_suggested
+                screen_w, screen_h = img.size
+                if result.warnings:
+                    print(f"[DesktopRecorder] Step {seq} quality warnings: {result.warnings}")
+            except Exception as e:
+                # Fallback to instant grab if smart capture fails
+                print(f"[DesktopRecorder] Smart capture unavailable ({e}), using instant grab")
+                with mss.mss() as sct:
+                    monitor = sct.monitors[1] if len(sct.monitors) > 1 else sct.monitors[0]
+                    screen_w = monitor["width"]
+                    screen_h = monitor["height"]
+                    sct_img = sct.grab(monitor)
+                    img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
+                    img.save(filepath, "PNG", optimize=True)
 
-                if screen_w > 0 and screen_h > 0:
-                    norm_x = max(0.0, min(1.0, click_x / screen_w))
-                    norm_y = max(0.0, min(1.0, click_y / screen_h))
+            if screen_w > 0 and screen_h > 0:
+                norm_x = max(0.0, min(1.0, click_x / screen_w))
+                norm_y = max(0.0, min(1.0, click_y / screen_h))
 
             # Action title
             action_desc = f"Click in {window_title}"

@@ -745,6 +745,9 @@
                                     </div>
                                     <button id="bulkApproveAllBtn" class="btn btn-secondary btn-sm" title="Mark all steps as approved">✓ Approve All</button>
                                     <button id="bulkUnhideAllBtn" class="btn btn-secondary btn-sm" title="Restore/unhide all steps">👁 Unhide All</button>
+                                    <button id="normalizeStepsBtn" class="btn btn-secondary btn-sm" title="Remove duplicate/noisy steps and classify actions semantically">🧹 Normalize</button>
+                                    <button id="autoTitlesBtn" class="btn btn-secondary btn-sm" title="Auto-generate professional SOP titles for all untitled steps">🪄 Auto-Titles</button>
+                                    <button id="generateSopMetaBtn" class="btn btn-secondary btn-sm" title="Generate SOP-level metadata: purpose, scope, roles, prerequisites">✨ SOP Metadata</button>
                                     <button id="aiPolishBtn" class="btn btn-secondary btn-sm" title="AI Polish descriptions of all steps">🤖 AI Polish</button>
                                     <button id="addNewStepBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700;">+ Insert Step</button>
                                 </div>
@@ -2053,7 +2056,46 @@
         </div>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- PHASE 2 — GROUPING SUGGESTIONS OVERLAY                      -->
+    <!-- ============================================================ -->
+    <div id="groupSuggestionsOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9900; backdrop-filter:blur(4px);" onclick="if(event.target===this)closeGroupSuggestions()">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface,#1e293b); border-radius:16px; border:1px solid var(--border-subtle,rgba(255,255,255,0.1)); padding:28px 32px; min-width:560px; max-width:760px; max-height:80vh; overflow-y:auto; box-shadow:0 32px 80px rgba(0,0,0,0.6);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+                <div>
+                    <div style="font-size:18px; font-weight:800; color:var(--text-main,#fff);">🧹 Normalization Results</div>
+                    <div id="normalizeResultSummary" style="font-size:12px; color:var(--text-muted,#94a3b8); margin-top:3px;"></div>
+                </div>
+                <button onclick="closeGroupSuggestions()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px;">✕ Close</button>
+            </div>
+            <div id="groupSuggestionsList" style="display:flex; flex-direction:column; gap:12px;"></div>
+            <div style="margin-top:20px; text-align:right;">
+                <button onclick="closeGroupSuggestions()" class="btn btn-secondary">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PHASE 3 — SOP METADATA MODAL                                -->
+    <!-- ============================================================ -->
+    <div id="sopMetadataModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9900; backdrop-filter:blur(4px);" onclick="if(event.target===this)closeSopMetadataModal()">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface,#1e293b); border-radius:16px; border:1px solid var(--border-subtle,rgba(255,255,255,0.1)); padding:28px 32px; min-width:600px; max-width:800px; max-height:85vh; overflow-y:auto; box-shadow:0 32px 80px rgba(0,0,0,0.6);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+                <div>
+                    <div style="font-size:18px; font-weight:800; color:var(--text-main,#fff);">✨ Auto-Generated SOP Metadata</div>
+                    <div style="font-size:12px; color:var(--text-muted,#94a3b8); margin-top:3px;">Review and accept the suggestions below. Click any field to copy it.</div>
+                </div>
+                <button onclick="closeSopMetadataModal()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px;">✕ Close</button>
+            </div>
+            <div id="sopMetadataBody" style="display:flex; flex-direction:column; gap:16px;"></div>
+            <div style="margin-top:24px; display:flex; justify-content:flex-end; gap:10px;">
+                <button onclick="closeSopMetadataModal()" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="dashboard.js"></script>
 </body>
+
 </html>
 

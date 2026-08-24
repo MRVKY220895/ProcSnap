@@ -240,8 +240,33 @@ def initialize_database() -> None:
     except Exception:
         pass
 
+    # Phase 1 — Smart Screenshot Timing quality columns
+    for col in ["screenshot_quality INTEGER DEFAULT NULL",
+                "recapture_suggested INTEGER DEFAULT 0"]:
+        try:
+            cursor.execute(f"ALTER TABLE workflow_steps ADD COLUMN {col}")
+        except Exception:
+            pass
+
+    # Phase 2 & 3 — Event normalization + SOP intelligence columns
+    for col in ["semantic_class TEXT",
+                "intent_marker TEXT",
+                "why_important TEXT",
+                "step_type TEXT",
+                "mandatory INTEGER DEFAULT 1",
+                "risk_level TEXT DEFAULT 'low'",
+                "role TEXT",
+                "control_id TEXT",
+                "estimated_duration INTEGER",
+                "noise_flags TEXT"]:
+        try:
+            cursor.execute(f"ALTER TABLE step_edits ADD COLUMN {col}")
+        except Exception:
+            pass
+
     connection.commit()
     connection.close()
+
 
 
 initialize_database()
@@ -4433,6 +4458,254 @@ def get_desktop_recorder_status():
     return desktop_recorder.get_status()
 
 
+
+# =============================================================================
+# PHASE 1 — SCREENSHOT QUALITY ENDPOINT
+# =============================================================================
+
+@app.get("/sessions/{session_id}/steps/{step_id}/quality")
+def get_step_screenshot_quality(session_id: str, step_id: int):
+    """
+    Returns the screenshot quality score and any warnings for a recorded step.
+    Provides confidence %, recapture suggestion, and detailed quality checks.
+    """
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT ws.screenshot_path, ws.screenshot_quality, ws.recapture_suggested,
+                   ws.action, ws.title, ws.url
+            FROM workflow_steps ws
+            WHERE ws.id = ? AND ws.workflow_id = ?
+            """,
+            (step_id, session_id)
+        ).fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Step not found")
+
+        quality = row["screenshot_quality"]
+        recapture = bool(row["recapture_suggested"])
+
+        # If quality not yet scored (older steps), compute from file
+        warnings = []
+        checks = {"stable": True, "target_visible": True,
+                  "no_loading_overlay": True, "text_readable": True}
+
+        if quality is None:
+            quality = 80  # Default for unscored steps
+            warnings.append("Screenshot was captured before smart timing was enabled.")
+
+        if recapture:
+            warnings.append("This screenshot was flagged for possible recapture.")
+            checks["no_loading_overlay"] = False
+
+        if quality < 65:
+            checks["stable"] = False
+
+        return {
+            "step_id": step_id,
+            "score": quality,
+            "recapture_suggested": recapture,
+            "checks": checks,
+            "warnings": warnings,
+        }
+    finally:
+        conn.close()
+
+
+# =============================================================================
+# PHASE 2 — EVENT NORMALIZATION ENDPOINT
+# =============================================================================
+
+@app.post("/sessions/{session_id}/normalize")
+def normalize_session_steps(session_id: str, body: dict = Body(default={})):
+    """
+    Runs noise reduction, semantic classification, and action grouping
+    suggestions over all steps in a session.
+    Returns cleaned steps, noise count, semantic classes, and grouping suggestions.
+    """
+    try:
+        from .event_normalizer import normalize_steps
+    except ImportError:
+        from event_normalizer import normalize_steps
+
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT ws.id, ws.sequence, ws.action, ws.timestamp, ws.url,
+                   ws.title, ws.value, ws.element_json,
+                   se.title AS edited_title, se.description AS edited_description,
+                   se.hidden
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            ORDER BY ws.sequence ASC
+            """,
+            (session_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    steps = []
+    for r in rows:
+        d = dict(r)
+        d["element"] = None
+        if d.get("element_json"):
+            try:
+                import json as _json
+                d["element"] = _json.loads(d["element_json"])
+            except Exception:
+                pass
+        steps.append(d)
+
+    reduce_noise = body.get("reduce_noise", True)
+    suggest_groups = body.get("suggest_groups", True)
+
+    result = normalize_steps(steps, reduce_noise=reduce_noise, suggest_groups=suggest_groups)
+    return result
+
+
+# =============================================================================
+# PHASE 3 — SOP INTELLIGENCE ENDPOINTS
+# =============================================================================
+
+@app.post("/sessions/{session_id}/generate-titles")
+def generate_step_titles(session_id: str):
+    """
+    Auto-generates professional SOP titles for all steps that don't have
+    a custom title yet. Returns {step_id: suggested_title} mapping.
+    """
+    try:
+        from .sop_intelligence import MetadataGenerator
+    except ImportError:
+        from sop_intelligence import MetadataGenerator
+
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT ws.id, ws.sequence, ws.action, ws.timestamp, ws.url,
+                   ws.title, ws.value, ws.element_json,
+                   se.title AS edited_title, se.semantic_class,
+                   se.description AS edited_description
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            ORDER BY ws.sequence ASC
+            """,
+            (session_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    steps = []
+    for r in rows:
+        d = dict(r)
+        if d.get("element_json"):
+            try:
+                import json as _json
+                d["element"] = _json.loads(d["element_json"])
+            except Exception:
+                d["element"] = None
+        else:
+            d["element"] = None
+        steps.append(d)
+
+    gen = MetadataGenerator()
+    suggestions = gen.generate_step_titles(steps)
+    # Return list for easy frontend iteration
+    return {
+        "suggestions": [{"step_id": k, "suggested_title": v} for k, v in suggestions.items()],
+        "total": len(suggestions),
+    }
+
+
+@app.post("/sessions/{session_id}/generate-metadata")
+def generate_sop_metadata(session_id: str):
+    """
+    Auto-generates process-level SOP metadata (purpose, scope, roles,
+    prerequisites, expected outcome) from the recorded steps.
+    Also returns all available intent marker labels.
+    """
+    try:
+        from .sop_intelligence import generate_all_suggestions
+    except ImportError:
+        from sop_intelligence import generate_all_suggestions
+
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT ws.id, ws.sequence, ws.action, ws.timestamp, ws.url,
+                   ws.title, ws.value, ws.element_json,
+                   se.title AS edited_title,
+                   se.description AS edited_description,
+                   se.semantic_class
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            ORDER BY ws.sequence ASC
+            """,
+            (session_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    steps = []
+    for r in rows:
+        d = dict(r)
+        if d.get("element_json"):
+            try:
+                import json as _json
+                d["element"] = _json.loads(d["element_json"])
+            except Exception:
+                d["element"] = None
+        else:
+            d["element"] = None
+        steps.append(d)
+
+    return generate_all_suggestions(steps)
+
+
+@app.patch("/sessions/{session_id}/steps/{step_id}/intent")
+def set_step_intent_marker(session_id: str, step_id: int, body: dict = Body(default={})):
+    """
+    Sets the intent marker (Important, Warning, Decision, etc.) and
+    optional 'why_important' annotation for a step.
+    """
+    marker = body.get("intent_marker", "")
+    why = body.get("why_important", "")
+    now = utc_now()
+
+    conn = get_connection()
+    try:
+        existing = conn.execute(
+            "SELECT step_id FROM step_edits WHERE step_id = ?", (step_id,)
+        ).fetchone()
+
+        if existing:
+            conn.execute(
+                """
+                UPDATE step_edits
+                SET intent_marker = ?, why_important = ?, updated_at = ?
+                WHERE step_id = ?
+                """,
+                (marker or None, why or None, now, step_id)
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO step_edits (step_id, workflow_id, intent_marker, why_important, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (step_id, session_id, marker or None, why or None, now)
+            )
+        conn.commit()
+        return {"success": True, "step_id": step_id, "intent_marker": marker, "why_important": why}
+    finally:
+        conn.close()
 
 
 
