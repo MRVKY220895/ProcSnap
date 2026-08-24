@@ -1203,13 +1203,16 @@ async function openWorkflow(id) {
 
 // Tab Switching
 function setTab(tabName) {
+    if (tabName === "slideshow") tabName = "play";
     activeTab = tabName;
     document.querySelectorAll(".tab").forEach(tab => {
-        tab.classList.toggle("active", tab.dataset.tab === tabName);
+        const t = tab.dataset.tab === "slideshow" ? "play" : tab.dataset.tab;
+        tab.classList.toggle("active", t === tabName || tab.dataset.tab === tabName);
     });
 
     ["guide", "steps", "play", "export"].forEach(tab => {
-        $(`tab-${tab}`).classList.toggle("hidden", tab !== tabName);
+        const el = $(`tab-${tab}`);
+        if (el) el.classList.toggle("hidden", tab !== tabName);
     });
 
     if (tabName === "guide") renderGuideTab();
@@ -1221,6 +1224,18 @@ function setTab(tabName) {
 document.querySelectorAll(".tab").forEach(tab => {
     tab.onclick = () => setTab(tab.dataset.tab);
 });
+
+// Global Event Delegation for Export Preview Buttons
+document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-preview-export");
+    if (btn) {
+        const type = btn.dataset.type;
+        if (type && typeof openExportPreview === "function") {
+            openExportPreview(type);
+        }
+    }
+});
+
 
 
 /* =========================================================

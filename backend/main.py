@@ -2389,6 +2389,9 @@ def generate_step_animation(session_id: str, step_id: int):
         if not img_path:
             raise HTTPException(status_code=404, detail="Screenshot file missing on disk")
 
+        base_img = Image.open(img_path).convert("RGBA")
+        width, height = base_img.size
+
         # Check annotations for custom hotspot coordinates first
         anno_row = cursor.execute(
             "SELECT data FROM step_annotations WHERE step_id = ?",
@@ -2400,45 +2403,46 @@ def generate_step_animation(session_id: str, step_id: int):
             try:
                 annos = json.loads(anno_row["data"])
                 for a in annos:
-                    if a.get("type") in ("spotlight", "rect", "circle") and "x" in a and "y" in a:
-                        target_x = a["x"] + (a.get("w", 0) / 2)
-                        target_y = a["y"] + (a.get("h", 0) / 2)
+                    if a.get("type") in ("spotlight", "rect", "circle", "badge") and "x" in a and "y" in a:
+                        target_x = float(a["x"]) + (float(a.get("w", 0)) / 2.0)
+                        target_y = float(a["y"]) + (float(a.get("h", 0)) / 2.0)
                         break
             except Exception:
                 pass
 
-        # Fallback to element_json coordinates
+        # Fallback to DOM element screen coordinates
         if target_x is None and step["element_json"]:
             try:
                 elem = json.loads(step["element_json"])
-                coords = elem.get("coords") or {}
-                if "viewport_x" in coords and "viewport_y" in coords:
-                    target_x = float(coords["viewport_x"])
-                    target_y = float(coords["viewport_y"])
-                elif "percentage_x" in coords and "percentage_y" in coords:
-                    target_x = float(coords["percentage_x"])
-                    target_y = float(coords["percentage_y"])
-            except Exception:
-                pass
+                sc = elem.get("screen") or elem.get("coords") or {}
+                if "x" in sc and "y" in sc:
+                    ex = float(sc.get("x", 0))
+                    ey = float(sc.get("y", 0))
+                    ew = float(sc.get("width", 0))
+                    eh = float(sc.get("height", 0))
+                    vw = float(sc.get("viewportWidth") or width)
+                    vh = float(sc.get("viewportHeight") or height)
+                    
+                    scale_x = width / max(1.0, vw)
+                    scale_y = height / max(1.0, vh)
+                    
+                    target_x = (ex + (ew / 2.0)) * scale_x
+                    target_y = (ey + (eh / 2.0)) * scale_y
+            except Exception as ex:
+                print("Error parsing element_json coords:", ex)
 
-        base_img = Image.open(img_path).convert("RGBA")
-        width, height = base_img.size
-
-        # If percentage or fallback
+        # Fallback to center of image if completely unspecified
         if target_x is None:
             target_x = width * 0.5
             target_y = height * 0.5
-        elif target_x <= 1.0 and target_y <= 1.0:
-            target_x = target_x * width
-            target_y = target_y * height
 
-        # Ensure target is within image bounds
-        target_x = max(24, min(width - 24, target_x))
-        target_y = max(24, min(height - 24, target_y))
+        # Ensure target is safely within image bounds
+        target_x = max(24.0, min(float(width) - 24.0, target_x))
+        target_y = max(24.0, min(float(height) - 24.0, target_y))
 
-        # Start position (offset down-right for natural travel trajectory)
-        start_x = min(width - 30, target_x + 160)
-        start_y = min(height - 30, target_y + 130)
+        # Start position (offset down-right for smooth trajectory)
+        start_x = min(float(width) - 30.0, target_x + 160.0)
+        start_y = min(float(height) - 30.0, target_y + 130.0)
 
         frames = []
         total_frames = 14
