@@ -427,37 +427,37 @@
                             </div>
 
                             <div class="step-detail-drawer open" id="stepDetailDrawer">
-                                <div class="guide-card-header">
-                                    <div class="drawer-top-row">
+                                <div class="guide-card-header" style="padding: 18px 20px 14px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                    <div class="drawer-top-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                                         <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span id="guideStepBadge" class="step-badge">Step 1</span>
-                                            <label class="approve-checkbox-label">
-                                                <input type="checkbox" id="guideStepApproved"> Approved
+                                            <span id="guideStepBadge" class="step-badge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);">STEP 1</span>
+                                            <label class="approve-checkbox-label" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #10b981; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                                                <input type="checkbox" id="guideStepApproved" style="cursor: pointer;"> APPROVED
                                             </label>
                                         </div>
-                                        <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Drawer">✕</button>
+                                        <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Drawer" style="width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border-color, rgba(255,255,255,0.12)); background: rgba(0,0,0,0.04); display: grid; place-items: center; cursor: pointer; color: var(--text-muted); font-size: 13px;">✕</button>
                                     </div>
                                     <h3 id="guideStepTitle" class="guide-step-title" contenteditable="true" title="Click to edit title">Step Title</h3>
                                     <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description">Step description will appear here...</p>
                                 </div>
-                                <div class="guide-card-body">
+                                <div class="guide-card-body" style="padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
                                     <!-- Element Focus & Spotlight Toggle Card -->
-                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.22); border-radius: 8px; margin-bottom: 12px;">
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span style="font-size: 16px;">🎯</span>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.12)); border: 1px solid rgba(99, 102, 241, 0.28); border-radius: 12px; margin-bottom: 2px; box-shadow: 0 2px 10px rgba(99, 102, 241, 0.06);">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <span style="font-size: 18px;">🎯</span>
                                             <div>
-                                                <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">Element Focus & Spotlight</div>
-                                                <div style="font-size: 10.5px; color: var(--text-muted);">Highlight target action on screenshot</div>
+                                                <div style="font-size: 12.5px; font-weight: 800; color: var(--text-main, #fff);">Element Focus &amp; Spotlight</div>
+                                                <div style="font-size: 11px; color: var(--text-muted, #94a3b8);">Highlight target action on screenshot</div>
                                             </div>
                                         </div>
-                                        <button id="btnDrawerFocusToggle" class="btn btn-secondary btn-xs" style="font-size: 11px; font-weight: 700; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; border-radius: 5px;">
+                                        <button id="btnDrawerFocusToggle" class="btn btn-secondary btn-xs" style="font-size: 11px; font-weight: 800; padding: 5px 12px; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.1); color: #10b981;">
                                             <span id="drawerFocusDot" style="width: 7px; height: 7px; border-radius: 50%; background: #10b981;"></span>
                                             <span id="drawerFocusText">ON</span>
                                         </button>
                                     </div>
                                     <div class="drawer-accordion-card">
                                         <div class="drawer-accordion-header" data-target="drawerAccHotspot">
-                                            <span class="drawer-acc-title">🎯 Interactive Hotspot & Coordinates</span>
+                                            <span class="drawer-acc-title">🎯 Interactive Hotspot &amp; Coordinates</span>
                                             <span class="drawer-acc-chevron">▾</span>
                                         </div>
                                         <div class="drawer-accordion-content" id="drawerAccHotspot">
@@ -497,7 +497,7 @@
                                     </div>
                                     <div class="drawer-accordion-card">
                                         <div class="drawer-accordion-header" data-target="drawerAccExpected">
-                                            <span class="drawer-acc-title">💡 Expected Results & Notes</span>
+                                            <span class="drawer-acc-title">💡 Expected Results &amp; Notes</span>
                                             <span class="drawer-acc-chevron">▾</span>
                                         </div>
                                         <div class="drawer-accordion-content" id="drawerAccExpected">
@@ -531,7 +531,7 @@
                                         </div>
                                         <div class="drawer-accordion-content" id="drawerAccBranching">
                                             <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.35;">
-                                                Add conditional choice buttons (e.g., <em>"If Admin → Step 4"</em>, <em>"If Standard → Step 8"</em>) for interactive routing during Playback & Guide Me modes.
+                                                 Add conditional choice buttons (e.g., <em>"If Admin → Step 4"</em>, <em>"If Standard → Step 8"</em>) for interactive routing during Playback &amp; Guide Me modes.
                                             </p>
                                             <div id="stepBranchList" class="step-branch-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;"></div>
                                             <button id="btnAddStepBranch" class="btn btn-secondary btn-xs" style="width: 100%; justify-content: center; font-weight: 600; color: #818cf8; border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.06);">
@@ -541,7 +541,7 @@
                                     </div>
                                     <div class="drawer-accordion-card">
                                         <div class="drawer-accordion-header" data-target="drawerAccMeta">
-                                            <span class="drawer-acc-title">🔍 Element & Action Details</span>
+                                            <span class="drawer-acc-title">🔍 Element &amp; Action Details</span>
                                             <span class="drawer-acc-chevron">▾</span>
                                         </div>
                                         <div class="drawer-accordion-content hidden" id="drawerAccMeta">
@@ -574,11 +574,17 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="guide-card-footer" style="flex-wrap: wrap; gap: 8px;">
-                                    <button id="saveEditsBtn" class="btn btn-primary btn-sm">Save Details</button>
-                                    <button id="aiEnhanceStepBtn" class="btn btn-secondary btn-sm" title="AI Auto-write titles/descriptions">✨ AI Enhance</button>
-                                    <button id="hideStepBtn" class="btn btn-secondary btn-sm">Hide Step</button>
-                                    <label class="btn btn-secondary btn-sm" style="cursor: pointer; margin: 0; display: inline-flex; align-items: center; gap: 4px;">
+                                <div class="guide-card-footer" style="padding: 14px 18px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--bg-surface-elevated, #182234);">
+                                    <button id="saveEditsBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+                                        ✓ Save Details
+                                    </button>
+                                    <button id="aiEnhanceStepBtn" class="btn btn-secondary btn-sm" style="font-weight: 700; color: #818cf8; border-color: rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.06);" title="AI Auto-write titles/descriptions">
+                                        ✨ AI Enhance
+                                    </button>
+                                    <button id="hideStepBtn" class="btn btn-secondary btn-sm" style="font-weight: 700; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.06);">
+                                        👁️ Hide Step
+                                    </button>
+                                    <label class="btn btn-secondary btn-sm" style="cursor: pointer; margin: 0; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
                                         📷 Replace Image
                                         <input type="file" id="replaceScreenshotInput" accept="image/*" style="display: none;">
                                     </label>

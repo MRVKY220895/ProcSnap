@@ -3244,50 +3244,65 @@ svg {
 }
 
 .drawer-accordion-card {
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    margin-bottom: 10px;
+    background: var(--bg-surface-elevated, #1e293b);
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    border-radius: 12px;
+    margin-bottom: 12px;
     overflow: hidden;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
+
 .drawer-accordion-card:hover {
-    border-color: var(--border-hover);
+    border-color: var(--primary, #6366f1);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08);
 }
+
 .drawer-accordion-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
-    background: var(--bg-surface-hover);
+    padding: 12px 14px;
+    background: var(--bg-surface-hover, rgba(255, 255, 255, 0.03));
     cursor: pointer;
     user-select: none;
-    transition: background 0.15s ease;
+    transition: all 0.15s ease;
 }
+
 .drawer-accordion-header:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(99, 102, 241, 0.06);
 }
+
 .drawer-acc-title {
     font-size: 12.5px;
     font-weight: 700;
-    color: var(--text-primary) !important;
+    color: var(--text-primary, #fff) !important;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    letter-spacing: -0.01em;
 }
+
 .drawer-acc-chevron {
-    font-size: 11px;
-    color: var(--text-secondary);
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted, #94a3b8);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
+
 .drawer-accordion-header.collapsed .drawer-acc-chevron {
     transform: rotate(-90deg);
 }
+
 .drawer-accordion-content {
-    padding: 12px;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-surface);
+    padding: 14px;
+    border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+    background: var(--bg-surface, rgba(0,0,0,0.1));
 }
+
 .drawer-accordion-content.hidden {
     display: none;
 }
@@ -3296,22 +3311,111 @@ svg {
 [data-theme="light"] .drawer-accordion-card {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
 }
+
+[data-theme="light"] .drawer-accordion-card:hover {
+    border-color: #6366f1 !important;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.12) !important;
+}
+
 [data-theme="light"] .drawer-accordion-header {
     background: #f8fafc !important;
 }
+
 [data-theme="light"] .drawer-accordion-header:hover {
     background: #f1f5f9 !important;
 }
+
 [data-theme="light"] .drawer-acc-title {
-    color: #0f172a !important;
+    color: #1e293b !important;
 }
+
 [data-theme="light"] .drawer-acc-chevron {
-    color: #475569 !important;
+    color: #64748b !important;
 }
+
 [data-theme="light"] .drawer-accordion-content {
-    border-top-color: #e2e8f0 !important;
+    border-top-color: #f1f5f9 !important;
     background: #ffffff !important;
+}
+
+/* Premium Step Detail Drawer Enhancements */
+.step-detail-drawer {
+    box-shadow: -10px 0 35px rgba(0,0,0,0.12);
+}
+
+.guide-step-title {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-main, #fff);
+    margin: 4px 0 6px 0;
+    line-height: 1.35;
+    outline: none;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.guide-step-title:hover {
+    background: rgba(99, 102, 241, 0.06);
+}
+
+.guide-step-title:focus {
+    background: rgba(99, 102, 241, 0.08);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+.guide-step-desc {
+    font-size: 13px;
+    color: var(--text-muted, #94a3b8);
+    line-height: 1.5;
+    margin: 0;
+    outline: none;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.guide-step-desc:hover {
+    background: rgba(99, 102, 241, 0.06);
+}
+
+.guide-step-desc:focus {
+    background: rgba(99, 102, 241, 0.08);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+.step-detail-drawer .guide-card-footer {
+    padding: 14px 18px;
+    background: var(--bg-surface-elevated, #182234);
+    border-top: 1px solid var(--light-border, rgba(255,255,255,0.08));
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+}
+
+.step-detail-drawer .guide-card-footer .btn {
+    height: 36px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.step-detail-drawer .guide-card-footer .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+[data-theme="light"] .step-detail-drawer .guide-card-footer {
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
 }
 
 /* =========================================================
