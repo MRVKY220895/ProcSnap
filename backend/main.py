@@ -1508,7 +1508,7 @@ def delete_step_permanently(session_id: str, step_id: int):
 # =========================================================
 import urllib.request
 
-def call_ollama_sync(endpoint: str, payload: dict, timeout=60) -> dict:
+def call_ollama_sync(endpoint: str, payload: dict, timeout=180) -> dict:
     url = f"http://127.0.0.1:11434{endpoint}"
     req = urllib.request.Request(
         url,
@@ -2061,7 +2061,7 @@ def ai_polish_sop(request: AIPolishRequest):
             "stream": False
         }
         
-        response_text = call_ollama_sync("/api/generate", payload, timeout=60)
+        response_text = call_ollama_sync("/api/generate", payload, timeout=180)
         if response_text and "response" in response_text:
             try:
                 polished_list = json.loads(response_text["response"])
