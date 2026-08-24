@@ -2908,6 +2908,7 @@ function loadActiveStepDetails() {
     renderStepBranches(step);
     if (typeof updateDemoButtonState === "function") updateDemoButtonState(step);
     if (typeof updateFocusToggleUI === "function") updateFocusToggleUI();
+    if (typeof updateHotspotReticlePosition === "function") updateHotspotReticlePosition(step);
 
     // Populate Interactive Hotspot values (Requirement 2)
     const hs = calculateDefaultHotspot(step);
@@ -6283,3 +6284,388 @@ if (cmdModal) {
         }
     });
 }
+
+
+/* =========================================================
+   🎯 INTERACTIVE DRAG-AND-DROP HOTSPOT RETICLE & MICRO-DEMO POSITIONER
+========================================================= */
+
+let isDraggingReticle = false;
+
+function updateHotspotReticlePosition(step) {
+    const reticle = $("hotspotReticleHandle");
+    const wrapper = $("canvasWrapper");
+    if (!reticle || !wrapper) return;
+
+    if (!step || !step.screenshotUrl || step.hidden) {
+        reticle.classList.add("hidden");
+        return;
+    }
+
+    reticle.classList.remove("hidden");
+    const hs = calculateDefaultHotspot(step);
+    const xPct = Math.max(2, Math.min(98, hs.xPct + (hs.wPct / 2)));
+    const yPct = Math.max(2, Math.min(98, hs.yPct + (hs.hPct / 2)));
+
+    reticle.style.left = `${xPct}%`;
+    reticle.style.top = `${yPct}%`;
+
+    const label = $("reticleCoordsLabel");
+    if (label) label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
+}
+
+function initHotspotReticle() {
+    const reticle = $("hotspotReticleHandle");
+    const wrapper = $("canvasWrapper");
+    if (!reticle || !wrapper) return;
+
+    let startX = 0, startY = 0;
+
+    reticle.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isDraggingReticle = true;
+        reticle.setPointerCapture(e.pointerId);
+        reticle.classList.add("dragging");
+    });
+
+    reticle.addEventListener("pointermove", (e) => {
+        if (!isDraggingReticle) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const rect = wrapper.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+
+        let xPct = ((clientX - rect.left) / rect.width) * 100;
+        let yPct = ((clientY - rect.top) / rect.height) * 100;
+
+        xPct = Math.max(1, Math.min(99, xPct));
+        yPct = Math.max(1, Math.min(99, yPct));
+
+        reticle.style.left = `${xPct}%`;
+        reticle.style.top = `${yPct}%`;
+
+        const label = $("reticleCoordsLabel");
+        if (label) label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
+
+        // Update inspector coordinate fields in real time
+        const curW = Number($("hotspotW")?.value || 20);
+        const curH = Number($("hotspotH")?.value || 20);
+        const newLeft = Math.max(0, Math.min(100 - curW, Math.round(xPct - curW / 2)));
+        const newTop = Math.max(0, Math.min(100 - curH, Math.round(yPct - curH / 2)));
+
+        setVal("hotspotX", newLeft);
+        setVal("hotspotY", newTop);
+    });
+
+    const finishDrag = (e) => {
+        if (!isDraggingReticle) return;
+        isDraggingReticle = false;
+        reticle.classList.remove("dragging");
+        try { reticle.releasePointerCapture(e.pointerId); } catch (_) {}
+
+        const step = getCurrentStep();
+        if (!step) return;
+
+        const leftVal = Number($("hotspotX")?.value || 40);
+        const topVal = Number($("hotspotY")?.value || 40);
+        const wVal = Number($("hotspotW")?.value || 20);
+        const hVal = Number($("hotspotH")?.value || 20);
+
+        step.hotspot = {
+            xPct: leftVal,
+            yPct: topVal,
+            wPct: wVal,
+            hPct: hVal,
+            prompt: $("guideHotspotPrompt")?.value || (step.title || getDefaultTitle(step)),
+            type: "custom"
+        };
+
+        saveActiveStepEditsSilent();
+        showToast(`🎯 Hotspot target updated: (${leftVal}%, ${topVal}%)`, 2000);
+    };
+
+    reticle.addEventListener("pointerup", finishDrag);
+    reticle.addEventListener("pointercancel", finishDrag);
+}
+
+
+/* =========================================================
+   📥 CANVAS DRAG-AND-DROP IMAGE / GIF REPLACEMENT
+========================================================= */
+
+function initCanvasFileDrop() {
+    const stage = $("screenshotStage");
+    const overlay = $("canvasDropOverlay");
+    if (!stage || !overlay) return;
+
+    ["dragenter", "dragover"].forEach(eventName => {
+        stage.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            overlay.classList.remove("hidden");
+        });
+    });
+
+    ["dragleave", "drop"].forEach(eventName => {
+        stage.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            overlay.classList.add("hidden");
+        });
+    });
+
+    stage.addEventListener("drop", async (e) => {
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        const step = getCurrentStep();
+        if (!step || !workflow) {
+            showToast("Please select an active step before uploading a replacement image.");
+            return;
+        }
+
+        const validExts = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+        if (!validExts.includes(file.type) && !file.name.match(/\.(png|jpe?g|gif|webp)$/i)) {
+            showToast("Supported file formats: PNG, JPG, GIF, WebP");
+            return;
+        }
+
+        showToast(`Uploading '${file.name}' for Step ${step.sequence}...`);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch(`${API_BASE}/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/upload-image`, {
+                method: "POST",
+                body: formData
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            const data = await res.json();
+            
+            if (data.success && data.screenshotUrl) {
+                step.screenshotUrl = data.screenshotUrl;
+                const imgEl = $("guideImg");
+                if (imgEl) {
+                    imgEl.src = `${normalizeImageUrl(data.screenshotUrl)}?t=${Date.now()}`;
+                    imgEl.classList.remove("hidden");
+                }
+                showToast("✓ Step image replaced successfully!", 3500);
+                loadActiveStepDetails();
+                renderStepThumbnails();
+            }
+        } catch (err) {
+            showToast(`Failed to upload image: ${err.message}`, 4000);
+        }
+    });
+}
+
+
+/* =========================================================
+   📄 CORPORATE SOP TEMPLATE MANAGER & PAGE SELECTOR LOGIC
+========================================================= */
+
+let activeTemplateData = null;
+
+function initSopTemplateManager() {
+    const modal = $("sopTemplateModal");
+    const dropzone = $("templateDropzone");
+    const fileInput = $("templateFileInput");
+    const browseBtn = $("btnBrowseTemplate");
+    const openBtn = $("btnOpenTemplateModal");
+    const closeBtn = $("btnCloseTemplateModal");
+    const cancelBtn = $("btnCancelTemplateModal");
+    const applyBtn = $("btnApplySelectedPages");
+    const selectAllBtn = $("btnSelectAllPages");
+    const deselectAllBtn = $("btnDeselectAllPages");
+    const changeFileBtn = $("btnChangeTemplateFile");
+
+    if (!modal) return;
+
+    const toggleModal = (show) => {
+        modal.classList.toggle("hidden", !show);
+        if (show && !activeTemplateData) {
+            loadDefaultTemplatePages();
+        }
+    };
+
+    if (openBtn) openBtn.onclick = () => toggleModal(true);
+    if (closeBtn) closeBtn.onclick = () => toggleModal(false);
+    if (cancelBtn) cancelBtn.onclick = () => toggleModal(false);
+
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) toggleModal(false);
+    });
+
+    if (browseBtn && fileInput) {
+        browseBtn.onclick = () => fileInput.click();
+    }
+    if (changeFileBtn && fileInput) {
+        changeFileBtn.onclick = () => fileInput.click();
+    }
+
+    if (dropzone) {
+        dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add("dragover"); };
+        dropzone.ondragleave = () => dropzone.classList.remove("dragover");
+        dropzone.ondrop = (e) => {
+            e.preventDefault();
+            dropzone.classList.remove("dragover");
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) handleTemplateUpload(files[0]);
+        };
+    }
+
+    if (fileInput) {
+        fileInput.onchange = (e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) handleTemplateUpload(files[0]);
+        };
+    }
+
+    if (selectAllBtn) {
+        selectAllBtn.onclick = () => {
+            document.querySelectorAll(".template-page-checkbox").forEach(cb => { cb.checked = true; });
+            document.querySelectorAll(".template-page-card").forEach(card => card.classList.add("selected"));
+            updateTemplateSelectionCount();
+        };
+    }
+
+    if (deselectAllBtn) {
+        deselectAllBtn.onclick = () => {
+            document.querySelectorAll(".template-page-checkbox").forEach(cb => { cb.checked = false; });
+            document.querySelectorAll(".template-page-card").forEach(card => card.classList.remove("selected"));
+            updateTemplateSelectionCount();
+        };
+    }
+
+    if (applyBtn) {
+        applyBtn.onclick = async () => {
+            if (!workflow) {
+                showToast("No active workflow selected.");
+                return;
+            }
+            const selectedCbs = Array.from(document.querySelectorAll(".template-page-checkbox:checked"));
+            if (selectedCbs.length === 0) {
+                showToast("Please select at least one page layout to apply.");
+                return;
+            }
+
+            const selectedPageIds = selectedCbs.map(cb => cb.value);
+            const mode = document.querySelector("input[name='templateMode']:checked")?.value || "reformat_layout";
+
+            applyBtn.disabled = true;
+            applyBtn.textContent = "Applying Template...";
+
+            try {
+                const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/templates/apply-to-sop`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        template_name: activeTemplateData?.filename || "Standard Enterprise SOP",
+                        selected_page_ids: selectedPageIds,
+                        template_style: "modern_enterprise",
+                        merge_mode: mode
+                    })
+                });
+
+                showToast(`✨ ${res.message || "Template applied to SOP successfully!"}`, 4000);
+                toggleModal(false);
+                setTab("export");
+            } catch (err) {
+                showToast(`Failed to apply template: ${err.message}`, 4000);
+            } finally {
+                applyBtn.disabled = false;
+                applyBtn.innerHTML = "✨ Apply Selected Pages &amp; Update SOP";
+            }
+        };
+    }
+}
+
+async function handleTemplateUpload(file) {
+    if (!workflow) {
+        showToast("Please open a workflow before uploading a template.");
+        return;
+    }
+
+    showToast(`Parsing template '${file.name}'...`);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+        const res = await fetch(`${API_BASE}/sessions/${encodeURIComponent(workflow.id)}/templates/upload-and-parse`, {
+            method: "POST",
+            body: formData
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const data = await res.json();
+
+        if (data.success) {
+            activeTemplateData = data;
+            const banner = $("templateActiveBanner");
+            if (banner) banner.classList.remove("hidden");
+            setText("templateLoadedName", `Template Loaded: ${data.filename} (${data.template_type})`);
+            setText("templateLoadedSub", `${data.total_pages} page layouts available for selection`);
+
+            renderTemplatePageCards(data.pages || []);
+            showToast(`✓ Loaded ${data.total_pages} page layouts from template!`, 3500);
+        }
+    } catch (err) {
+        showToast(`Template parsing error: ${err.message}`, 4000);
+    }
+}
+
+function loadDefaultTemplatePages() {
+    const defaultPages = [
+        { id: "page_cover", title: "Page 1: Title & Executive Summary", type: "cover", desc: "Corporate header, SOP document ID, department metadata, and executive summary cover.", recommended: true },
+        { id: "page_steps_2col", title: "Page 2: Two-Column Step Procedure", type: "procedure_2col", desc: "Crisp high-resolution screenshot on left with numbered instructions on right.", recommended: true },
+        { id: "page_steps_matrix", title: "Page 3: 3-Step Compact Matrix Grid", type: "procedure_matrix", desc: "Dense 3-step operational matrix grid for quick reference & field operator cheat-sheets.", recommended: true },
+        { id: "page_approvals", title: "Page 4: Compliance Sign-off & Audit Trail", type: "approvals", desc: "Revision history, security classification, author sign-off & management approval block.", recommended: true }
+    ];
+    renderTemplatePageCards(defaultPages);
+}
+
+function renderTemplatePageCards(pages) {
+    const grid = $("templatePagesGrid");
+    if (!grid) return;
+
+    grid.innerHTML = pages.map(p => `
+        <div class="template-page-card ${p.recommended ? 'selected' : ''}" data-page-id="${p.id}">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span class="template-page-badge ${p.type}">${esc(p.type)}</span>
+                <input type="checkbox" class="template-page-checkbox" value="${p.id}" ${p.recommended ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px;">
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-main, #fff); margin-top: 4px;">${esc(p.title)}</div>
+            <p style="font-size: 11.5px; color: var(--text-muted, #94a3b8); margin: 0; line-height: 1.4;">${esc(p.desc || "")}</p>
+        </div>
+    `).join("");
+
+    grid.querySelectorAll(".template-page-card").forEach(card => {
+        card.onclick = (e) => {
+            if (e.target.tagName !== "INPUT") {
+                const cb = card.querySelector(".template-page-checkbox");
+                if (cb) cb.checked = !cb.checked;
+            }
+            const cb = card.querySelector(".template-page-checkbox");
+            card.classList.toggle("selected", !!cb?.checked);
+            updateTemplateSelectionCount();
+        };
+    });
+
+    updateTemplateSelectionCount();
+}
+
+function updateTemplateSelectionCount() {
+    const count = document.querySelectorAll(".template-page-checkbox:checked").length;
+    setText("templateSelectionSummary", `${count} page layout${count === 1 ? '' : 's'} selected to update active SOP`);
+}
+
+
+// Initialize New Phase Enhancements
+initHotspotReticle();
+initCanvasFileDrop();
+initSopTemplateManager();
+

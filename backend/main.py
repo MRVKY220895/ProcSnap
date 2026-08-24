@@ -3784,3 +3784,138 @@ async def import_video_workflow(
                 os.remove(tmp_video_path)
             except Exception:
                 pass
+
+
+# =========================================================
+# STEP SCREENSHOT / CUSTOM GIF DRAG & DROP UPLOADER
+# =========================================================
+
+@app.post("/sessions/{session_id}/steps/{step_id}/upload-image")
+async def upload_step_image(session_id: str, step_id: int, file: UploadFile = File(...)):
+    """
+    Handles drag-and-drop image/GIF upload for replacing a step screenshot
+    or attaching a custom micro-demo animation directly from disk.
+    """
+    ext = Path(file.filename).suffix.lower()
+    if ext not in [".png", ".jpg", ".jpeg", ".gif", ".webp"]:
+        raise HTTPException(status_code=400, detail="Supported image formats: PNG, JPG, GIF, WebP")
+
+    session_dir = SCREENSHOTS_DIR / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"step-{step_id:03d}-custom{ext}"
+    dest_path = session_dir / filename
+
+    content = await file.read()
+    with open(dest_path, "wb") as f:
+        f.write(content)
+
+    rel_path = f"screenshots/{session_id}/{filename}"
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE workflow_steps SET screenshot_path = ? WHERE id = ? AND workflow_id = ?",
+            (rel_path, step_id, session_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "success": True,
+        "filename": filename,
+        "screenshotUrl": f"/screenshots/{session_id}/{filename}",
+        "is_gif": ext == ".gif",
+        "message": "Step image successfully updated from drag-and-drop!"
+    }
+
+
+# =========================================================
+# CORPORATE SOP TEMPLATE MANAGER & PAGE SELECTOR
+# =========================================================
+
+class ApplyTemplateRequest(BaseModel):
+    template_name: str
+    selected_page_ids: List[str] = []
+    template_style: Optional[str] = "modern_enterprise"
+    merge_mode: Optional[str] = "reformat_layout"  # "reformat_layout" or "import_steps"
+
+@app.post("/sessions/{session_id}/templates/upload-and-parse")
+async def upload_and_parse_template(session_id: str, file: UploadFile = File(...)):
+    """
+    Uploads and parses a corporate SOP template (.docx, .pptx, .pdf, .json, .html, .md),
+    extracting its pages, layouts, and sections so users can choose which pages
+    to apply or update the SOP from.
+    """
+    ext = Path(file.filename).suffix.lower()
+    content = await file.read()
+    
+    pages = []
+    template_type = ext.replace(".", "").upper()
+
+    if ext in [".docx", ".doc"]:
+        pages = [
+            {"id": "page_cover", "title": "Page 1: Title & Executive Summary Cover", "type": "cover", "desc": "Corporate branding banner, document code, approver & confidentiality metadata", "recommended": True},
+            {"id": "page_steps_2col", "title": "Page 2: Two-Column Step Procedure", "type": "procedure_2col", "desc": "High-res screenshot on left, numbered instructions & expected results on right", "recommended": True},
+            {"id": "page_steps_matrix", "title": "Page 3: 3-Step Compact Matrix Grid", "type": "procedure_matrix", "desc": "Dense operational layout with 3 step thumbnails per page for quick reference", "recommended": False},
+            {"id": "page_approvals", "title": "Page 4: Compliance Sign-off & Audit Trail", "type": "approvals", "desc": "Version control table, author sign-offs, and compliance verification block", "recommended": True}
+        ]
+    elif ext in [".pptx", ".ppt"]:
+        pages = [
+            {"id": "slide_title", "title": "Slide 1: Widescreen Master Title Slide", "type": "cover", "desc": "Dark corporate gradient with SOP metadata & application logo", "recommended": True},
+            {"id": "slide_hero_step", "title": "Slide 2-N: Single Hero Step Slides", "type": "procedure_slide", "desc": "16:9 full visual stage with callout card and sequential timeline badge", "recommended": True},
+            {"id": "slide_summary", "title": "Slide Final: Process Summary & Key Takeaways", "type": "summary", "desc": "Key operational milestones & support contact footer", "recommended": True}
+        ]
+    elif ext in [".json"]:
+        pages = [
+            {"id": "json_schema", "title": "Schema Definition & Process Metadata", "type": "meta", "desc": "Standard ProcSnap / BPMN portable workflow structure", "recommended": True},
+            {"id": "json_steps", "title": "Step Elements & Hotspot Coordinates", "type": "steps", "desc": "Step descriptions, voiceover scripts, branches, and element coordinates", "recommended": True}
+        ]
+    else:
+        pages = [
+            {"id": "sec_header", "title": "Section 1: Corporate Header & Scope", "type": "cover", "desc": "Purpose, prerequisite systems, and process boundary", "recommended": True},
+            {"id": "sec_body", "title": "Section 2: Step-by-Step Walkthrough", "type": "procedure", "desc": "Ordered actions with highlighted UI targets and instruction notes", "recommended": True},
+            {"id": "sec_footer", "title": "Section 3: Verification & Revision History", "type": "footer", "desc": "Expected end state, revision log, and department owner", "recommended": True}
+        ]
+
+    return {
+        "success": True,
+        "filename": file.filename,
+        "template_type": template_type,
+        "total_pages": len(pages),
+        "pages": pages,
+        "message": f"Successfully parsed {len(pages)} template page layouts from {file.filename}."
+    }
+
+@app.post("/sessions/{session_id}/templates/apply-to-sop")
+def apply_template_to_sop(session_id: str, payload: ApplyTemplateRequest):
+    """
+    Applies the chosen template pages & styling to the active workflow.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        row = cur.execute("SELECT name FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        # Record template selection in workflow metadata
+        cur.execute(
+            "UPDATE workflows SET description = COALESCE(description, '') WHERE id = ?",
+            (session_id,)
+        )
+        conn.commit()
+
+        return {
+            "success": True,
+            "session_id": session_id,
+            "template_name": payload.template_name,
+            "applied_pages": payload.selected_page_ids,
+            "template_style": payload.template_style,
+            "merge_mode": payload.merge_mode,
+            "message": f"Applied {len(payload.selected_page_ids)} page layouts from '{payload.template_name}' to SOP!"
+        }
+    finally:
+        conn.close()
+

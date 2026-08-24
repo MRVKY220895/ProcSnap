@@ -357,6 +357,22 @@
                                     <div class="screenshot-canvas-wrapper" id="canvasWrapper" style="position: relative;">
                                         <img id="guideImg" src="" alt="SOP Screenshot">
                                         <canvas id="annotationCanvas"></canvas>
+                                        <!-- Interactive Drag-and-Drop Hotspot Target Reticle -->
+                                        <div id="hotspotReticleHandle" class="hotspot-reticle-handle hidden" title="Drag to adjust click location / Micro-demo target">
+                                            <div class="reticle-pulse-ring"></div>
+                                            <div class="reticle-core">
+                                                <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 17.93V17a1 1 0 0 0-2 0v2.93A8.001 8.001 0 0 1 4.07 13H7a1 1 0 0 0 0-2H4.07A8.001 8.001 0 0 1 11 4.07V7a1 1 0 0 0 2 0V4.07A8.001 8.001 0 0 1 19.93 11H17a1 1 0 0 0 0 2h2.93A8.001 8.001 0 0 1 13 19.93z"/></svg>
+                                                <span class="reticle-label" id="reticleCoordsLabel">🎯 Hotspot</span>
+                                            </div>
+                                        </div>
+                                        <!-- Drag-and-Drop Image / GIF Upload Overlay -->
+                                        <div id="canvasDropOverlay" class="canvas-drop-overlay hidden">
+                                            <div class="drop-overlay-content">
+                                                <span style="font-size: 38px;">📥</span>
+                                                <div style="font-size: 15px; font-weight: 700; color: #fff;">Drop Image or GIF Here</div>
+                                                <div style="font-size: 11.5px; color: rgba(255,255,255,0.75);">Replaces screenshot or sets custom animated demo</div>
+                                            </div>
+                                        </div>
                                         <!-- Large Centered Blocked Symbol Watermark for Deleted / Hidden Steps (Requirement 3) -->
                                         <div id="deletedStepWatermark" class="deleted-step-watermark hidden">
                                             <div class="watermark-content">
@@ -639,6 +655,23 @@
 
                     <!-- 4. Export Tab -->
                     <section id="tab-export" class="tab-panel hidden">
+                        <!-- Corporate SOP Template Uploader & Page Selector Banner -->
+                        <div class="template-manager-banner" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.18)); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 12px; padding: 18px 22px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);">
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <div style="width: 48px; height: 48px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);">📄</div>
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main, #fff); margin: 0;">Corporate SOP Template &amp; Page Selector</h3>
+                                        <span class="badge" style="background: #10b981; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">NEW</span>
+                                    </div>
+                                    <p style="font-size: 12.5px; color: var(--text-muted, #94a3b8); margin: 3px 0 0 0;">Upload your enterprise Word/PPTX template, select specific pages/sections, and update or reformat the active SOP automatically.</p>
+                                </div>
+                            </div>
+                            <button id="btnOpenTemplateModal" class="btn btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; padding: 10px 18px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);">
+                                <span>📄</span> Upload Template &amp; Select Pages
+                            </button>
+                        </div>
+
                         <div class="export-grid">
                             <div class="export-card featured-card">
                                 <div class="export-card-icon">🎯</div>
@@ -1317,6 +1350,93 @@
                     <span><kbd style="font-family: monospace;">↵</kbd> to select</span>
                 </div>
                 <span id="cmdPaletteCount">0 results</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- SOP Corporate Template Manager & Page Selector Modal -->
+    <div id="sopTemplateModal" class="modal-backdrop hidden" style="backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); background: rgba(0, 0, 0, 0.85); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div class="template-modal-card" style="width: 980px; max-width: 96vw; max-height: 90vh; background: var(--bg-surface-elevated, #182234); border: 1px solid var(--border-subtle, rgba(255,255,255,0.12)); border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.85); display: flex; flex-direction: column; overflow: hidden;">
+            <!-- Modal Header -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(0,0,0,0.15);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">📄</div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main, #fff); margin: 0;">SOP Corporate Template &amp; Page Selector</h3>
+                        <div style="font-size: 12px; color: var(--text-muted, #94a3b8);">Upload enterprise templates and select target layout pages to update SOP formatting</div>
+                    </div>
+                </div>
+                <button id="btnCloseTemplateModal" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; border-radius: 6px;" title="Close (Esc)">✕</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+                <!-- Drag & Drop Upload Dropzone -->
+                <div id="templateDropzone" class="template-upload-zone" style="border: 2px dashed rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.04); border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s;">
+                    <input type="file" id="templateFileInput" accept=".docx,.pptx,.pdf,.json,.html,.md" style="display: none;">
+                    <div style="font-size: 36px; margin-bottom: 8px;">📤</div>
+                    <div style="font-size: 15px; font-weight: 700; color: var(--text-main, #fff); margin-bottom: 4px;">Drag &amp; Drop Corporate Template Document Here</div>
+                    <div style="font-size: 12px; color: var(--text-muted, #94a3b8); margin-bottom: 12px;">Supports Microsoft Word (.docx), PowerPoint (.pptx), PDF (.pdf), JSON (.json), HTML (.html)</div>
+                    <button id="btnBrowseTemplate" class="btn btn-secondary btn-sm" style="font-weight: 600; padding: 6px 16px;">Browse File from Computer</button>
+                </div>
+
+                <!-- Template Active Info Banner (hidden until file uploaded) -->
+                <div id="templateActiveBanner" class="template-active-banner hidden" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">✅</span>
+                        <div>
+                            <div id="templateLoadedName" style="font-size: 13px; font-weight: 700; color: #10b981;">Template Loaded</div>
+                            <div id="templateLoadedSub" style="font-size: 11.5px; color: var(--text-muted, #94a3b8);">Select which pages/layouts to apply below</div>
+                        </div>
+                    </div>
+                    <button id="btnChangeTemplateFile" class="btn btn-secondary btn-xs">Change File</button>
+                </div>
+
+                <!-- Page & Layout Selector Grid -->
+                <div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <label style="font-size: 13px; font-weight: 700; color: var(--text-main, #fff);">Select Pages &amp; Sections to Apply</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btnSelectAllPages" class="btn btn-secondary btn-xs">Select All</button>
+                            <button id="btnDeselectAllPages" class="btn btn-secondary btn-xs">Deselect All</button>
+                        </div>
+                    </div>
+                    <div id="templatePagesGrid" class="template-pages-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px;">
+                        <!-- Dynamic page cards rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Application Mode Options -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 10px; padding: 16px;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--text-main, #fff); margin-bottom: 10px;">Application Mode</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; color: var(--text-main, #fff); cursor: pointer;">
+                            <input type="radio" name="templateMode" value="reformat_layout" checked style="margin-top: 3px;">
+                            <div>
+                                <strong>Reformat Active SOP to Template Layout</strong>
+                                <div style="font-size: 11.5px; color: var(--text-muted, #94a3b8);">Applies template corporate header, covers, 2-column layouts, and compliance sign-offs to active steps.</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; color: var(--text-main, #fff); cursor: pointer;">
+                            <input type="radio" name="templateMode" value="import_steps" style="margin-top: 3px;">
+                            <div>
+                                <strong>Import &amp; Merge Template Procedures into Active SOP</strong>
+                                <div style="font-size: 11.5px; color: var(--text-muted, #94a3b8);">Extracts procedure descriptions and layout sections from the uploaded template to create or update steps.</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(0,0,0,0.15);">
+                <span id="templateSelectionSummary" style="font-size: 12px; color: var(--text-muted, #94a3b8);">4 page layouts selected</span>
+                <div style="display: flex; gap: 10px;">
+                    <button id="btnCancelTemplateModal" class="btn btn-secondary btn-sm">Cancel</button>
+                    <button id="btnApplySelectedPages" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; padding: 8px 18px;">
+                        ✨ Apply Selected Pages &amp; Update SOP
+                    </button>
+                </div>
             </div>
         </div>
     </div>
