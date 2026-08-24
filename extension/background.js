@@ -3,6 +3,35 @@ let currentSessionId = null;
 let currentWorkflowName = "";
 let currentStepCount = 0;
 
+let cachedBackendUrl = "http://127.0.0.1:8000";
+
+async function getBackendUrl() {
+    try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 600);
+        const res = await fetch(`${cachedBackendUrl}/health`, { signal: controller.signal });
+        clearTimeout(tid);
+        if (res.ok) return cachedBackendUrl;
+    } catch (_) {}
+
+    // Fallback probe candidate ports
+    for (const port of [8000, 8001, 8002, 8003, 8004, 8005]) {
+        const candidate = `http://127.0.0.1:${port}`;
+        try {
+            const controller = new AbortController();
+            const tid = setTimeout(() => controller.abort(), 600);
+            const res = await fetch(`${candidate}/health`, { signal: controller.signal });
+            clearTimeout(tid);
+            if (res.ok) {
+                cachedBackendUrl = candidate;
+                console.log("ProcSnap extension connected to backend on:", candidate);
+                return candidate;
+            }
+        } catch (_) {}
+    }
+    return cachedBackendUrl;
+}
+
 const pendingClickScreenshots = new Map();
 
 
@@ -118,8 +147,9 @@ async function startRecording(name = "Untitled Workflow", application = "Chrome"
         { name, application }
     );
 
+    const backendUrl = await getBackendUrl();
     const response = await fetch(
-        "http://127.0.0.1:8000/sessions",
+        `${backendUrl}/sessions`,
         {
             method: "POST",
             headers: {
@@ -229,8 +259,9 @@ async function stopRecording() {
         };
     }
 
+    const backendUrl = await getBackendUrl();
     const response = await fetch(
-        `http://127.0.0.1:8000/sessions/${sessionId}/stop`,
+        `${backendUrl}/sessions/${sessionId}/stop`,
         {
             method: "POST"
         }
@@ -315,8 +346,9 @@ async function captureStep(step, senderTabId = null, senderWindowId = null) {
         await new Promise(resolve => setTimeout(resolve, 350));
     }
 
+    const backendUrl = await getBackendUrl();
     const response = await fetch(
-        `http://127.0.0.1:8000/sessions/${sessionId}/steps`,
+        `${backendUrl}/sessions/${sessionId}/steps`,
         {
             method: "POST",
             headers: {
@@ -381,7 +413,7 @@ async function captureStep(step, senderTabId = null, senderWindowId = null) {
     if (image && stepId) {
         try {
             const screenshotResponse = await fetch(
-                "http://127.0.0.1:8000/screenshots",
+                `${backendUrl}/screenshots`,
                 {
                     method: "POST",
                     headers: {

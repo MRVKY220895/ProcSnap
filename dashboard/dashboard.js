@@ -2048,6 +2048,17 @@ function loadActiveStepDetails() {
         hideBtn.className = step.hidden ? "btn btn-secondary btn-sm" : "btn btn-danger btn-sm";
     }
 
+    // Toggle Canvas Deleted Step Watermark (Requirement 3)
+    const watermarkEl = $("deletedStepWatermark");
+    if (watermarkEl) {
+        if (step.hidden) {
+            watermarkEl.classList.remove("hidden");
+        } else {
+            watermarkEl.classList.add("hidden");
+        }
+    }
+    setOnclick("btnRestoreStepCanvas", () => toggleActiveStepHidden());
+
     // Meta details
     setText("guideMetaAction", actionTitle(step.action));
     setText("guideMetaValue", step.value || "—");
@@ -4123,12 +4134,27 @@ function openSystemRequirementsModal() {
     // Close button listeners
     const closeBtn = $("closeRequirementsModalBtn");
     const closeBtn2 = $("closeRequirementsModalBtn2");
-    if (closeBtn) closeBtn.onclick = () => modal.classList.add("hidden");
-    if (closeBtn2) closeBtn2.onclick = () => modal.classList.add("hidden");
+    const closeModal = () => modal.classList.add("hidden");
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (closeBtn2) closeBtn2.onclick = closeModal;
+
+    // Backdrop click close
+    modal.onclick = (e) => {
+        if (e.target === modal) closeModal();
+    };
+
+    // ESC key close
+    const onKey = (e) => {
+        if (e.key === "Escape") {
+            closeModal();
+            window.removeEventListener("keydown", onKey);
+        }
+    };
+    window.addEventListener("keydown", onKey);
 
     // Re-scan button
     const refreshBtn = $("refreshReqBtn");
-    if (refreshBtn) refreshBtn.onclick = loadSystemRequirements;
+    if (refreshBtn) refreshBtn.onclick = () => loadSystemRequirements();
 
     // Fix shortcuts
     const btnShortcuts = $("btnRepairShortcuts");
@@ -4197,7 +4223,7 @@ function openSystemRequirementsModal() {
             btnReinstall.textContent = "🔄 Installing...";
 
             try {
-                const res = await api("/system/reinstall-packages", { method: "POST" });
+                const res = await api("/system/reinstall-packages", { method: "POST", timeout: 180000 });
                 if (terminalOut) terminalOut.textContent = res.output || "Installation finished.";
                 if (res.success) {
                     if (terminalStatus) {
@@ -4231,16 +4257,21 @@ function openSystemRequirementsModal() {
 }
 
 async function loadSystemRequirements() {
+    const banner = $("reqStatusBanner");
+    const bIcon = $("reqBannerIcon");
+    const bTitle = $("reqBannerTitle");
+    const bDesc = $("reqBannerDesc");
+    const tbody = $("reqPackagesTbody");
+
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 18px;">⏳ Scanning system environment and packages...</td></tr>`;
+    }
+
     try {
-        const data = await api("/system/requirements");
-        if (!data || !data.success) throw new Error("Invalid response");
+        const data = await api("/system/requirements", { timeout: 15000 });
+        if (!data || !data.success) throw new Error("Invalid response from server");
 
         // 1. Overall Banner
-        const banner = $("reqStatusBanner");
-        const bIcon = $("reqBannerIcon");
-        const bTitle = $("reqBannerTitle");
-        const bDesc = $("reqBannerDesc");
-
         if (data.status === "ready") {
             if (banner) banner.className = "req-overall-banner ok";
             if (bIcon) bIcon.textContent = "✓";
@@ -4304,7 +4335,6 @@ async function loadSystemRequirements() {
         }
 
         // 6. Packages Table
-        const tbody = $("reqPackagesTbody");
         if (tbody && data.packages && data.packages.items) {
             tbody.innerHTML = data.packages.items.map(p => `
                 <tr>
@@ -4323,6 +4353,25 @@ async function loadSystemRequirements() {
 
     } catch (e) {
         console.error("Failed to load system requirements:", e);
+        if (banner) banner.className = "req-overall-banner needs_attention";
+        if (bIcon) bIcon.textContent = "⚠️";
+        if (bTitle) bTitle.textContent = "Scan Incomplete";
+        if (bDesc) bDesc.textContent = "Failed to communicate with backend server: " + (e.message || "Unknown error");
+        
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 24px;">
+                        <div style="color: #f87171; font-weight: 600; margin-bottom: 10px;">
+                            ⚠️ Could not retrieve live system requirements (${esc(e.message)})
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="loadSystemRequirements()" style="display: inline-flex; align-items: center; gap: 5px;">
+                            🔄 Retry Re-Scan
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
         showToast("Error checking requirements: " + e.message);
     }
 }

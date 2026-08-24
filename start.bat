@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 setlocal EnableDelayedExpansion
 title ProcSnap - Workflow Studio
 color 0A
@@ -77,13 +77,26 @@ if errorlevel 1 (
 echo [OK] Dependencies ready.
 
 :: ─────────────────────────────────────────────
-:: STEP 4: Start backend server
+:: STEP 4: Start backend server (with automatic port fallback)
 :: ─────────────────────────────────────────────
+set "APP_PORT=8000"
+for /L %%P in (8000, 1, 8010) do (
+    netstat -ano | findstr /R /C:":%%P .*LISTENING" >nul 2>&1
+    if errorlevel 1 (
+        set "APP_PORT=%%P"
+        goto :PortFound
+    )
+)
+:PortFound
+
 echo.
-echo [..] Starting ProcSnap server on http://127.0.0.1:8000 ...
+if not "%APP_PORT%"=="8000" (
+    echo [NOTE] Port 8000 was busy. Automatically falling back to port %APP_PORT%
+)
+echo [..] Starting ProcSnap server on http://127.0.0.1:%APP_PORT% ...
 echo [..] Opening dashboard in browser...
 echo.
-start "" "http://127.0.0.1:8000/dashboard/dashboard.html"
-backend\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000 --app-dir backend
+start "" "http://127.0.0.1:%APP_PORT%/dashboard/dashboard.html"
+backend\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port %APP_PORT% --app-dir backend
 
 pause
