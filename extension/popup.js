@@ -43,9 +43,15 @@ async function getBackendUrl() {
     return cachedBackendUrl;
 }
 
+let manuallyDisconnected = false;
 const apiOfflineBanner = document.getElementById("api-offline-banner");
 const btnRetryApi = document.getElementById("btnRetryApi");
 const btnCopyStartCmd = document.getElementById("btnCopyStartCmd");
+const btnToggleApiConnect = document.getElementById("btnToggleApiConnect");
+const btnExtStartAPI = document.getElementById("btnExtStartAPI");
+const btnExtGitPull = document.getElementById("btnExtGitPull");
+const btnExtReinstall = document.getElementById("btnExtReinstall");
+const extUtilStatus = document.getElementById("extUtilStatus");
 
 function setApiStatus(online, port = "") {
     const openStudioLink = document.getElementById("openStudioLink");
@@ -56,16 +62,28 @@ function setApiStatus(online, port = "") {
         apiStatusPill.textContent = port ? `Online (Port ${port})` : "API Connected";
         apiStatusPill.className = "api-status online";
         startButton.disabled = false;
+        if (btnToggleApiConnect) {
+            btnToggleApiConnect.textContent = "🔌";
+            btnToggleApiConnect.title = "Connected — Click to Disconnect API";
+        }
         if (apiOfflineBanner) apiOfflineBanner.classList.add("hidden");
     } else {
-        apiStatusPill.textContent = "API Offline";
+        apiStatusPill.textContent = manuallyDisconnected ? "Disconnected" : "API Offline";
         apiStatusPill.className = "api-status offline";
         startButton.disabled = true;
+        if (btnToggleApiConnect) {
+            btnToggleApiConnect.textContent = "⚡";
+            btnToggleApiConnect.title = "Disconnected — Click to Start / Connect API";
+        }
         if (apiOfflineBanner) apiOfflineBanner.classList.remove("hidden");
     }
 }
 
 async function checkBackendHealth() {
+    if (manuallyDisconnected) {
+        setApiStatus(false);
+        return false;
+    }
     try {
         const backend = await getBackendUrl();
         const res = await fetch(`${backend}/health`);
@@ -82,16 +100,91 @@ async function checkBackendHealth() {
     return false;
 }
 
+if (btnToggleApiConnect) {
+    btnToggleApiConnect.onclick = async () => {
+        if (!manuallyDisconnected) {
+            manuallyDisconnected = true;
+            setApiStatus(false);
+        } else {
+            manuallyDisconnected = false;
+            await checkBackendHealth();
+        }
+    };
+}
+
 if (btnRetryApi) {
     btnRetryApi.onclick = async () => {
+        manuallyDisconnected = false;
         btnRetryApi.disabled = true;
         btnRetryApi.textContent = "⏳ Testing Ports 8000-8005...";
         const ok = await checkBackendHealth();
         btnRetryApi.disabled = false;
-        btnRetryApi.textContent = "🔄 Retry Connection";
+        btnRetryApi.textContent = "⚡ Start / Reconnect API";
         if (ok) {
             btnRetryApi.textContent = "✓ Connected!";
-            setTimeout(() => { btnRetryApi.textContent = "🔄 Retry Connection"; }, 1500);
+            setTimeout(() => { btnRetryApi.textContent = "⚡ Start / Reconnect API"; }, 1500);
+        }
+    };
+}
+
+if (btnExtStartAPI) {
+    btnExtStartAPI.onclick = async () => {
+        manuallyDisconnected = false;
+        btnExtStartAPI.disabled = true;
+        btnExtStartAPI.innerHTML = "<span>⏳</span> Connecting…";
+        const ok = await checkBackendHealth();
+        btnExtStartAPI.disabled = false;
+        btnExtStartAPI.innerHTML = ok ? "<span>✓</span> Connected" : "<span>⚡</span> Connect";
+        setTimeout(() => { btnExtStartAPI.innerHTML = "<span>⚡</span> Connect"; }, 2000);
+    };
+}
+
+if (btnExtGitPull) {
+    btnExtGitPull.onclick = async () => {
+        btnExtGitPull.disabled = true;
+        btnExtGitPull.innerHTML = "<span>⏳</span> Pulling…";
+        if (extUtilStatus) {
+            extUtilStatus.classList.remove("hidden");
+            extUtilStatus.textContent = "Pulling latest update from GitHub repository...";
+        }
+        try {
+            const res = await fetch(`${cachedBackendUrl}/system/git-pull`, { method: "POST" });
+            const data = await res.json();
+            if (extUtilStatus) {
+                extUtilStatus.textContent = data.output || (data.success ? "✓ Up to date!" : "Failed to update");
+            }
+            btnExtGitPull.innerHTML = "<span>✓</span> Done";
+        } catch(e) {
+            if (extUtilStatus) extUtilStatus.textContent = `❌ Error: ${e.message}`;
+            btnExtGitPull.innerHTML = "<span>❌</span> Error";
+        } finally {
+            btnExtGitPull.disabled = false;
+            setTimeout(() => { btnExtGitPull.innerHTML = "<span>⬇️</span> Git Pull"; }, 3000);
+        }
+    };
+}
+
+if (btnExtReinstall) {
+    btnExtReinstall.onclick = async () => {
+        btnExtReinstall.disabled = true;
+        btnExtReinstall.innerHTML = "<span>⏳</span> Updating…";
+        if (extUtilStatus) {
+            extUtilStatus.classList.remove("hidden");
+            extUtilStatus.textContent = "Running pip dependency updates in background...";
+        }
+        try {
+            const res = await fetch(`${cachedBackendUrl}/system/reinstall-packages`, { method: "POST" });
+            const data = await res.json();
+            if (extUtilStatus) {
+                extUtilStatus.textContent = data.output || (data.success ? "✓ Dependencies updated!" : "Installation completed");
+            }
+            btnExtReinstall.innerHTML = "<span>✓</span> Done";
+        } catch(e) {
+            if (extUtilStatus) extUtilStatus.textContent = `❌ Error: ${e.message}`;
+            btnExtReinstall.innerHTML = "<span>❌</span> Error";
+        } finally {
+            btnExtReinstall.disabled = false;
+            setTimeout(() => { btnExtReinstall.innerHTML = "<span>📦</span> Pip Update"; }, 3000);
         }
     };
 }

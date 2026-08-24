@@ -12,7 +12,10 @@
                 <span class="logo-mark">P</span>
                 <span class="logo-text">ProcSnap</span>
             </div>
-            <div id="api-status-pill" class="api-status offline" title="Click to test/reconnect API">API Offline</div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <div id="api-status-pill" class="api-status offline" title="Click to test/reconnect API">API Offline</div>
+                <button id="btnToggleApiConnect" class="btn-icon-xs" title="Disconnect / Reconnect backend API">🔌</button>
+            </div>
         </header>
 
         <!-- Backend Offline Assistant (shown when API is not reachable) -->
@@ -24,7 +27,7 @@
                 ProcSnap backend is not responding on ports 8000-8005.
             </div>
             <div class="api-offline-actions">
-                <button id="btnRetryApi" class="btn btn-xs btn-primary">🔄 Retry Connection</button>
+                <button id="btnRetryApi" class="btn btn-xs btn-primary">⚡ Start / Reconnect API</button>
                 <button id="btnCopyStartCmd" class="btn btn-xs btn-secondary">📋 Copy Launch Command</button>
             </div>
         </div>
@@ -40,6 +43,22 @@
                 <input type="text" id="application-name" placeholder="e.g. Chrome, Salesforce, Jira" value="Chrome">
             </div>
             <button id="start" class="btn btn-primary">Start Capture</button>
+        </div>
+
+        <!-- Extension Quick Utility Toolbar (Git Update, Dependencies, Connection) -->
+        <div class="ext-utility-toolbar">
+            <div class="ext-util-row">
+                <button id="btnExtGitPull" class="btn-util" title="Pull latest updates from GitHub">
+                    <span>⬇️</span> Git Pull
+                </button>
+                <button id="btnExtReinstall" class="btn-util" title="Re-install Python package dependencies">
+                    <span>📦</span> Pip Update
+                </button>
+                <button id="btnExtStartAPI" class="btn-util" title="Start / Reconnect backend API server">
+                    <span>⚡</span> Connect
+                </button>
+            </div>
+            <div id="extUtilStatus" class="ext-util-status hidden"></div>
         </div>
 
         <!-- Active Session Panel (shown when recording) -->

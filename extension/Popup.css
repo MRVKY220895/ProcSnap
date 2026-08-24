@@ -360,3 +360,76 @@ body {
     from { opacity: 0; transform: translateY(-4px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* Extension Utility Toolbar (Git update, Start/Disconnect, Pip) */
+.ext-utility-toolbar {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ext-util-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 5px;
+}
+
+.btn-util {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.btn-util:hover {
+    border-color: var(--primary);
+    background: rgba(124, 58, 237, 0.15);
+}
+
+.btn-util:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-icon-xs {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s;
+}
+
+.btn-icon-xs:hover {
+    background: var(--bg-surface);
+    color: var(--text-main);
+}
+
+.ext-util-status {
+    font-size: 10.5px;
+    line-height: 1.35;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    color: #a5b4fc;
+    word-break: break-all;
+    max-height: 80px;
+    overflow-y: auto;
+}
