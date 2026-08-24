@@ -295,15 +295,12 @@
                                         <button class="tool-btn" id="tool-crop" title="Crop Screenshot (K)">
                                             <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M17 15h2V7c0-1.1-.9-2-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10c0 1.1.9 2 2 2h10v4h2v-4h4v-2H7z"/></svg>
                                         </button>
-                                        <!-- Spotlight Toggle -->
-                                        <button class="tool-btn" id="tool-spotlight-toggle" title="Toggle Auto-Spotlight" style="position: relative;">
-                                            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
-                                            <span style="position:absolute;bottom:2px;right:2px;width:5px;height:5px;border-radius:50%;background:#6366f1;" id="spotlightIndicator"></span>
+                                        <!-- Spotlight / Focus Toggle Button -->
+                                        <button class="btn btn-secondary btn-sm" id="btnToggleFocusSpotlight" style="padding: 0 10px; height: 30px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;" title="Toggle Step Focus & Spotlight on/off">
+                                            <span id="focusToggleDot" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                                            <span id="focusToggleLabel">Focus: Enabled</span>
                                         </button>
-                                    </div>
-                                    <div class="tool-group">
                                         <button class="btn btn-secondary btn-sm" id="clearAnnotationsBtn" style="padding: 0 8px; height: 30px; font-size: 11.5px;">Clear</button>
-                                        <button class="btn btn-secondary btn-sm" id="recalcHighlightBtn" style="padding: 0 8px; height: 30px; font-size: 11.5px;">Focus</button>
                                         <button class="btn btn-secondary btn-sm" id="btnGenerateAnimation" style="padding: 0 8px; height: 30px; font-size: 11.5px; font-weight: 700; color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Generate 2-second animated cursor demo GIF">
                                             🎬 Micro-Demo
                                         </button>
@@ -391,6 +388,20 @@
                                     <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description">Step description will appear here...</p>
                                 </div>
                                 <div class="guide-card-body">
+                                    <!-- Element Focus & Spotlight Toggle Card -->
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.22); border-radius: 8px; margin-bottom: 12px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="font-size: 16px;">🎯</span>
+                                            <div>
+                                                <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">Element Focus & Spotlight</div>
+                                                <div style="font-size: 10.5px; color: var(--text-muted);">Highlight target action on screenshot</div>
+                                            </div>
+                                        </div>
+                                        <button id="btnDrawerFocusToggle" class="btn btn-secondary btn-xs" style="font-size: 11px; font-weight: 700; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; border-radius: 5px;">
+                                            <span id="drawerFocusDot" style="width: 7px; height: 7px; border-radius: 50%; background: #10b981;"></span>
+                                            <span id="drawerFocusText">ON</span>
+                                        </button>
+                                    </div>
                                     <div class="drawer-accordion-card">
                                         <div class="drawer-accordion-header" data-target="drawerAccHotspot">
                                             <span class="drawer-acc-title">🎯 Interactive Hotspot & Coordinates</span>

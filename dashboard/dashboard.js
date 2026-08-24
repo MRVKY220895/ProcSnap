@@ -2815,28 +2815,41 @@ function captureStreamFrame(stream) {
         };
     }
 
-    // Spotlight Toggle button
-    if ($("tool-spotlight-toggle")) {
-        $("tool-spotlight-toggle").onclick = () => {
-            canvasEngine.autoSpotlightEnabled = !canvasEngine.autoSpotlightEnabled;
-            const btn = $("tool-spotlight-toggle");
-            const dot = $("spotlightIndicator");
-            if (canvasEngine.autoSpotlightEnabled) {
-                btn.classList.add("active");
-                if (dot) dot.style.background = "#6366f1";
-                showToast("Auto-Spotlight ON — element focus ring enabled.");
-            } else {
-                btn.classList.remove("active");
-                if (dot) dot.style.background = "#9ca3af";
-                showToast("Auto-Spotlight OFF — showing plain screenshots.");
-            }
-            // Refresh current step to toggle spotlight
-            loadActiveStepDetails();
-        };
-    }
+    // Focus & Spotlight Toggle Buttons
+    setOnclick("btnToggleFocusSpotlight", toggleFocusSpotlight);
+    setOnclick("btnDrawerFocusToggle", toggleFocusSpotlight);
+    updateFocusToggleUI();
 
     loadActiveStepDetails();
     renderStepThumbnails();
+}
+
+function updateFocusToggleUI() {
+    const isEnabled = canvasEngine ? (canvasEngine.autoSpotlightEnabled !== false && canvasEngine.focusBoxEnabled !== false) : true;
+    
+    // Toolbar Button
+    const dot = $("focusToggleDot");
+    const label = $("focusToggleLabel");
+    if (dot) dot.style.background = isEnabled ? "#10b981" : "#94a3b8";
+    if (label) label.textContent = isEnabled ? "Focus: Enabled" : "Focus: Disabled";
+    
+    // Drawer Button
+    const dDot = $("drawerFocusDot");
+    const dText = $("drawerFocusText");
+    if (dDot) dDot.style.background = isEnabled ? "#10b981" : "#94a3b8";
+    if (dText) dText.textContent = isEnabled ? "ON" : "OFF";
+}
+
+function toggleFocusSpotlight() {
+    if (!canvasEngine) return;
+    const currentState = (canvasEngine.autoSpotlightEnabled !== false && canvasEngine.focusBoxEnabled !== false);
+    const newState = !currentState;
+    canvasEngine.autoSpotlightEnabled = newState;
+    canvasEngine.focusBoxEnabled = newState;
+    
+    updateFocusToggleUI();
+    showToast(newState ? "🎯 Element Focus & Spotlight Enabled" : "🎯 Element Focus & Spotlight Disabled", 2500);
+    loadActiveStepDetails();
 }
 
 // Safely extract and parse annotations array from step object
@@ -2882,6 +2895,7 @@ function loadActiveStepDetails() {
     setVal("guideStepVoiceover", step.voiceover || "");
     renderStepBranches(step);
     if (typeof updateDemoButtonState === "function") updateDemoButtonState(step);
+    if (typeof updateFocusToggleUI === "function") updateFocusToggleUI();
 
     // Populate Interactive Hotspot values (Requirement 2)
     const hs = calculateDefaultHotspot(step);
