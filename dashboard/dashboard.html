@@ -32,35 +32,57 @@
                 </div>
                 <div class="developer-signature" title="ProcSnap Engine — Designed & Developed by MRV">Developed by <strong>MRV</strong></div>
             </div>
-            <div class="top-actions">
-                <span id="apiStatus" class="api-status online" style="background: rgba(99, 102, 241, 0.12); color: #818cf8;">Connecting…</span>
-                <span id="aiStatus" class="api-status offline" title="Ollama local AI status (Optional)">AI Offline</span>
-                <button id="startOllamaBtn" class="btn btn-secondary btn-sm hidden" style="padding: 4px 8px; font-size: 12px;">Start Ollama</button>
+            <div class="top-actions" style="display: flex; align-items: center; gap: 8px;">
+                <div class="status-cluster" style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 999px; padding: 3px 10px;" title="ProcSnap Engine: 127.0.0.1:8000">
+                    <span id="apiStatus" class="api-status online" style="background: transparent; color: #10b981; font-size: 11.5px; font-weight: 700; padding: 0;">🟢 Online</span>
+                    <span id="aiStatus" class="api-status online hidden" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">AI Ready</span>
+                </div>
                 <div id="aiErrorBanner" class="ai-error-banner hidden">
                     <span id="aiErrorText"></span>
                     <button id="dismissAiErrorBtn" class="dismiss-btn" title="Dismiss error">✕</button>
                 </div>
-                <button id="btnRecordDesktopApp" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 12px; font-weight: 700; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); display: inline-flex; align-items: center; gap: 5px;" title="Record non-browser desktop applications (Excel, SAP, Terminal, File Explorer)">
-                    🖥️ Record Desktop App
-                </button>
-                <button id="startExtensionTopbarBtn" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="Start recording web workflows with ProcSnap extension">
-                    🔴 Start Extension
-                </button>
-                <button id="donateBtn" class="btn btn-secondary btn-sm donate-topbar-btn" style="padding: 4px 10px; font-size: 12px; font-weight: 700; color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Support ProcSnap development">
-                    ☕ Support
-                </button>
-                <button id="openCommandPaletteBtn" class="btn btn-secondary btn-sm cmd-palette-trigger-btn" style="padding: 4px 10px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-color: rgba(255,255,255,0.12);" title="Search workflows, steps, and elements (Ctrl+K)">
+
+                <!-- Unified Record CTA Dropdown -->
+                <div class="record-dropdown-wrap" id="topRecordDropdownWrap" style="position: relative;">
+                    <button id="btnUnifiedRecord" class="btn btn-primary btn-sm" style="padding: 5px 13px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35); display: inline-flex; align-items: center; gap: 6px;">
+                        <span>🔴</span> Record SOP
+                        <svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+                    </button>
+                    <div id="topRecordMenu" class="export-quick-menu hidden" style="position: absolute; right: 0; top: calc(100% + 8px); width: 230px; z-index: 10000; background: var(--bg-surface-elevated, #182234); border: 1px solid var(--border-subtle, rgba(255,255,255,0.12)); border-radius: 12px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); padding: 6px; display: flex; flex-direction: column; gap: 4px;">
+                        <button id="startExtensionTopbarBtn" class="export-quick-item" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; color: var(--text-main, #fff); cursor: pointer; text-align: left; transition: all 0.15s ease;">
+                            <span style="font-size: 18px;">🌐</span>
+                            <div>
+                                <div style="font-weight: 700; font-size: 12.5px;">Web Application</div>
+                                <div style="font-size: 10.5px; color: var(--text-muted, #94a3b8);">Chrome Extension</div>
+                            </div>
+                        </button>
+                        <button id="btnRecordDesktopApp" class="export-quick-item" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; color: var(--text-main, #fff); cursor: pointer; text-align: left; transition: all 0.15s ease;">
+                            <span style="font-size: 18px;">🖥️</span>
+                            <div>
+                                <div style="font-weight: 700; font-size: 12.5px;">Desktop Application</div>
+                                <div style="font-size: 10.5px; color: var(--text-muted, #94a3b8);">Excel, SAP, Windows OS</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Deep Search Pill -->
+                <button id="openCommandPaletteBtn" class="btn btn-secondary btn-sm cmd-palette-trigger-btn" style="padding: 5px 12px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-color: var(--border-subtle, rgba(255,255,255,0.12)); border-radius: 8px;" title="Search workflows, steps, and elements (Ctrl+K)">
                     <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                     <span>Search...</span>
-                    <kbd class="kbd-shortcut" style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 4px; font-size: 10px; font-family: monospace;">Ctrl K</kbd>
+                    <kbd class="kbd-shortcut" style="background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 4px; font-size: 10px; font-family: monospace;">Ctrl K</kbd>
                 </button>
-                <button id="themeToggleBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; min-width: 32px;" title="Toggle Light/Dark Theme">☀️</button>
-                <button id="systemRequirementsBtn" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" title="View all installed requirements and repair tools">
-                    🛠️ Requirements
+
+                <!-- Quick Utility Buttons -->
+                <button id="donateBtn" class="btn btn-secondary btn-sm donate-topbar-btn" style="padding: 4px 8px; font-size: 12px; font-weight: 700; color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Support ProcSnap development">
+                    ☕ Support
                 </button>
-                <button id="refreshBtn" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" title="Refresh library">
+                <button id="systemRequirementsBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" title="View all installed requirements and repair tools">
+                    🛠️
+                </button>
+                <button id="themeToggleBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 13px; min-width: 32px;" title="Toggle Light/Dark Theme">☀️</button>
+                <button id="refreshBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 13px;" title="Refresh library">
                     <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                    Refresh
                 </button>
             </div>
         </header>
@@ -207,19 +229,13 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="header-actions">
-                            <button id="btnGuideMeLive" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; font-weight: 700; color: #818cf8; border-color: rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.1); display: inline-flex; align-items: center; gap: 6px;" title="Guide Me: Interactive in-browser beacon that highlights elements on the live website!">
+                        <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
+                            <button id="btnGuideMeLive" class="btn btn-secondary btn-sm" style="padding: 6px 14px; font-size: 12.5px; font-weight: 700; color: #818cf8; border-color: rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.08); display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;" title="Guide Me: Interactive in-browser beacon that highlights elements on the live website!">
                                 🎯 Guide Me Live
                             </button>
-                            <button id="startExtensionHeaderBtn" class="btn btn-primary" style="padding: 6px 12px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;" title="Start recording web workflows with browser extension">
-                                🔴 Record Web App
-                            </button>
-                            <button id="captureDesktopBtn" class="btn btn-secondary" title="Capture full Windows Desktop screen (Excel, SAP, Word, etc.)" style="padding: 6px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-                                🖥️ Capture Desktop Screen
-                            </button>
                             <div class="export-quick-wrap" id="exportQuickWrap">
-                                <button id="exportQuickBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" title="Quick export options">
-                                    ⬇ Export
+                                <button id="exportQuickBtn" class="btn btn-secondary btn-sm" style="padding: 6px 14px; font-size: 12.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;" title="Quick export options">
+                                    ⬇ Export SOP
                                     <svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
                                 </button>
                                 <div id="exportQuickMenu" class="export-quick-menu hidden">

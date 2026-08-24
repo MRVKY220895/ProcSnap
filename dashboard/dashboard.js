@@ -625,6 +625,24 @@ async function init() {
         };
     }
 
+    // ── Unified Record Dropdown ──────────────────────────────────────────────
+    const btnUnifiedRecord = $("btnUnifiedRecord");
+    const topRecordMenu = $("topRecordMenu");
+    if (btnUnifiedRecord && topRecordMenu) {
+        btnUnifiedRecord.onclick = (e) => {
+            e.stopPropagation();
+            topRecordMenu.classList.toggle("hidden");
+        };
+        document.addEventListener("click", () => {
+            if (topRecordMenu) topRecordMenu.classList.add("hidden");
+        });
+        topRecordMenu.querySelectorAll(".export-quick-item").forEach(item => {
+            item.addEventListener("click", () => {
+                topRecordMenu.classList.add("hidden");
+            });
+        });
+    }
+
     // ── Export Quick Dropdown ─────────────────────────────────────────────────
     const exportQuickBtn = $("exportQuickBtn");
     const exportQuickMenu = $("exportQuickMenu");
