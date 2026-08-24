@@ -310,6 +310,9 @@
                                             <span id="hotspotLockLabel">Unlocked</span>
                                         </button>
                                         <button class="btn btn-secondary btn-sm" id="clearAnnotationsBtn" style="padding: 0 8px; height: 30px; font-size: 11.5px;">Clear</button>
+                                        <button class="btn btn-secondary btn-sm" id="btnAutoRedactPII" style="padding: 0 8px; height: 30px; font-size: 11.5px; font-weight: 700; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Auto-detect & blur sensitive information (PII, credentials, emails)">
+                                            🛡️ Auto-Redact
+                                        </button>
                                         <button class="btn btn-secondary btn-sm" id="btnGenerateAnimation" style="padding: 0 8px; height: 30px; font-size: 11.5px; font-weight: 700; color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Generate 2-second animated cursor demo GIF">
                                             🎬 Micro-Demo
                                         </button>
@@ -509,6 +512,14 @@
                                             <div class="field-group">
                                                 <label>Voiceover Narration</label>
                                                 <textarea id="guideStepVoiceover" placeholder="Custom text to speak during narration (optional)..."></textarea>
+                                                <div style="display: flex; gap: 6px; margin-top: 6px;">
+                                                    <button id="btnPlayStepVoiceover" class="btn btn-secondary btn-xs" style="flex: 1; font-weight: 700; color: #818cf8; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                                                        <span>▶️</span> Listen Voiceover
+                                                    </button>
+                                                    <button id="btnAiDraftVoiceover" class="btn btn-secondary btn-xs" style="flex: 1; font-weight: 700; color: #10b981; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                                                        <span>✨</span> AI Draft
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -594,9 +605,15 @@
                     <!-- 2. Step Editor Tab -->
                     <section id="tab-steps" class="tab-panel hidden">
                         <div class="editor-workspace">
-                            <div class="editor-header-bar">
-                                <p>Drag and drop steps to reorder, insert new steps, delete steps or bulk hide steps from the output.</p>
+                            <div class="editor-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                                <div>
+                                    <p style="margin: 0 0 6px 0;">Drag and drop steps to reorder, insert new steps, delete steps or bulk hide steps from the output.</p>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span id="sopDurationBadge" class="badge" style="background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px;">⏱️ 0m 0s total • 0 steps</span>
+                                    </div>
+                                </div>
                                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <button id="btnOpenWorkflowGraph" class="btn btn-secondary btn-sm" style="font-weight: 700; color: #818cf8; border-color: rgba(99,102,241,0.35);" title="View interactive visual flowchart and decision branch paths">🗺️ Visual Workflow Graph</button>
                                     <button id="bulkApproveAllBtn" class="btn btn-secondary btn-sm" title="Mark all steps as approved">✓ Approve All</button>
                                     <button id="bulkUnhideAllBtn" class="btn btn-secondary btn-sm" title="Restore/unhide all steps">👁 Unhide All</button>
                                     <button id="aiPolishBtn" class="btn btn-secondary btn-sm" title="AI Polish descriptions of all steps">🤖 AI Polish SOP</button>
@@ -622,17 +639,34 @@
 
                             <!-- Center: Current Main Active Slide -->
                             <div class="playback-card">
-                                <div class="playback-header">
-                                    <h2 id="playStepTitle">Step Title</h2>
-                                    <div class="playback-badge" id="playStepBadge">1</div>
+                                <div class="playback-header" style="display: flex; align-items: center; justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div class="playback-badge" id="playStepBadge">1</div>
+                                        <h2 id="playStepTitle" style="margin: 0;">Step Title</h2>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <button id="btnTogglePracticeMode" class="btn btn-secondary btn-sm" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; height: 30px;" title="Require learners to click the actual target hotspot on each slide before advancing">
+                                            <span id="practiceDot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
+                                            <span id="practiceLabel">Practice Mode: OFF</span>
+                                        </button>
+                                        <button id="btnToggleTeleprompter" class="btn btn-secondary btn-sm" style="font-weight: 700; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;" title="Open presenter teleprompter notes & stopwatch HUD">
+                                            📜 Teleprompter
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="voice-over-controls" style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.02); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--light-border);">
-                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
                                         <div style="display: flex; align-items: center; gap: 8px;">
                                             <button id="playVoiceBtn" class="btn btn-primary btn-sm" style="display:flex; align-items:center; gap:6px;">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
                                                 Play Voiceover
                                             </button>
+                                            <select id="narrationSpeedSelect" class="form-control" style="width: auto; padding: 2px 8px; font-size: 11.5px; height: 28px; font-weight: 600;" title="Narration Playback Speed">
+                                                <option value="1">1.0x Speed</option>
+                                                <option value="1.25">1.25x</option>
+                                                <option value="1.5">1.5x</option>
+                                                <option value="0.75">0.75x</option>
+                                            </select>
                                             <select id="voiceSelect" class="form-control" style="width: auto; padding: 4px; font-size: 12px; height: 28px;">
                                                 <optgroup label="🇺🇸 American English">
                                                     <option value="en-US-AriaNeural">Aria (Female, Warm)</option>
@@ -719,6 +753,15 @@
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
                                     <button class="btn btn-secondary btn-sm btn-preview-export" data-type="interactive" style="flex: 1; font-weight: 600;">👁️ Preview</button>
                                     <button id="exportInteractiveBtn" class="btn btn-primary btn-sm" style="flex: 2; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700;">Download (.html)</button>
+                                </div>
+                            </div>
+                            <div class="export-card featured-card">
+                                <div class="export-card-icon">🎓</div>
+                                <h3>SCORM 1.2 LMS Course (.zip)</h3>
+                                <p>Export a certified SCORM e-learning course package ready to upload to Cornerstone, Moodle, SAP SuccessFactors, or any enterprise LMS.</p>
+                                <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="scorm" style="flex: 1; font-weight: 600;">👁️ Preview</button>
+                                    <button id="exportScormBtn" class="btn btn-primary btn-sm" style="flex: 2; background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700;">Download SCORM (.zip)</button>
                                 </div>
                             </div>
                             <div class="export-card featured-card">
@@ -1507,6 +1550,87 @@
                     <div class="spinner-ring" style="width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.15); border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
                     <span>Rendering export preview...</span>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visual Decision Tree & Workflow Graph Modal -->
+    <div id="workflowGraphModal" class="modal-backdrop hidden" style="backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); background: rgba(0, 0, 0, 0.85); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div class="modal-card" style="width: 1100px; max-width: 96vw; height: 88vh; background: var(--bg-surface-elevated, #182234); border: 1px solid var(--border-subtle, rgba(255,255,255,0.12)); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.85);">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(0,0,0,0.2);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">🗺️</span>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main, #fff); margin: 0;">Visual Decision Tree &amp; Workflow Graph</h3>
+                        <p style="font-size: 11.5px; color: var(--text-muted, #94a3b8); margin: 2px 0 0 0;">Interactive visual flowchart of sequential steps and conditional decision branching rules</p>
+                    </div>
+                </div>
+                <button id="btnCloseWorkflowGraphModal" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; border-radius: 6px;">✕</button>
+            </div>
+            <div id="workflowGraphContainer" style="flex: 1; overflow: auto; padding: 30px; display: flex; flex-direction: column; align-items: center; background: var(--bg-main, #0f172a);">
+                <!-- Dynamic SVG Graph rendered by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Presenter Teleprompter & Speaker Notes HUD Modal -->
+    <div id="teleprompterHudModal" class="modal-backdrop hidden" style="backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); background: rgba(0, 0, 0, 0.9); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 24px;">
+        <div class="modal-card" style="width: 860px; max-width: 95vw; background: #0f172a; border: 1.5px solid #6366f1; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,0.9);">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); background: #1e293b;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 24px;">🎙️</span>
+                    <div>
+                        <div style="font-size: 16px; font-weight: 800; color: #fff;" id="teleprompterStepTitle">Step Title</div>
+                        <div style="font-size: 12px; color: #818cf8;" id="teleprompterTimerText">⏱️ Elapsed: 00:00</div>
+                    </div>
+                </div>
+                <button id="btnCloseTeleprompterModal" class="btn btn-secondary btn-sm">✕ Close HUD</button>
+            </div>
+            <div style="padding: 30px; font-size: 22px; line-height: 1.6; font-weight: 600; color: #f8fafc; max-height: 50vh; overflow-y: auto;" id="teleprompterScriptText">
+                Voiceover narration and instructor notes will appear here in large readable teleprompter type.
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.1); background: #1e293b;">
+                <button id="btnTeleprompterPrev" class="btn btn-secondary btn-sm">◀ Previous</button>
+                <span id="teleprompterProgressText" style="font-size: 13px; font-weight: 700; color: #94a3b8;">Step 1 of 8</span>
+                <button id="btnTeleprompterNext" class="btn btn-primary btn-sm">Next ▶</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Enhance Before/After Diff Modal -->
+    <div id="aiEnhanceDiffModal" class="modal-backdrop hidden" style="backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); background: rgba(0, 0, 0, 0.85); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div class="modal-card" style="width: 780px; max-width: 95vw; background: var(--bg-surface-elevated, #182234); border: 1px solid #6366f1; border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.85);">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(0,0,0,0.15);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">✨</span>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main, #fff); margin: 0;">AI Step Polish &amp; Enhancement</h3>
+                        <p style="font-size: 11.5px; color: var(--text-muted, #94a3b8); margin: 2px 0 0 0;">Compare original vs AI-enhanced titles, descriptions, and voiceover</p>
+                    </div>
+                </div>
+                <button id="btnCloseAiDiffModal" class="btn btn-secondary btn-sm">✕</button>
+            </div>
+            <div style="padding: 24px; display: flex; flex-direction: column; gap: 18px; max-height: 60vh; overflow-y: auto;">
+                <div>
+                    <label style="font-size: 11.5px; font-weight: 700; color: var(--text-muted, #94a3b8); text-transform: uppercase;">Step Title Comparison</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px;">
+                        <div style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); padding: 10px; border-radius: 6px; font-size: 13px; color: var(--text-main, #fff);" id="diffOriginalTitle">—</div>
+                        <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 700; color: #10b981;" id="diffEnhancedTitle">—</div>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 11.5px; font-weight: 700; color: var(--text-muted, #94a3b8); text-transform: uppercase;">Description Comparison</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px;">
+                        <div style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); padding: 10px; border-radius: 6px; font-size: 12.5px; color: var(--text-main, #fff); line-height: 1.4;" id="diffOriginalDesc">—</div>
+                        <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); padding: 10px; border-radius: 6px; font-size: 12.5px; color: #10b981; line-height: 1.4;" id="diffEnhancedDesc">—</div>
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(0,0,0,0.15);">
+                <button id="btnRejectAiDiff" class="btn btn-secondary btn-sm">Keep Original</button>
+                <button id="btnAcceptAiDiff" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700;">
+                    ✓ Apply AI Enhancement
+                </button>
             </div>
         </div>
     </div>

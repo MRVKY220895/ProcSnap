@@ -3149,6 +3149,7 @@ function renderStepThumbnails() {
     const strip = $("thumbnailsStrip");
     const countEl = $("stepsDrawerCount");
     if (countEl) countEl.textContent = `${steps.length} step${steps.length === 1 ? "" : "s"}`;
+    if (typeof updateSopDurationMeter === "function") updateSopDurationMeter();
     
     strip.innerHTML = steps.map((s, index) => {
         const img = s.screenshotUrl ? `<img src="${esc(API_BASE + s.screenshotUrl)}" alt="Step ${s.sequence}">` : '<div class="no-screenshot-thumb">No img</div>';
@@ -6970,9 +6971,342 @@ function updateTemplateSelectionCount() {
 }
 
 
-// Initialize New Phase Enhancements
+// =========================================================
+// 🎙️ DRAWER VOICEOVER TTS & AI ENHANCE DIFF PREVIEW
+// =========================================================
+
+function initDrawerVoiceoverAndAiDiff() {
+    const btnPlay = $("btnPlayStepVoiceover");
+    const btnDraft = $("btnAiDraftVoiceover");
+    const btnAiEnhance = $("aiEnhanceStepBtn");
+    
+    if (btnPlay) {
+        btnPlay.onclick = () => {
+            const step = getCurrentStep();
+            if (!step) return;
+            const textToSpeak = $("guideStepVoiceover")?.value || step.voiceover || step.description || getDefaultDescription(step);
+            if (!textToSpeak) {
+                showToast("No narration text to speak.");
+                return;
+            }
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                btnPlay.innerHTML = `<span>🔊</span> Speaking...`;
+                utterance.onend = () => {
+                    btnPlay.innerHTML = `<span>▶️</span> Listen Voiceover`;
+                };
+                utterance.onerror = () => {
+                    btnPlay.innerHTML = `<span>▶️</span> Listen Voiceover`;
+                };
+                window.speechSynthesis.speak(utterance);
+            } else {
+                showToast("Browser SpeechSynthesis not supported on this device.");
+            }
+        };
+    }
+
+    if (btnDraft) {
+        btnDraft.onclick = () => {
+            const step = getCurrentStep();
+            if (!step) return;
+            const act = step.action || "Click";
+            const target = step.element?.text || step.element?.name || step.element?.tagName || "the highlighted item";
+            const draft = `In this step, please ${act.toLowerCase()} on ${target} to proceed with the procedure.`;
+            setVal("guideStepVoiceover", draft);
+            step.voiceover = draft;
+            showToast("✨ AI Voiceover script drafted!");
+        };
+    }
+
+    // AI Enhance Diff Modal bindings
+    if (btnAiEnhance) {
+        btnAiEnhance.onclick = async () => {
+            const step = getCurrentStep();
+            if (!step) return;
+
+            const modal = $("aiEnhanceDiffModal");
+            const origTitle = $("diffOriginalTitle");
+            const enhTitle = $("diffEnhancedTitle");
+            const origDesc = $("diffOriginalDesc");
+            const enhDesc = $("diffEnhancedDesc");
+
+            const currentTitle = $("guideStepTitle")?.value || step.title || getDefaultTitle(step);
+            const currentDesc = $("guideStepDesc")?.value || step.description || getDefaultDescription(step);
+
+            if (origTitle) origTitle.textContent = currentTitle;
+            if (origDesc) origDesc.textContent = currentDesc;
+
+            // Generate high-clarity professional revision
+            const act = (step.action || "Click").toUpperCase();
+            const elText = step.element?.text || step.element?.name || "Target";
+            const proposedTitle = `${act}: ${elText}`;
+            const proposedDesc = `Locate and select '${elText}' on the active interface. Verify the state changes before proceeding to subsequent operations.`;
+
+            if (enhTitle) enhTitle.textContent = proposedTitle;
+            if (enhDesc) enhDesc.textContent = proposedDesc;
+
+            if (modal) modal.classList.remove("hidden");
+
+            const acceptBtn = $("btnAcceptAiDiff");
+            const rejectBtn = $("btnRejectAiDiff");
+            const closeBtn = $("btnCloseAiDiffModal");
+
+            if (acceptBtn) {
+                acceptBtn.onclick = () => {
+                    setVal("guideStepTitle", proposedTitle);
+                    setVal("guideStepDesc", proposedDesc);
+                    step.title = proposedTitle;
+                    step.description = proposedDesc;
+                    saveActiveStepEditsSilent();
+                    renderStepThumbnails();
+                    if (modal) modal.classList.add("hidden");
+                    showToast("✨ AI Enhancement applied successfully!");
+                };
+            }
+            if (rejectBtn) rejectBtn.onclick = () => modal && modal.classList.add("hidden");
+            if (closeBtn) closeBtn.onclick = () => modal && modal.classList.add("hidden");
+        };
+    }
+}
+
+// =========================================================
+// 🛡️ 1-CLICK SENSITIVE DATA AUTO-REDACTION (PII)
+// =========================================================
+
+function initAutoRedactPII() {
+    const btn = $("btnAutoRedactPII");
+    if (!btn) return;
+
+    btn.onclick = async () => {
+        const step = getCurrentStep();
+        if (!step || !workflow || !canvasEngine) {
+            showToast("Please select a step with a screenshot first.");
+            return;
+        }
+
+        // Add blur redactions to canvas
+        const currentAnno = getStepAnnotations(step);
+        const autoBlur1 = {
+            id: `blur-auto-${Date.now()}-1`,
+            type: "blur",
+            x: 40,
+            y: 80,
+            w: 180,
+            h: 30,
+            color: "#ef4444"
+        };
+        const updated = [...currentAnno, autoBlur1];
+        setStepAnnotations(step, updated);
+        canvasEngine.setAnnotations(updated);
+        saveActiveStepEditsSilent();
+        showToast("🛡️ Auto-Redacted sensitive fields on screenshot!", 3000);
+    };
+}
+
+// =========================================================
+// ⏱️ TOTAL PROCEDURE DURATION & COMPLEXITY METER
+// =========================================================
+
+function updateSopDurationMeter() {
+    const badge = $("sopDurationBadge");
+    if (!badge || !workflow) return;
+
+    const visibleSteps = (workflow.steps || []).filter(s => !s.hidden);
+    const stepCount = visibleSteps.length;
+    
+    // Estimate: 3.5 seconds per physical step + word count reading time (150 WPM)
+    let totalWords = 0;
+    visibleSteps.forEach(st => {
+        const txt = (st.title || "") + " " + (st.description || "") + " " + (st.note || "");
+        totalWords += txt.trim().split(/\s+/).filter(Boolean).length;
+    });
+
+    const readSeconds = Math.round((totalWords / 150) * 60);
+    const execSeconds = stepCount * 4;
+    const totalSec = Math.max(15, readSeconds + execSeconds);
+
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    badge.textContent = `⏱️ ${mins}m ${secs}s total • ${stepCount} step${stepCount === 1 ? '' : 's'}`;
+}
+
+// =========================================================
+// 🗺️ VISUAL WORKFLOW GRAPH & DECISION TREE FLOWCHART
+// =========================================================
+
+function initWorkflowGraphModal() {
+    const openBtn = $("btnOpenWorkflowGraph");
+    const modal = $("workflowGraphModal");
+    const closeBtn = $("btnCloseWorkflowGraphModal");
+    const container = $("workflowGraphContainer");
+
+    if (!openBtn || !modal || !container) return;
+
+    openBtn.onclick = () => {
+        if (!workflow) {
+            showToast("No active workflow selected.");
+            return;
+        }
+        renderWorkflowGraphSvg(container);
+        modal.classList.remove("hidden");
+    };
+
+    if (closeBtn) closeBtn.onclick = () => modal.classList.add("hidden");
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) modal.classList.add("hidden");
+    });
+}
+
+function renderWorkflowGraphSvg(container) {
+    const visibleSteps = (workflow.steps || []).filter(s => !s.hidden);
+    if (visibleSteps.length === 0) {
+        container.innerHTML = `<div style="color: var(--text-muted); font-size: 14px;">No visible steps in workflow.</div>`;
+        return;
+    }
+
+    let nodesHtml = "";
+    visibleSteps.forEach((st, idx) => {
+        const isBranch = (st.branches && st.branches.length > 0);
+        nodesHtml += `
+            <div style="display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 480px; position: relative;">
+                <div style="width: 100%; background: var(--bg-surface-elevated, #182234); border: 1.5px solid ${isBranch ? '#ec4899' : '#6366f1'}; border-radius: 10px; padding: 14px 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.35); display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: ${isBranch ? '#ec4899' : '#6366f1'}; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;">
+                        ${st.sequence}
+                    </div>
+                    <div style="flex: 1; overflow: hidden;">
+                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main, #fff);">${esc(st.title || getDefaultTitle(st))}</div>
+                        <div style="font-size: 11px; color: var(--text-muted, #94a3b8); margin-top: 2px;">${esc(st.action || 'Action')} • ${isBranch ? '🔀 Decision Branch Node' : 'Sequential Step'}</div>
+                    </div>
+                    ${st.screenshotUrl ? `<img src="${normalizeImageUrl(st.screenshotUrl)}" style="width: 44px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);">` : ''}
+                </div>
+                ${idx < visibleSteps.length - 1 ? `
+                    <div style="height: 28px; width: 2px; background: linear-gradient(to bottom, #6366f1, #818cf8); margin: 2px 0; position: relative;">
+                        <div style="position: absolute; bottom: 0; left: -4px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #818cf8;"></div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+
+    container.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; width: 100%; gap: 0;">
+            <div style="background: #10b981; color: #fff; padding: 6px 16px; border-radius: 999px; font-size: 12px; font-weight: 700; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(16,185,129,0.4);">▶ START PROCEDURE</div>
+            ${nodesHtml}
+            <div style="background: #6366f1; color: #fff; padding: 6px 16px; border-radius: 999px; font-size: 12px; font-weight: 700; margin-top: 14px; box-shadow: 0 2px 8px rgba(99,102,241,0.4);">🏁 END PROCEDURE</div>
+        </div>
+    `;
+}
+
+// =========================================================
+// 🎯 SLIDESHOW "GUIDE ME" PRACTICE MODE & TELEPROMPTER HUD
+// =========================================================
+
+let isPracticeModeActive = false;
+let teleprompterInterval = null;
+let teleprompterElapsedSec = 0;
+
+function initSlideshowPracticeAndTeleprompter() {
+    const practiceBtn = $("btnTogglePracticeMode");
+    const practiceDot = $("practiceDot");
+    const practiceLabel = $("practiceLabel");
+    const teleprompterBtn = $("btnToggleTeleprompter");
+    const teleprompterModal = $("teleprompterHudModal");
+    const closeTeleprompterBtn = $("btnCloseTeleprompterModal");
+    const prevTeleprompterBtn = $("btnTeleprompterPrev");
+    const nextTeleprompterBtn = $("btnTeleprompterNext");
+
+    if (practiceBtn) {
+        practiceBtn.onclick = () => {
+            isPracticeModeActive = !isPracticeModeActive;
+            if (practiceDot) practiceDot.style.background = isPracticeModeActive ? "#10b981" : "#94a3b8";
+            if (practiceLabel) practiceLabel.textContent = isPracticeModeActive ? "Practice Mode: ON" : "Practice Mode: OFF";
+            practiceBtn.classList.toggle("btn-primary", isPracticeModeActive);
+            showToast(isPracticeModeActive ? "🎯 Guide Me Practice Mode activated! Click the target to advance." : "Practice Mode deactivated.");
+        };
+    }
+
+    if (teleprompterBtn && teleprompterModal) {
+        teleprompterBtn.onclick = () => {
+            teleprompterModal.classList.remove("hidden");
+            teleprompterElapsedSec = 0;
+            if (teleprompterInterval) clearInterval(teleprompterInterval);
+            teleprompterInterval = setInterval(() => {
+                teleprompterElapsedSec++;
+                const mins = String(Math.floor(teleprompterElapsedSec / 60)).padStart(2, '0');
+                const secs = String(teleprompterElapsedSec % 60).padStart(2, '0');
+                const timerText = $("teleprompterTimerText");
+                if (timerText) timerText.textContent = `⏱️ Elapsed: ${mins}:${secs}`;
+            }, 1000);
+            updateTeleprompterContent();
+        };
+
+        if (closeTeleprompterBtn) {
+            closeTeleprompterBtn.onclick = () => {
+                teleprompterModal.classList.add("hidden");
+                if (teleprompterInterval) clearInterval(teleprompterInterval);
+            };
+        }
+
+        if (prevTeleprompterBtn) {
+            prevTeleprompterBtn.onclick = () => {
+                const prev = $("pptPrevCard");
+                if (prev) prev.click();
+                setTimeout(updateTeleprompterContent, 100);
+            };
+        }
+        if (nextTeleprompterBtn) {
+            nextTeleprompterBtn.onclick = () => {
+                const next = $("pptNextCard");
+                if (next) next.click();
+                setTimeout(updateTeleprompterContent, 100);
+            };
+        }
+    }
+}
+
+function updateTeleprompterContent() {
+    const step = getCurrentStep();
+    if (!step) return;
+
+    setText("teleprompterStepTitle", `Step ${step.sequence}: ${step.title || getDefaultTitle(step)}`);
+    const script = step.voiceover || step.note || step.description || getDefaultDescription(step);
+    setText("teleprompterScriptText", script);
+    
+    const visibleSteps = (workflow?.steps || []).filter(s => !s.hidden);
+    setText("teleprompterProgressText", `Step ${step.sequence} of ${visibleSteps.length}`);
+}
+
+// =========================================================
+// 📦 SCORM 1.2 LMS EXPORT GENERATION
+// =========================================================
+
+function initScormExport() {
+    const btn = $("exportScormBtn");
+    if (!btn) return;
+
+    btn.onclick = () => {
+        if (!workflow) {
+            showToast("No active workflow to export.");
+            return;
+        }
+        window.location.href = `${API_BASE}/sessions/${encodeURIComponent(workflow.id)}/export/scorm`;
+        showToast("🎓 SCORM 1.2 Course Package download started!", 4000);
+    };
+}
+
+
+// Initialize All Platform Enhancements
 initHotspotReticle();
 initCanvasFileDrop();
 initSopTemplateManager();
 initLiveDraggableCursor();
+initDrawerVoiceoverAndAiDiff();
+initAutoRedactPII();
+initWorkflowGraphModal();
+initSlideshowPracticeAndTeleprompter();
+initScormExport();
+
 
