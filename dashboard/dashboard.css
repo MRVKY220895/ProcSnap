@@ -2825,6 +2825,233 @@ svg {
     background: var(--primary) !important;
     color: #ffffff !important;
 }
+/* =========================================================
+   NEXT-GEN MODAL DESIGN SYSTEM (Senior UI/UX Overhaul)
+========================================================= */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 15, 29, 0.78);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+    animation: psModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes psModalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-dialog {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: psModalScaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes psModalScaleUp {
+    from { opacity: 0; transform: scale(0.96) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.req-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+}
+.req-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.req-modal-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.req-modal-title h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+.req-modal-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 2px 0 0 0;
+}
+.req-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.req-close-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f8fafc;
+    transform: scale(1.05);
+}
+
+.req-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 14px 22px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    gap: 10px;
+}
+
+/* Visual Step Guides inside Modals */
+.modal-step-card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.modal-step-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 12px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.modal-step-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #6366f1;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+}
+.modal-step-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #f8fafc;
+}
+.modal-step-desc {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+/* Browser Launch Action Grid */
+.browser-btn-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+}
+.browser-launch-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #f8fafc;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.browser-launch-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px -4px rgba(99, 102, 241, 0.25);
+}
+
+/* Copy feedback state */
+.btn-copy-success {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+}
+
+/* Light Theme Dialog Adjustments */
+[data-theme="light"] .modal-dialog {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.18) !important;
+}
+[data-theme="light"] .req-modal-header {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .req-modal-title h2 {
+    color: #0f172a !important;
+}
+[data-theme="light"] .req-modal-sub {
+    color: #64748b !important;
+}
+[data-theme="light"] .req-close-btn {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #64748b !important;
+}
+[data-theme="light"] .req-close-btn:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .req-modal-footer {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .modal-step-card {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .modal-step-title {
+    color: #0f172a !important;
+}
+[data-theme="light"] .modal-step-desc {
+    color: #64748b !important;
+}
+[data-theme="light"] .browser-launch-btn {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .browser-launch-btn:hover {
+    background: #eef2ff !important;
+    border-color: #6366f1 !important;
+}
 [data-theme="light"] .donate-modal-dialog {
     background: #ffffff !important;
     color: #0f172a !important;

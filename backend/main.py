@@ -3173,19 +3173,39 @@ oLink2.Save
         return {"success": False, "message": f"Failed to create shortcuts: {str(e)}"}
 
 
+class ExtensionLaunchRequest(BaseModel):
+    browser: Optional[str] = "default"
+
 @app.post("/system/open-extension-installer")
-def open_extension_installer():
+def open_extension_installer(payload: Optional[ExtensionLaunchRequest] = None):
     """
-    Opens the multi-browser extension helper tool.
+    Opens browser-specific extensions page and copies extension path to clipboard.
     """
-    helper_bat = BASE_DIR.parent / "install_extension.bat"
-    if helper_bat.exists():
-        try:
-            subprocess.Popen(["cmd.exe", "/c", "start", "", str(helper_bat)], shell=True)
+    browser = (payload.browser.lower() if payload and payload.browser else "default")
+    ext_dir = str(BASE_DIR.parent / "extension")
+    
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-Command", f"Set-Clipboard -Value '{ext_dir}'"], capture_output=True, timeout=3)
+    except Exception:
+        pass
+        
+    try:
+        if browser == "chrome":
+            subprocess.Popen(["cmd.exe", "/c", "start", "chrome", "chrome://extensions"], shell=True)
+            return {"success": True, "message": "Google Chrome Extensions opened. Paste path into 'Load unpacked'!"}
+        elif browser == "edge":
+            subprocess.Popen(["cmd.exe", "/c", "start", "msedge", "edge://extensions"], shell=True)
+            return {"success": True, "message": "Microsoft Edge Extensions opened. Paste path into 'Load unpacked'!"}
+        elif browser == "brave":
+            subprocess.Popen(["cmd.exe", "/c", "start", "brave", "brave://extensions"], shell=True)
+            return {"success": True, "message": "Brave Extensions opened. Paste path into 'Load unpacked'!"}
+        else:
+            helper_bat = BASE_DIR.parent / "install_extension.bat"
+            if helper_bat.exists():
+                subprocess.Popen(["cmd.exe", "/c", "start", "", str(helper_bat)], shell=True)
             return {"success": True, "message": "Browser extension installer launched."}
-        except Exception as e:
-            return {"success": False, "message": str(e)}
-    return {"success": False, "message": "install_extension.bat not found."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 
 @app.post("/system/git-pull")

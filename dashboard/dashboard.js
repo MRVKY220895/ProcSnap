@@ -322,35 +322,63 @@ async function init() {
         };
     }
 
-    if (btnLaunchExt) {
-        btnLaunchExt.onclick = async () => {
-            try {
-                btnLaunchExt.disabled = true;
-                btnLaunchExt.textContent = "⏳ Launching...";
-                const res = await api("/system/open-extension-installer", { method: "POST" });
-                showToast(res.message || "Opened browser extension setup!");
-            } catch (e) {
-                showToast("Failed to launch installer: " + e.message);
-            } finally {
-                btnLaunchExt.disabled = false;
-                btnLaunchExt.textContent = "🚀 One-Click Browser Installer";
+    const launchBrowserExt = async (browserName, btnEl, defaultText) => {
+        try {
+            if (btnEl) {
+                btnEl.disabled = true;
+                btnEl.textContent = "⏳ Launching...";
             }
-        };
+            const res = await api("/system/open-extension-installer", {
+                method: "POST",
+                body: JSON.stringify({ browser: browserName })
+            });
+            showToast(res.message || `Opened ${browserName} extensions!`);
+        } catch (e) {
+            showToast("Failed: " + e.message);
+        } finally {
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerHTML = defaultText;
+            }
+        }
+    };
+
+    const btnChrome = $("btnLaunchChrome");
+    const btnEdge = $("btnLaunchEdge");
+    const btnBrave = $("btnLaunchBrave");
+    if (btnChrome) btnChrome.onclick = () => launchBrowserExt("chrome", btnChrome, "<span>🌐</span> Chrome");
+    if (btnEdge) btnEdge.onclick = () => launchBrowserExt("edge", btnEdge, "<span>🌊</span> MS Edge");
+    if (btnBrave) btnBrave.onclick = () => launchBrowserExt("brave", btnBrave, "<span>🦁</span> Brave");
+
+    if (btnLaunchExt) {
+        btnLaunchExt.onclick = () => launchBrowserExt("default", btnLaunchExt, "🚀 One-Click Browser Installer");
     }
 
     if (btnCopyExt) {
         btnCopyExt.onclick = async () => {
             try {
-                const extPath = window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
-                    ? "C:\\Users\\HP\\Downloads\\tango-local\\tango-local\\extension"
-                    : "extension";
+                const extPath = "C:\\Users\\HP\\Downloads\\tango-local\\tango-local\\extension";
                 await navigator.clipboard.writeText(extPath);
+                btnCopyExt.innerHTML = "✓ Copied!";
+                btnCopyExt.classList.add("btn-copy-success");
                 showToast("📋 Extension path copied to clipboard!");
+                setTimeout(() => {
+                    btnCopyExt.innerHTML = "📋 Copy Path";
+                    btnCopyExt.classList.remove("btn-copy-success");
+                }, 2500);
             } catch (e) {
                 showToast("Path: C:\\Users\\HP\\Downloads\\tango-local\\tango-local\\extension");
             }
         };
     }
+
+    // ── Global Keyboard Shortcuts & Modal Escape Handler ───────────────────────
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            const openModals = document.querySelectorAll(".modal-backdrop:not(.hidden), .dc-modal-overlay:not(.hidden)");
+            openModals.forEach((m) => m.classList.add("hidden"));
+        }
+    });
 
     // ── Theme Toggle (Light/Dark) ──────────────────────────────────────────────
     const themeToggleBtn = $("themeToggleBtn");
