@@ -1033,7 +1033,9 @@ class AnnotationCanvasEngine {
         this.currentFontFamily = "Inter";
         this.autoSpotlightEnabled = false; // Auto-spotlight OFF by default
         
-        this.img.onload = () => this.resizeCanvas();
+        if (this.img) {
+            this.img.onload = () => this.resizeCanvas();
+        }
         window.addEventListener("resize", () => this.resizeCanvas());
 
         this.initEvents();

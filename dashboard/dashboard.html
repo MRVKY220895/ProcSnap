@@ -273,17 +273,21 @@
                                 </div>
 
                                 <div class="screenshot-stage" id="screenshotStage">
-                                    <div class="screenshot-canvas-wrapper" id="canvasWrapper">
-                                        <img id="guideScreenshot" alt="Step Screenshot" class="guide-screenshot" />
-                                        <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
-                                        <div id="hotspotMarker" class="hotspot-marker hidden">
-                                            <div class="hotspot-pulse"></div>
-                                            <div class="hotspot-target-box"></div>
-                                            <div class="hotspot-tooltip" id="hotspotTooltip">Click here</div>
+                                    <div class="screenshot-canvas-wrapper" id="canvasWrapper" style="position: relative;">
+                                        <img id="guideImg" src="" alt="SOP Screenshot">
+                                        <canvas id="annotationCanvas"></canvas>
+                                        <!-- Large Centered Blocked Symbol Watermark for Deleted / Hidden Steps (Requirement 3) -->
+                                        <div id="deletedStepWatermark" class="deleted-step-watermark hidden">
+                                            <div class="watermark-content">
+                                                <div class="watermark-icon">🚫</div>
+                                                <div class="watermark-title">STEP DELETED / HIDDEN</div>
+                                                <div class="watermark-sub">This step is excluded from SOP exports and walkthrough simulations.</div>
+                                                <button id="btnRestoreStepCanvas" class="btn btn-restore btn-sm" style="margin-top: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">↺ Restore This Step</button>
+                                            </div>
                                         </div>
-                                        <div id="inlineTextEditor" class="inline-text-editor hidden">
-                                            <input type="text" id="inlineTextInput" placeholder="Type callout text..." />
-                                        </div>
+                                    </div>
+                                    <div id="noScreenshot" class="no-screenshot-message hidden">
+                                        No screenshot was recorded for this step.
                                     </div>
                                 </div>
                             </div>
