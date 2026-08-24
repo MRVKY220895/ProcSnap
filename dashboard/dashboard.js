@@ -7406,6 +7406,9 @@ function initWorkflowGraphModal() {
     const modal = $("workflowGraphModal");
     const closeBtn = $("btnCloseWorkflowGraphModal");
     const container = $("workflowGraphContainer");
+    const btnBpmn = $("btnExportBpmnXml");
+    const btnVisio = $("btnExportVisioDrawio");
+    const btnSvg = $("btnExportFlowSvg");
 
     if (!openBtn || !modal || !container) return;
 
@@ -7422,12 +7425,107 @@ function initWorkflowGraphModal() {
     modal.addEventListener("click", (e) => {
         if (e.target === modal) modal.classList.add("hidden");
     });
+
+    // 📥 Export BPMN 2.0 XML
+    if (btnBpmn) {
+        btnBpmn.onclick = () => {
+            if (!workflow || !workflow.steps) return;
+            const visibleSteps = workflow.steps.filter(s => !s.hidden);
+            const wfTitle = escXml(workflow.name || "Process_Flow");
+            const processId = `Process_${Date.now()}`;
+
+            let flowElementsXml = `    <bpmn:startEvent id="StartEvent_1" name="Start SOP">\n      <bpmn:outgoing>Flow_Start</bpmn:outgoing>\n    </bpmn:startEvent>\n`;
+            let previousOutgoing = "Flow_Start";
+
+            visibleSteps.forEach((st, idx) => {
+                const taskId = `Activity_${st.sequence || idx + 1}`;
+                const nextFlowId = idx === visibleSteps.length - 1 ? "Flow_End" : `Flow_${idx + 1}`;
+                const title = escXml(st.title || getDefaultTitle(st));
+                const desc = escXml(st.description || "");
+
+                flowElementsXml += `    <bpmn:sequenceFlow id="${previousOutgoing}" sourceRef="${idx === 0 ? 'StartEvent_1' : `Activity_${visibleSteps[idx-1].sequence || idx}`}" targetRef="${taskId}" />\n`;
+                flowElementsXml += `    <bpmn:userTask id="${taskId}" name="${title}">\n      <bpmn:documentation>${desc}</bpmn:documentation>\n      <bpmn:incoming>${previousOutgoing}</bpmn:incoming>\n      <bpmn:outgoing>${nextFlowId}</bpmn:outgoing>\n    </bpmn:userTask>\n`;
+                previousOutgoing = nextFlowId;
+            });
+
+            flowElementsXml += `    <bpmn:sequenceFlow id="Flow_End" sourceRef="Activity_${visibleSteps[visibleSteps.length-1]?.sequence || visibleSteps.length}" targetRef="EndEvent_1" />\n`;
+            flowElementsXml += `    <bpmn:endEvent id="EndEvent_1" name="End SOP">\n      <bpmn:incoming>Flow_End</bpmn:incoming>\n    </bpmn:endEvent>\n`;
+
+            const bpmnXml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="${processId}" name="${wfTitle}" isExecutable="true">
+${flowElementsXml}  </bpmn:process>
+</bpmn:definitions>`;
+
+            downloadFile(bpmnXml, `${workflow.name || "workflow"}.bpmn`, "application/xml");
+            showToast("📥 Standard BPMN 2.0 XML downloaded!");
+        };
+    }
+
+    // 📥 Export Visio & Draw.io XML
+    if (btnVisio) {
+        btnVisio.onclick = () => {
+            if (!workflow || !workflow.steps) return;
+            const visibleSteps = workflow.steps.filter(s => !s.hidden);
+            let cellsXml = `<mxCell id="0"/><mxCell id="1" parent="0"/>\n`;
+
+            let yPos = 40;
+            // Start node
+            cellsXml += `<mxCell id="startNode" value="Start SOP" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#10b981;strokeColor=#059669;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="260" y="${yPos}" width="80" height="80" as="geometry"/></mxCell>\n`;
+            let prevNodeId = "startNode";
+            yPos += 130;
+
+            visibleSteps.forEach((st, idx) => {
+                const nodeId = `stepNode_${st.id || idx}`;
+                const title = escXml(st.title || getDefaultTitle(st));
+                const action = escXml(st.action || "Action");
+
+                // BPMN Task Box
+                cellsXml += `<mxCell id="${nodeId}" value="&lt;b&gt;Step ${st.sequence}: ${title}&lt;/b&gt;&lt;br/&gt;&lt;small&gt;${action}&lt;/small&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#6366f1;strokeWidth=2;fontColor=#ffffff;align=center;arcSize=12;" vertex="1" parent="1"><mxGeometry x="150" y="${yPos}" width="300" height="70" as="geometry"/></mxCell>\n`;
+                
+                // Connector Arrow
+                cellsXml += `<mxCell id="edge_${idx}" edge="1" parent="1" source="${prevNodeId}" target="${nodeId}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#818cf8;strokeWidth=2;"><mxGeometry relative="1" as="geometry"/></mxCell>\n`;
+                
+                prevNodeId = nodeId;
+                yPos += 110;
+            });
+
+            // End node
+            cellsXml += `<mxCell id="endNode" value="End SOP" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#ef4444;strokeColor=#dc2626;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="260" y="${yPos}" width="80" height="80" as="geometry"/></mxCell>\n`;
+            cellsXml += `<mxCell id="edge_end" edge="1" parent="1" source="${prevNodeId}" target="endNode" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#818cf8;strokeWidth=2;"><mxGeometry relative="1" as="geometry"/></mxCell>\n`;
+
+            const drawioXml = `<mxfile host="app.diagrams.net"><diagram name="${escXml(workflow.name || "SOP Flowchart")}"><mxGraphModel dx="1000" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0"><root>${cellsXml}</root></mxGraphModel></diagram></mxfile>`;
+
+            downloadFile(drawioXml, `${workflow.name || "workflow"}.drawio`, "application/xml");
+            showToast("📥 Visio & Draw.io XML (.drawio) downloaded!");
+        };
+    }
+
+    // 🖼️ Export SVG Diagram
+    if (btnSvg) {
+        btnSvg.onclick = () => {
+            const svgEl = container.querySelector("svg");
+            if (svgEl) {
+                const serializer = new XMLSerializer();
+                const svgString = serializer.serializeToString(svgEl);
+                downloadFile(svgString, `${workflow.name || "workflow"}-diagram.svg`, "image/svg+xml");
+                showToast("🖼️ Flow Diagram SVG downloaded!");
+            } else {
+                showToast("BPMN Flow rendered directly in canvas.");
+            }
+        };
+    }
 }
 
 function renderWorkflowGraphSvg(container) {
-    const visibleSteps = (workflow.steps || []).filter(s => !s.hidden);
+    const visibleSteps = (workflow?.steps || []).filter(s => !s.hidden);
     if (visibleSteps.length === 0) {
-        container.innerHTML = `<div style="color: var(--text-muted); font-size: 14px;">No visible steps in workflow.</div>`;
+        container.innerHTML = `<div style="color: var(--text-muted); font-size: 14px; padding: 40px;">No visible steps in this workflow to generate BPMN flow.</div>`;
         return;
     }
 
@@ -7435,20 +7533,38 @@ function renderWorkflowGraphSvg(container) {
     visibleSteps.forEach((st, idx) => {
         const isBranch = (st.branches && st.branches.length > 0);
         nodesHtml += `
-            <div style="display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 480px; position: relative;">
-                <div style="width: 100%; background: var(--bg-surface-elevated, #182234); border: 1.5px solid ${isBranch ? '#ec4899' : '#6366f1'}; border-radius: 10px; padding: 14px 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.35); display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 32px; height: 32px; border-radius: 50%; background: ${isBranch ? '#ec4899' : '#6366f1'}; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;">
+            <!-- BPMN User Task Node -->
+            <div class="bpmn-node-card" style="display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 520px; position: relative;">
+                <div style="width: 100%; background: var(--bg-surface-elevated, #182234); border: 2px solid ${isBranch ? '#ec4899' : '#6366f1'}; border-radius: 12px; padding: 14px 18px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 14px; transition: all 0.15s ease;">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: ${isBranch ? 'linear-gradient(135deg, #ec4899, #db2777)' : 'linear-gradient(135deg, #6366f1, #4f46e5)'}; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(99,102,241,0.3);">
                         ${st.sequence}
                     </div>
-                    <div style="flex: 1; overflow: hidden;">
-                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main, #fff);">${esc(st.title || getDefaultTitle(st))}</div>
-                        <div style="font-size: 11px; color: var(--text-muted, #94a3b8); margin-top: 2px;">${esc(st.action || 'Action')} • ${isBranch ? '🔀 Decision Branch Node' : 'Sequential Step'}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="bpmn-node-title" contenteditable="true" data-id="${st.id}" title="Click to edit activity name" style="font-size: 13.5px; font-weight: 700; color: var(--text-main, #fff); outline: none; border-bottom: 1px dashed transparent;">
+                            ${esc(st.title || getDefaultTitle(st))}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-muted, #94a3b8); margin-top: 3px; display: flex; align-items: center; gap: 6px;">
+                            <span style="background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase;">👤 ${esc(st.action || 'User Task')}</span>
+                            ${isBranch ? '<span style="color: #ec4899; font-weight: 700;">🔀 Decision Gateway</span>' : ''}
+                        </div>
                     </div>
-                    ${st.screenshotUrl ? `<img src="${normalizeImageUrl(st.screenshotUrl)}" style="width: 44px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);">` : ''}
+                    ${st.screenshotUrl ? `<img src="${normalizeImageUrl(st.screenshotUrl)}" style="width: 52px; height: 36px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); flex-shrink: 0;">` : ''}
                 </div>
+
+                ${isBranch ? `
+                    <!-- BPMN Exclusive Gateway Diamond -->
+                    <div style="margin: 12px 0; display: flex; flex-direction: column; align-items: center;">
+                        <div style="width: 38px; height: 38px; background: #ec4899; transform: rotate(45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(236,72,153,0.4); border-radius: 4px;">
+                            <span style="transform: rotate(-45deg); font-size: 16px; font-weight: 800; color: #fff;">✕</span>
+                        </div>
+                        <span style="font-size: 11px; font-weight: 700; color: #ec4899; margin-top: 6px;">Conditional Gateway</span>
+                    </div>
+                ` : ''}
+
+                <!-- Sequence Flow Connector Arrow -->
                 ${idx < visibleSteps.length - 1 ? `
-                    <div style="height: 28px; width: 2px; background: linear-gradient(to bottom, #6366f1, #818cf8); margin: 2px 0; position: relative;">
-                        <div style="position: absolute; bottom: 0; left: -4px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #818cf8;"></div>
+                    <div style="height: 34px; width: 2px; background: linear-gradient(to bottom, #6366f1, #818cf8); margin: 3px 0; position: relative;">
+                        <div style="position: absolute; bottom: 0; left: -4px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #818cf8;"></div>
                     </div>
                 ` : ''}
             </div>
@@ -7457,11 +7573,71 @@ function renderWorkflowGraphSvg(container) {
 
     container.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; width: 100%; gap: 0;">
-            <div style="background: #10b981; color: #fff; padding: 6px 16px; border-radius: 999px; font-size: 12px; font-weight: 700; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(16,185,129,0.4);">▶ START PROCEDURE</div>
+            <!-- Start Event Circle -->
+            <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 4px;">
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669); border: 3px solid #34d399; box-shadow: 0 0 16px rgba(16,185,129,0.5); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">
+                    ▶
+                </div>
+                <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.05em; color: #10b981; margin-top: 4px; text-transform: uppercase;">Start Event</span>
+            </div>
+            <div style="height: 24px; width: 2px; background: #10b981; margin-bottom: 4px;"></div>
+
             ${nodesHtml}
-            <div style="background: #6366f1; color: #fff; padding: 6px 16px; border-radius: 999px; font-size: 12px; font-weight: 700; margin-top: 14px; box-shadow: 0 2px 8px rgba(99,102,241,0.4);">🏁 END PROCEDURE</div>
+
+            <!-- End Event Double Circle -->
+            <div style="height: 24px; width: 2px; background: #ef4444; margin-top: 4px;"></div>
+            <div style="display: flex; flex-direction: column; align-items: center; margin-top: 4px;">
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #dc2626); border: 4px double #ffffff; box-shadow: 0 0 16px rgba(239,68,68,0.5); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff;">
+                    ■
+                </div>
+                <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.05em; color: #ef4444; margin-top: 4px; text-transform: uppercase;">End Event</span>
+            </div>
         </div>
     `;
+
+    // Bind inline editing auto-save in BPMN canvas
+    container.querySelectorAll(".bpmn-node-title").forEach(el => {
+        el.onblur = async () => {
+            const stepId = parseInt(el.dataset.id);
+            const newTitle = el.innerText.trim();
+            const step = workflow?.steps?.find(s => s.id === stepId);
+            if (step && newTitle && step.title !== newTitle) {
+                step.title = newTitle;
+                try {
+                    await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${stepId}/edits`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ title: newTitle })
+                    });
+                    showToast("Task title updated in procedure ✓");
+                    renderStepsTab();
+                } catch(e) {
+                    console.error("Auto-save BPMN task error:", e);
+                }
+            }
+        };
+    });
+}
+
+function escXml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+}
+
+function downloadFile(content, fileName, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 // =========================================================
