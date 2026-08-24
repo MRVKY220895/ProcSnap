@@ -46,11 +46,28 @@
 
         <div class="main-container">
             <!-- Left Sidebar Library -->
+            <!-- Left Sidebar Library -->
             <aside class="sidebar">
                 <div class="sidebar-header">
-                    <div class="eyebrow">Local Library</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div class="eyebrow">Local Library</div>
+                        <label class="btn btn-secondary btn-xs" style="cursor: pointer; padding: 2px 8px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" title="Import workflow from .procsnap.json backup">
+                            📥 Import
+                            <input type="file" id="importJsonInput" accept=".json,.procsnap.json" style="display: none;">
+                        </label>
+                    </div>
+                    <!-- Library Stats Strip -->
+                    <div class="sidebar-stats" id="sidebarStats">
+                        <div class="stat-item"><span id="statWfCount" class="stat-num">0</span><span class="stat-label">Workflows</span></div>
+                        <div class="stat-item"><span id="statStepCount" class="stat-num">0</span><span class="stat-label">Steps</span></div>
+                        <div class="stat-item"><span id="statApprovedCount" class="stat-num">0</span><span class="stat-label">Approved</span></div>
+                    </div>
                     <div class="search-box">
-                        <input id="searchInput" type="search" placeholder="Search workflows..." class="search-input">
+                        <input id="searchInput" type="search" placeholder="Search workflows or tags..." class="search-input">
+                    </div>
+                    <!-- Category Tag Filter Chips -->
+                    <div id="tagFilterBar" class="tag-filter-bar">
+                        <button class="tag-chip active" data-tag="ALL">All</button>
                     </div>
                 </div>
                 <div id="workflowList" class="workflow-list">
@@ -72,8 +89,15 @@
                     <!-- Workflow Info Header -->
                     <div class="workflow-header">
                         <div class="wf-title-section">
-                            <span id="detailApplication" class="application-badge">Chrome</span>
-                            <h2 id="detailName" class="workflow-name-display" contenteditable="true" title="Click to rename">Untitled Workflow</h2>
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <span id="detailApplication" class="application-badge">Chrome</span>
+                                <h2 id="detailName" class="workflow-name-display" contenteditable="true" title="Click to rename">Untitled Workflow</h2>
+                            </div>
+                            <div class="wf-tags-row" id="wfTagsRow">
+                                <span class="wf-tags-icon" title="Categories / Tags">🏷️</span>
+                                <div id="wfTagsContainer" class="wf-tags-container"></div>
+                                <button id="addTagBtn" class="btn-add-tag" title="Add category tag">+ Tag</button>
+                            </div>
                             <div id="detailMeta" class="detail-meta">0 steps • Completed</div>
                             <!-- Approval Progress Bar -->
                             <div id="approvalProgressWrap" class="approval-progress-wrap hidden">
@@ -95,11 +119,13 @@
                                 </button>
                                 <div id="exportQuickMenu" class="export-quick-menu hidden">
                                     <button class="export-quick-item" data-export="interactive">🎯 Interactive Walkthrough</button>
+                                    <button class="export-quick-item" data-export="pptx">📊 PowerPoint (.pptx)</button>
                                     <button class="export-quick-item" data-export="docx">📄 Word (.docx)</button>
                                     <button class="export-quick-item" data-export="html">📁 Self-Contained HTML</button>
                                     <button class="export-quick-item" data-export="markdown">📝 Markdown</button>
                                     <button class="export-quick-item" data-export="pdf">🖨️ Print / PDF</button>
                                     <div class="export-quick-divider"></div>
+                                    <button class="export-quick-item" data-export="json">💾 JSON Backup</button>
                                     <button class="export-quick-item" data-export="duplicate">📋 Duplicate Workflow</button>
                                 </div>
                             </div>
@@ -537,6 +563,18 @@
                                 <h3>Microsoft Word (.docx)</h3>
                                 <p>Export a formatted Word document with custom step headers, descriptions, callout note boxes, expected results, and embedded high-res screenshots.</p>
                                 <button id="exportDocxBtn" class="btn btn-primary" style="background: #2563eb;">Export Word (.docx)</button>
+                            </div>
+                            <div class="export-card featured-card">
+                                <div class="export-card-icon">📊</div>
+                                <h3>PowerPoint Presentation (.pptx)</h3>
+                                <p>Export a widescreen 16:9 slide deck with custom cover slide, individual step slides, and full-resolution embedded screenshots.</p>
+                                <button id="exportPptxBtn" class="btn btn-primary" style="background: #d97706;">Export PowerPoint (.pptx)</button>
+                            </div>
+                            <div class="export-card">
+                                <div class="export-card-icon">💾</div>
+                                <h3>JSON Portable Backup</h3>
+                                <p>Export a complete, self-contained JSON backup of the workflow with embedded base64 screenshots that can be restored on any machine.</p>
+                                <button id="exportJsonBtn" class="btn btn-secondary">Export JSON Backup</button>
                             </div>
                             <div class="export-card">
                                 <div class="export-card-icon">📁</div>

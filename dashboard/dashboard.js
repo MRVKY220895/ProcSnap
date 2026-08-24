@@ -324,6 +324,8 @@ async function init() {
                     await duplicateWorkflow();
                 } else if (type === "interactive") {
                     $("exportInteractiveBtn")?.click();
+                } else if (type === "pptx") {
+                    $("exportPptxBtn")?.click();
                 } else if (type === "docx") {
                     $("exportDocxBtn")?.click();
                 } else if (type === "html") {
@@ -332,9 +334,33 @@ async function init() {
                     $("exportMarkdownBtn")?.click();
                 } else if (type === "pdf") {
                     $("exportPdfBtn")?.click();
+                } else if (type === "json") {
+                    $("exportJsonBtn")?.click();
                 }
             };
         });
+    }
+
+    // ── Import JSON Workflow Binding ──────────────────────────────────────────
+    const importInput = $("importJsonInput");
+    if (importInput) {
+        importInput.onchange = (e) => {
+            const file = e.target.files?.[0];
+            if (file) handleJsonImport(file);
+            importInput.value = "";
+        };
+    }
+
+    // ── Add Tag Button in Header ──────────────────────────────────────────────
+    const addTagBtn = $("addTagBtn");
+    if (addTagBtn) {
+        addTagBtn.onclick = addTagToActiveWorkflow;
+    }
+
+    // ── Search Input Realtime Filter ──────────────────────────────────────────
+    const searchInput = $("searchInput");
+    if (searchInput) {
+        searchInput.oninput = () => renderWorkflowList();
     }
 
     // ── Step Jump-To Input ────────────────────────────────────────────────────
@@ -450,11 +476,142 @@ function updateApprovalProgress(steps) {
     if (label) label.style.color = pct === 100 ? "#10b981" : "#34d399";
 }
 
+let activeFilterTag = "ALL";
+
+// ── Render Category Tag Filter Chips in Sidebar ─────────────────────────────
+function renderTagFilterBar() {
+    const bar = $("tagFilterBar");
+    if (!bar) return;
+    const tagSet = new Set();
+    workflows.forEach(w => {
+        if (w.tags) {
+            w.tags.split(",").map(t => t.trim()).filter(Boolean).forEach(t => tagSet.add(t));
+        }
+    });
+
+    const tags = ["ALL", ...Array.from(tagSet).sort()];
+    bar.innerHTML = tags.map(t => `
+        <button class="tag-chip ${activeFilterTag === t ? 'active' : ''}" data-tag="${esc(t)}">
+            ${esc(t === "ALL" ? "All" : t)}
+        </button>
+    `).join("");
+
+    bar.querySelectorAll(".tag-chip").forEach(chip => {
+        chip.onclick = () => {
+            activeFilterTag = chip.dataset.tag;
+            renderTagFilterBar();
+            renderWorkflowList();
+        };
+    });
+}
+
+// ── Render Tags for Active Workflow in Header ──────────────────────────────
+function renderWfTags() {
+    const container = $("wfTagsContainer");
+    if (!container || !workflow) return;
+    const rawTags = workflow.tags || "";
+    const tagList = rawTags.split(",").map(t => t.trim()).filter(Boolean);
+
+    container.innerHTML = tagList.map(tag => `
+        <span class="wf-tag-pill">
+            ${esc(tag)}
+            <span class="wf-tag-remove" data-tag="${esc(tag)}" title="Remove tag">✕</span>
+        </span>
+    `).join("");
+
+    container.querySelectorAll(".wf-tag-remove").forEach(rm => {
+        rm.onclick = async (e) => {
+            e.stopPropagation();
+            const tagToRemove = rm.dataset.tag;
+            const updated = tagList.filter(t => t !== tagToRemove).join(", ");
+            try {
+                await api(`/sessions/${encodeURIComponent(workflow.id)}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ tags: updated })
+                });
+                workflow.tags = updated;
+                const found = workflows.find(w => w.id === workflow.id);
+                if (found) found.tags = updated;
+                renderWfTags();
+                renderTagFilterBar();
+                renderWorkflowList();
+                showToast(`Tag "${tagToRemove}" removed`);
+            } catch (err) {
+                showToast("Failed to remove tag: " + err.message);
+            }
+        };
+    });
+}
+
+// ── Add Tag Handler ────────────────────────────────────────────────────────
+async function addTagToActiveWorkflow() {
+    if (!workflow) return;
+    const tag = prompt("Enter category tag name (e.g. Sales, HR, Finance, Onboarding):");
+    if (!tag || !tag.trim()) return;
+    const cleanTag = tag.trim().replace(/,/g, "");
+    const rawTags = workflow.tags || "";
+    const tagList = rawTags.split(",").map(t => t.trim()).filter(Boolean);
+    if (tagList.includes(cleanTag)) return showToast("Tag already exists");
+    tagList.push(cleanTag);
+    const updated = tagList.join(", ");
+
+    try {
+        await api(`/sessions/${encodeURIComponent(workflow.id)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ tags: updated })
+        });
+        workflow.tags = updated;
+        const found = workflows.find(w => w.id === workflow.id);
+        if (found) found.tags = updated;
+        renderWfTags();
+        renderTagFilterBar();
+        renderWorkflowList();
+        showToast(`Tag "${cleanTag}" added`);
+    } catch (err) {
+        showToast("Failed to add tag: " + err.message);
+    }
+}
+
+// ── Update Library Stats ───────────────────────────────────────────────────
+function updateLibraryStats() {
+    const totalWfs = workflows.length;
+    const totalSteps = workflows.reduce((sum, w) => sum + (w.stepCount || 0), 0);
+    let totalApproved = 0;
+    if (workflow && workflow.steps) {
+        totalApproved = workflow.steps.filter(s => s.checked || s.approved).length;
+    }
+    setText("statWfCount", totalWfs);
+    setText("statStepCount", totalSteps);
+    setText("statApprovedCount", totalApproved);
+}
+
+// ── Import JSON Workflow ──────────────────────────────────────────────────
+async function handleJsonImport(file) {
+    if (!file) return;
+    try {
+        showToast("Importing workflow from JSON...");
+        const text = await file.text();
+        const json = JSON.parse(text);
+        const res = await api("/sessions/import", {
+            method: "POST",
+            body: JSON.stringify({ workflow: json })
+        });
+        showToast(`✅ Successfully imported "${res.name}" (${res.stepCount} steps)!`);
+        await loadWorkflows();
+        if (res.id) openWorkflow(res.id);
+    } catch (e) {
+        showToast("Import failed: " + e.message);
+        console.error("JSON import error:", e);
+    }
+}
+
 // Load Workflows List
 async function loadWorkflows() {
     try {
         const data = await api("/sessions");
         workflows = data.sessions || [];
+        updateLibraryStats();
+        renderTagFilterBar();
         renderWorkflowList();
         
         if (workflows.length > 0) {
@@ -479,25 +636,36 @@ function renderWorkflowList() {
     const listEl = $("workflowList");
     if (!listEl) return;
 
-    const filtered = workflows.filter(w => 
-        (w.name || "").toLowerCase().includes(q) || 
-        (w.application || "").toLowerCase().includes(q)
-    );
+    const filtered = workflows.filter(w => {
+        const matchesQuery = (w.name || "").toLowerCase().includes(q) || 
+                             (w.application || "").toLowerCase().includes(q) ||
+                             (w.tags || "").toLowerCase().includes(q);
+        const matchesTag = activeFilterTag === "ALL" || 
+                           (w.tags || "").split(",").map(t => t.trim().toLowerCase()).includes(activeFilterTag.toLowerCase());
+        return matchesQuery && matchesTag;
+    });
 
     if (filtered.length === 0) {
         listEl.innerHTML = '<div class="no-results">No workflows found</div>';
         return;
     }
 
-    listEl.innerHTML = filtered.map(w => `
-        <div class="workflow-card ${w.id === selectedWorkflowId ? 'selected' : ''}" data-id="${esc(w.id)}">
-            <div class="workflow-name">${esc(w.name || "Untitled Workflow")}</div>
-            <div class="workflow-meta">
-                <span>${w.stepCount || 0} step${w.stepCount === 1 ? "" : "s"}</span>
-                <span class="status ${esc(w.status || 'completed')}">${esc(w.status || 'completed')}</span>
+    listEl.innerHTML = filtered.map(w => {
+        const tagBadges = (w.tags || "").split(",").map(t => t.trim()).filter(Boolean).map(t => `
+            <span class="wf-tag-badge">${esc(t)}</span>
+        `).join("");
+
+        return `
+            <div class="workflow-card ${w.id === selectedWorkflowId ? 'selected' : ''}" data-id="${esc(w.id)}">
+                <div class="workflow-name">${esc(w.name || "Untitled Workflow")}</div>
+                <div class="workflow-meta">
+                    <span>${w.stepCount || 0} step${w.stepCount === 1 ? "" : "s"}</span>
+                    <span class="status ${esc(w.status || 'completed')}">${esc(w.status || 'completed')}</span>
+                </div>
+                ${tagBadges ? `<div class="workflow-card-tags">${tagBadges}</div>` : ''}
             </div>
-        </div>
-    `).join("");
+        `;
+    }).join("");
 
     document.querySelectorAll(".workflow-card").forEach(card => {
         card.onclick = () => openWorkflow(card.dataset.id);
@@ -524,6 +692,8 @@ async function openWorkflow(id) {
         setText("detailApplication", workflow.application || "Chrome");
         setText("detailMeta", `${workflow.stepCount || 0} steps • ${workflow.status || 'completed'} • Started ${fmt(workflow.startedAt)}`);
         
+        renderWfTags();
+        updateLibraryStats();
         currentStepIndex = 0;
         setTab(activeTab);
     } catch (e) {
@@ -2410,13 +2580,15 @@ function renderStepThumbnails() {
         const img = s.screenshotUrl ? `<img src="${esc(API_BASE + s.screenshotUrl)}" alt="Step ${s.sequence}">` : '<div class="no-screenshot-thumb">No img</div>';
         const checkedBadge = s.checked ? '<div class="thumb-checked-badge">✓</div>' : '';
         return `
-            <div class="thumb-card ${index === currentStepIndex ? 'active' : ''} ${s.hidden ? 'hidden-step' : ''}" data-index="${index}">
+            <div class="thumb-card ${index === currentStepIndex ? 'active' : ''} ${s.hidden ? 'hidden-step' : ''}" data-index="${index}" draggable="true" title="Drag to reorder step">
                 ${img}
                 <div class="thumb-badge">${s.sequence}</div>
                 ${checkedBadge}
             </div>
         `;
     }).join("");
+
+    let draggedThumbIndex = null;
 
     document.querySelectorAll(".thumb-card").forEach(card => {
         const idx = parseInt(card.dataset.index);
@@ -2425,6 +2597,42 @@ function renderStepThumbnails() {
             card.addEventListener("mouseenter", (e) => showHoverPreview(API_BASE + s.screenshotUrl, s.title || getDefaultTitle(s), e));
             card.addEventListener("mouseleave", hideHoverPreview);
         }
+
+        // Drag & drop reordering
+        card.addEventListener("dragstart", (e) => {
+            draggedThumbIndex = idx;
+            card.classList.add("dragging");
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", String(idx));
+        });
+
+        card.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            card.classList.add("drag-over");
+        });
+
+        card.addEventListener("dragleave", () => {
+            card.classList.remove("drag-over");
+        });
+
+        card.addEventListener("dragend", () => {
+            card.classList.remove("dragging");
+            document.querySelectorAll(".thumb-card").forEach(c => c.classList.remove("drag-over"));
+        });
+
+        card.addEventListener("drop", async (e) => {
+            e.preventDefault();
+            card.classList.remove("drag-over");
+            const targetIdx = idx;
+            if (draggedThumbIndex !== null && draggedThumbIndex !== targetIdx) {
+                await swapSteps(draggedThumbIndex, targetIdx);
+                currentStepIndex = targetIdx;
+                loadActiveStepDetails();
+                renderStepThumbnails();
+            }
+        });
+
         card.onclick = () => {
             currentStepIndex = idx;
             loadActiveStepDetails();
@@ -2908,6 +3116,36 @@ function renderExportTab() {
             showToast("Word document exported!");
         } catch (e) {
             showToast("Failed to export Word document: " + e.message);
+            console.error(e);
+        }
+    });
+
+    setOnclick("exportPptxBtn", async () => {
+        if (!workflow) return;
+        showToast("Generating PowerPoint (.pptx) presentation...");
+        try {
+            const res = await fetch(`${API_BASE}/sessions/${encodeURIComponent(workflow.id)}/export/pptx`);
+            if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+            const blob = await res.blob();
+            downloadBlob(`${safeName(workflow.name)}.pptx`, blob);
+            showToast("PowerPoint slide deck exported!");
+        } catch (e) {
+            showToast("Failed to export PowerPoint: " + e.message);
+            console.error(e);
+        }
+    });
+
+    setOnclick("exportJsonBtn", async () => {
+        if (!workflow) return;
+        showToast("Exporting complete JSON backup...");
+        try {
+            const res = await fetch(`${API_BASE}/sessions/${encodeURIComponent(workflow.id)}/export/json`);
+            if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+            const blob = await res.blob();
+            downloadBlob(`${safeName(workflow.name)}.procsnap.json`, blob);
+            showToast("JSON backup exported!");
+        } catch (e) {
+            showToast("Failed to export JSON backup: " + e.message);
             console.error(e);
         }
     });

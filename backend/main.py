@@ -20,6 +20,15 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
+
+try:
+    import pptx
+    from pptx.util import Inches as PptxInches, Pt as PptxPt
+    from pptx.dml.color import RGBColor as PptxRGBColor
+    from pptx.enum.text import PP_ALIGN
+except ImportError:
+    pptx = None
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
@@ -218,6 +227,11 @@ def initialize_database() -> None:
     except Exception:
         pass
 
+    try:
+        cursor.execute("ALTER TABLE workflows ADD COLUMN tags TEXT DEFAULT ''")
+    except Exception:
+        pass
+
     connection.commit()
     connection.close()
 
@@ -300,7 +314,12 @@ class StartSessionRequest(BaseModel):
 
 
 class UpdateWorkflowRequest(BaseModel):
-    name: str
+    name: Optional[str] = None
+    tags: Optional[str] = None
+
+
+class ImportWorkflowRequest(BaseModel):
+    workflow: dict
 
 
 class ScreenshotRequest(BaseModel):
@@ -607,7 +626,7 @@ def get_sessions():
     try:
         rows = connection.execute(
             """
-            SELECT w.id, w.name, w.application, w.status, w.started_at, w.ended_at,
+            SELECT w.id, w.name, w.application, w.status, w.started_at, w.ended_at, w.tags,
                    COUNT(s.id) AS step_count
             FROM workflows w
             LEFT JOIN workflow_steps s ON w.id = s.workflow_id
@@ -622,6 +641,7 @@ def get_sessions():
                 "name": row["name"],
                 "application": row["application"],
                 "status": row["status"],
+                "tags": row["tags"] or "",
                 "startedAt": row["started_at"],
                 "endedAt": row["ended_at"],
                 "stepCount": row["step_count"],
@@ -726,6 +746,7 @@ def get_session(session_id: str):
             "name": workflow["name"],
             "application": workflow["application"],
             "status": workflow["status"],
+            "tags": (workflow["tags"] if "tags" in workflow.keys() else "") or "",
             "startedAt": workflow["started_at"],
             "endedAt": workflow["ended_at"],
             "stepCount": len(steps),
@@ -1074,53 +1095,43 @@ def get_screenshot(
 # =========================================================
 
 @app.patch("/sessions/{session_id}")
-def rename_session(
+def update_session(
     session_id: str,
     request: UpdateWorkflowRequest,
 ):
-    name = request.name.strip()
-
-    if not name:
-        raise HTTPException(
-            status_code=400,
-            detail="Workflow name cannot be empty",
-        )
-
     connection = get_connection()
-
     try:
         cursor = connection.cursor()
+        cursor.execute("SELECT * FROM workflows WHERE id = ?", (session_id,))
+        workflow = cursor.fetchone()
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
 
-        cursor.execute(
-            """
-            UPDATE workflows
-            SET
-                name = ?,
-                updated_at = ?
-            WHERE id = ?
-            """,
-            (
-                name,
-                utc_now(),
-                session_id,
-            ),
-        )
+        updates = []
+        params = []
+        if request.name is not None:
+            name_val = request.name.strip()
+            if name_val:
+                updates.append("name = ?")
+                params.append(name_val)
+        if request.tags is not None:
+            updates.append("tags = ?")
+            params.append(request.tags.strip())
 
-        if cursor.rowcount == 0:
-            raise HTTPException(
-                status_code=404,
-                detail="Workflow not found",
-            )
+        if updates:
+            updates.append("updated_at = ?")
+            params.append(utc_now())
+            params.append(session_id)
+            sql = f"UPDATE workflows SET {', '.join(updates)} WHERE id = ?"
+            cursor.execute(sql, tuple(params))
+            connection.commit()
 
-        connection.commit()
-
+        return {
+            "success": True,
+            "message": "Workflow updated",
+        }
     finally:
         connection.close()
-
-    return {
-        "success": True,
-        "message": "Workflow renamed",
-    }
 
 
 # =========================================================
@@ -2589,6 +2600,245 @@ def export_session_docx(session_id: str):
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers=headers
     )
+
+
+# =========================================================
+# EXPORT PPTX (PowerPoint Presentation)
+# =========================================================
+
+@app.get("/sessions/{session_id}/export/pptx")
+def export_session_pptx(session_id: str):
+    """
+    Generates and returns a widescreen 16:9 PowerPoint (.pptx) slide deck
+    with title slide, step descriptions, notes, and embedded high-res screenshots.
+    """
+    if pptx is None:
+        raise HTTPException(status_code=500, detail="python-pptx library not installed")
+    session_data = get_session(session_id)
+    name = session_data.get("name") or "ProcSnap SOP Guide"
+    application = session_data.get("application") or "System"
+    steps = [s for s in session_data.get("steps", []) if not s.get("hidden", False)]
+
+    prs = pptx.Presentation()
+    prs.slide_width = PptxInches(13.333)
+    prs.slide_height = PptxInches(7.5)
+    blank_layout = prs.slide_layouts[6]
+
+    # --- Title Slide ---
+    title_slide = prs.slides.add_slide(blank_layout)
+    bg = title_slide.shapes.add_shape(
+        pptx.enum.shapes.MSO_SHAPE.RECTANGLE, 0, 0, PptxInches(13.333), PptxInches(7.5)
+    )
+    bg.fill.solid()
+    bg.fill.fore_color.rgb = PptxRGBColor(15, 23, 42)
+    bg.line.fill.background()
+
+    tx_box = title_slide.shapes.add_textbox(PptxInches(1.5), PptxInches(2.2), PptxInches(10.333), PptxInches(3.0))
+    tf = tx_box.text_frame
+    tf.word_wrap = True
+    p1 = tf.paragraphs[0]
+    p1.text = "PROCSNAP STANDARD OPERATING PROCEDURE"
+    p1.font.size = PptxPt(13)
+    p1.font.bold = True
+    p1.font.color.rgb = PptxRGBColor(99, 102, 241)
+
+    p2 = tf.add_paragraph()
+    p2.text = name
+    p2.font.size = PptxPt(36)
+    p2.font.bold = True
+    p2.font.color.rgb = PptxRGBColor(255, 255, 255)
+
+    p3 = tf.add_paragraph()
+    p3.text = f"Application: {application}  •  {len(steps)} Steps  •  {datetime.now().strftime('%B %d, %Y')}"
+    p3.font.size = PptxPt(15)
+    p3.font.color.rgb = PptxRGBColor(148, 163, 184)
+
+    # --- Step Slides ---
+    for idx, s in enumerate(steps, 1):
+        step_num = s.get("sequence", idx)
+        title_text = s.get("title") or f"Step {step_num}"
+        desc_text = s.get("description") or ""
+
+        slide = prs.slides.add_slide(blank_layout)
+        header_box = slide.shapes.add_textbox(PptxInches(0.8), PptxInches(0.4), PptxInches(11.733), PptxInches(1.2))
+        htf = header_box.text_frame
+        htf.word_wrap = True
+        
+        hp1 = htf.paragraphs[0]
+        hp1.text = f"STEP {step_num}: {title_text}"
+        hp1.font.size = PptxPt(20)
+        hp1.font.bold = True
+        hp1.font.color.rgb = PptxRGBColor(15, 23, 42)
+
+        if desc_text:
+            hp2 = htf.add_paragraph()
+            hp2.text = desc_text
+            hp2.font.size = PptxPt(13)
+            hp2.font.color.rgb = PptxRGBColor(71, 85, 105)
+
+        screenshot_path = s.get("screenshotPath")
+        if screenshot_path:
+            img_file = BASE_DIR / screenshot_path
+            if not img_file.exists():
+                img_file = BASE_DIR / "screenshots" / session_id / Path(screenshot_path).name
+            if img_file.exists():
+                try:
+                    slide.shapes.add_picture(
+                        str(img_file),
+                        PptxInches(0.8),
+                        PptxInches(1.8),
+                        width=PptxInches(11.733)
+                    )
+                except Exception:
+                    pass
+
+    buffer = io.BytesIO()
+    prs.save(buffer)
+    buffer.seek(0)
+    clean_filename = re.sub(r'[<>:"/\\|?*]+', '-', name).strip() or "ProcSnap_Presentation"
+    headers = {
+        "Content-Disposition": f'attachment; filename="{clean_filename}.pptx"',
+        "Access-Control-Expose-Headers": "Content-Disposition"
+    }
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        headers=headers
+    )
+
+
+# =========================================================
+# EXPORT / IMPORT JSON (Full Portable Backup)
+# =========================================================
+
+@app.get("/sessions/{session_id}/export/json")
+def export_session_json(session_id: str):
+    """
+    Exports a standalone JSON backup of the workflow including all metadata,
+    annotations, edits, and embedded base64 screenshots.
+    """
+    session_data = get_session(session_id)
+    for step in session_data.get("steps", []):
+        screenshot_path = step.get("screenshotPath")
+        if screenshot_path:
+            img_file = BASE_DIR / screenshot_path
+            if not img_file.exists():
+                img_file = BASE_DIR / "screenshots" / session_id / Path(screenshot_path).name
+            if img_file.exists():
+                try:
+                    with open(img_file, "rb") as f:
+                        step["screenshotBase64"] = base64.b64encode(f.read()).decode("utf-8")
+                except Exception:
+                    step["screenshotBase64"] = None
+
+    clean_filename = re.sub(r'[<>:"/\\|?*]+', '-', session_data.get("name", "Workflow")).strip()
+    headers = {
+        "Content-Disposition": f'attachment; filename="{clean_filename}.procsnap.json"',
+        "Access-Control-Expose-Headers": "Content-Disposition"
+    }
+    return Response(
+        content=json.dumps(session_data, indent=2),
+        media_type="application/json",
+        headers=headers
+    )
+
+
+@app.post("/sessions/import")
+def import_session(request: ImportWorkflowRequest):
+    """
+    Imports a complete workflow from JSON, reconstructing the database rows,
+    annotations, edits, and decoding base64 screenshots to local disk.
+    """
+    data = request.workflow
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="Invalid workflow JSON payload")
+
+    new_id = str(uuid4())
+    now = utc_now()
+    name = data.get("name") or "Imported Workflow"
+    application = data.get("application") or "Imported"
+    tags = data.get("tags") or ""
+
+    connection = get_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            INSERT INTO workflows (id, name, application, status, tags, started_at, ended_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (new_id, name, application, "completed", tags, data.get("startedAt", now), data.get("endedAt", now), now, now),
+        )
+
+        new_screenshot_dir = SCREENSHOTS_DIR / new_id
+        new_screenshot_dir.mkdir(parents=True, exist_ok=True)
+
+        steps = data.get("steps", [])
+        for idx, s in enumerate(steps, 1):
+            seq = s.get("sequence", idx)
+            action = s.get("action", "click")
+            timestamp = s.get("timestamp", now)
+            url = s.get("url", "")
+            title = s.get("title")
+            val = s.get("value")
+            sel_text = s.get("selectedText")
+            prev_url = s.get("previousUrl")
+            checked = 1 if s.get("checked") else 0
+            elem = json.dumps(s.get("element", {})) if isinstance(s.get("element"), dict) else "{}"
+
+            new_path = None
+            if s.get("screenshotBase64"):
+                try:
+                    img_data = base64.b64decode(s["screenshotBase64"])
+                    filename = f"step_{seq}_{uuid4().hex[:8]}.png"
+                    img_dest = new_screenshot_dir / filename
+                    with open(img_dest, "wb") as f:
+                        f.write(img_data)
+                    new_path = str(img_dest)
+                except Exception:
+                    pass
+
+            cursor.execute(
+                """
+                INSERT INTO workflow_steps (
+                    workflow_id, sequence, action, timestamp, url, title, value,
+                    selected_text, previous_url, checked, element_json, screenshot_path
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (new_id, seq, action, timestamp, url, title, val, sel_text, prev_url, checked, elem, new_path),
+            )
+            step_id = cursor.lastrowid
+
+            if s.get("annotations"):
+                cursor.execute(
+                    """
+                    INSERT INTO step_annotations (step_id, workflow_id, data, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (step_id, new_id, json.dumps(s["annotations"]), now, now),
+                )
+
+            if s.get("note") or s.get("expected") or s.get("voiceover") or s.get("hidden"):
+                cursor.execute(
+                    """
+                    INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, voiceover, hidden, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (step_id, new_id, title, s.get("description"), s.get("note"), s.get("expected"), s.get("voiceover"), 1 if s.get("hidden") else 0, now),
+                )
+
+        connection.commit()
+        return {
+            "success": True,
+            "id": new_id,
+            "name": name,
+            "stepCount": len(steps),
+            "message": f"Successfully imported '{name}' with {len(steps)} steps"
+        }
+    finally:
+        connection.close()
+
 
 
 # =========================================================

@@ -2464,3 +2464,159 @@ svg {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* =========================================================
+   SIDEBAR STATS WIDGET
+========================================================= */
+.sidebar-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    margin-bottom: 10px;
+}
+.sidebar-stats .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+.sidebar-stats .stat-num {
+    font-size: 14px;
+    font-weight: 800;
+    color: #818cf8;
+    line-height: 1.1;
+}
+.sidebar-stats .stat-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* =========================================================
+   TAG FILTER BAR & CHIPS
+========================================================= */
+.tag-filter-bar {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 2px 0 4px 0;
+    margin-top: 6px;
+    scrollbar-width: none;
+}
+.tag-filter-bar::-webkit-scrollbar { display: none; }
+.tag-chip {
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+.tag-chip:hover {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+}
+.tag-chip.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #ffffff;
+}
+
+/* Workflow card tags */
+.workflow-card-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+.wf-tag-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* Workflow header tag editor */
+.wf-tags-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0;
+    flex-wrap: wrap;
+}
+.wf-tags-icon {
+    font-size: 13px;
+}
+.wf-tags-container {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.wf-tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 99px;
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+.wf-tag-remove {
+    cursor: pointer;
+    font-size: 11px;
+    opacity: 0.7;
+    margin-left: 2px;
+}
+.wf-tag-remove:hover { opacity: 1; color: #ef4444; }
+.btn-add-tag {
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    color: var(--text-muted);
+    border-radius: 99px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+.btn-add-tag:hover {
+    border-color: var(--primary);
+    color: #a5b4fc;
+}
+
+/* Thumbnail card drag-and-drop */
+.thumb-card {
+    cursor: grab;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.thumb-card:active {
+    cursor: grabbing;
+}
+.thumb-card.dragging {
+    opacity: 0.4;
+    transform: scale(0.92);
+}
+.thumb-card.drag-over {
+    border: 2px dashed var(--primary) !important;
+    transform: scale(1.05);
+}
+
