@@ -2411,11 +2411,18 @@ def generate_step_animation(
     try:
         cursor = connection.cursor()
         step = cursor.execute(
-            "SELECT id, sequence, element_json, screenshot_path FROM workflow_steps WHERE id = ? AND workflow_id = ?",
-            (step_id, session_id)
+            "SELECT id, sequence, element_json, screenshot_path FROM workflow_steps WHERE (id = ? OR sequence = ?) AND workflow_id = ?",
+            (step_id, step_id, session_id)
         ).fetchone()
+        if not step:
+            # Fallback: search by sequence or first step
+            step = cursor.execute(
+                "SELECT id, sequence, element_json, screenshot_path FROM workflow_steps WHERE workflow_id = ? ORDER BY sequence LIMIT 1",
+                (session_id,)
+            ).fetchone()
+            
         if not step or not step["screenshot_path"]:
-            raise HTTPException(status_code=404, detail="Step or screenshot not found")
+            raise HTTPException(status_code=404, detail="Step or screenshot not found in database")
 
         raw_path = step["screenshot_path"]
         seq = int(step["sequence"])
@@ -2423,6 +2430,7 @@ def generate_step_animation(
             # Check for original png first
             SCREENSHOTS_DIR / session_id / f"step-{seq:03d}.png",
             SCREENSHOTS_DIR / session_id / f"step_{seq}.png",
+            SCREENSHOTS_DIR / session_id / f"step-{seq}.png",
             BASE_DIR / raw_path,
             BASE_DIR / "screenshots" / session_id / Path(raw_path).name,
             SCREENSHOTS_DIR / session_id / Path(raw_path).name,
@@ -2437,6 +2445,13 @@ def generate_step_animation(
             for p in candidate_paths:
                 if p.is_file():
                     img_path = p
+                    break
+
+        # Additional fallback: inspect directory
+        if not img_path and (SCREENSHOTS_DIR / session_id).exists():
+            for f in (SCREENSHOTS_DIR / session_id).glob("*.png"):
+                if not f.name.endswith("-demo.gif"):
+                    img_path = f
                     break
 
         if not img_path:

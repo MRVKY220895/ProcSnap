@@ -2952,6 +2952,12 @@ function loadActiveStepDetails() {
     if (typeof updateFocusToggleUI === "function") updateFocusToggleUI();
     if (typeof updateHotspotReticlePosition === "function") updateHotspotReticlePosition(step);
 
+    const pinLabel = $("pinVisibilityLabel");
+    if (pinLabel) {
+        pinLabel.textContent = step.hidePin ? "OFF" : "ON";
+        pinLabel.style.color = step.hidePin ? "#94a3b8" : "#10b981";
+    }
+
     // Populate Interactive Hotspot values (Requirement 2)
     const hs = calculateDefaultHotspot(step);
     setVal("hotspotX", Math.round(hs.xPct));
@@ -6930,6 +6936,23 @@ function initHotspotReticle() {
     setOnclick("btnPickHotspotTool", () => toggleHotspotClickMode());
     setOnclick("btnPickHotspotClick", () => toggleHotspotClickMode());
     setOnclick("btnToggleLockHotspot", () => toggleHotspotLock());
+
+    const btnTogglePin = $("btnTogglePinVisibility");
+    if (btnTogglePin) {
+        btnTogglePin.onclick = () => {
+            const step = getCurrentStep();
+            if (!step) return;
+            step.hidePin = !step.hidePin;
+            const label = $("pinVisibilityLabel");
+            if (label) {
+                label.textContent = step.hidePin ? "OFF" : "ON";
+                label.style.color = step.hidePin ? "#94a3b8" : "#10b981";
+            }
+            updateHotspotReticlePosition(step);
+            saveActiveStepEditsSilent();
+            showToast(step.hidePin ? "🎯 Pin target hidden for this step." : "🎯 Pin target visible.");
+        };
+    }
 
     // 4. Hotkey 'H' to toggle Hotspot Click Finder Mode
     window.addEventListener("keydown", (e) => {

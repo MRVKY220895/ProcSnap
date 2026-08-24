@@ -287,21 +287,19 @@ function removeRecordingIndicator() {
 ========================================================= */
 
 function getActionableElement(element) {
-    if (!element) {
-        return null;
+    if (!element) return null;
+
+    // Check if clicked element or any parent is an anchor, button, input, etc.
+    const actionable = element.closest(
+        "a[href], button, input, textarea, select, [role='button'], [role='link'], [role='tab'], [role='menuitem'], summary, [contenteditable='true']"
+    );
+    if (actionable) {
+        return actionable;
     }
 
-    if (
-        element instanceof SVGElement
-    ) {
-        const parent =
-            element.closest(
-                "button, a, input, textarea, select, [role='button'], [role='link']"
-            );
-
-        if (parent) {
-            return parent;
-        }
+    if (element instanceof SVGElement) {
+        const svgParent = element.closest("svg")?.parentElement;
+        if (svgParent) return svgParent;
     }
 
     return element;
@@ -659,8 +657,31 @@ document.addEventListener(
         lastClickElement = element;
 
         const elemInfo = getElementInfo(element);
-        const targetName = elemInfo?.cleanLabel || elemInfo?.ariaLabel || (elemInfo?.text && elemInfo.text.length < 50 ? elemInfo.text : null) || elemInfo?.placeholder || elemInfo?.tagName?.toLowerCase() || "item";
-        const smartTitle = `Click on "${targetName}"`;
+        let smartTitle = "";
+
+        // Smart Identification for Links, Buttons, and Inputs
+        const isAnchor = element.tagName === "A" || element.closest("a");
+        const anchorEl = element.tagName === "A" ? element : element.closest("a");
+
+        if (isAnchor && anchorEl) {
+            const href = anchorEl.getAttribute("href") || anchorEl.href;
+            const linkText = (anchorEl.innerText || anchorEl.textContent || "").trim();
+            if (linkText && linkText.length < 60) {
+                smartTitle = `Click link "${linkText}"`;
+            } else if (href) {
+                try {
+                    const parsed = new URL(href, window.location.href);
+                    smartTitle = `Navigate to ${parsed.hostname}${parsed.pathname !== '/' ? parsed.pathname : ''}`;
+                } catch {
+                    smartTitle = `Click link "${href}"`;
+                }
+            } else {
+                smartTitle = `Click link`;
+            }
+        } else {
+            const targetName = elemInfo?.cleanLabel || elemInfo?.ariaLabel || (elemInfo?.text && elemInfo.text.length < 50 ? elemInfo.text : null) || elemInfo?.placeholder || elemInfo?.tagName?.toLowerCase() || "item";
+            smartTitle = `Click on "${targetName}"`;
+        }
 
         const step = {
             action: "click",
@@ -683,7 +704,7 @@ document.addEventListener(
 
 
 /* =========================================================
-   INPUT
+   INPUT (SMART DEBOUNCED TYPING)
 ========================================================= */
 
 document.addEventListener(
@@ -697,7 +718,8 @@ document.addEventListener(
 
         if (
             !(element instanceof HTMLInputElement) &&
-            !(element instanceof HTMLTextAreaElement)
+            !(element instanceof HTMLTextAreaElement) &&
+            !element.isContentEditable
         ) {
             return;
         }
@@ -706,12 +728,13 @@ document.addEventListener(
             clearTimeout(inputTimers.get(element));
         }
 
+        // Wait 1.5s after user stops typing to commit the full string
         const timer = setTimeout(
             () => {
                 saveInput(element);
                 inputTimers.delete(element);
             },
-            1200
+            1500
         );
 
         inputTimers.set(element, timer);
@@ -725,11 +748,16 @@ document.addEventListener(
 ========================================================= */
 
 function saveInput(element) {
-    if (!recording || paused) {
+    if (!recording || paused || !element) {
         return;
     }
 
-    let value = element.value || "";
+    let value = element.isContentEditable ? (element.innerText || "") : (element.value || "");
+    value = value.trim();
+
+    if (!value) {
+        return;
+    }
 
     if (
         element instanceof HTMLInputElement &&
@@ -748,8 +776,8 @@ function saveInput(element) {
     lastInputValues.set(element, value);
 
     const elemInfo = getElementInfo(element);
-    const label = elemInfo?.cleanLabel || elemInfo?.placeholder || elemInfo?.name || "field";
-    const valDisplay = elemInfo?.isSensitive ? "password" : value;
+    const label = elemInfo?.cleanLabel || elemInfo?.placeholder || elemInfo?.name || "the field";
+    const valDisplay = elemInfo?.isSensitive ? "••••••••" : value;
     const smartTitle = `Type "${valDisplay}" into ${label}`;
 
     const step = {
@@ -766,7 +794,7 @@ function saveInput(element) {
 
 
 /* =========================================================
-   KEYBOARD & KEYBOARD SHORTCUTS
+   KEYBOARD & ENTER KEY CAPTURE
 ========================================================= */
 
 document.addEventListener(
@@ -785,17 +813,34 @@ document.addEventListener(
 
         const element = event.target;
 
-        // Enter key input save trigger
+        // Enter key input save & explicit submit action
         if (event.key === "Enter") {
             if (
                 element instanceof HTMLInputElement ||
-                element instanceof HTMLTextAreaElement
+                element instanceof HTMLTextAreaElement ||
+                element.isContentEditable
             ) {
+                // 1. Immediately flush typed text
                 if (inputTimers.has(element)) {
                     clearTimeout(inputTimers.get(element));
                     inputTimers.delete(element);
                 }
                 saveInput(element);
+
+                // 2. Capture the Enter key action
+                const elemInfo = getElementInfo(element);
+                const label = elemInfo?.cleanLabel || elemInfo?.placeholder || elemInfo?.name || "field";
+                
+                setTimeout(() => {
+                    sendStep({
+                        action: "keypress_enter",
+                        timestamp: new Date().toISOString(),
+                        url: window.location.href,
+                        title: `Press Enter in ${label}`,
+                        value: "Enter",
+                        element: elemInfo
+                    });
+                }, 150);
             }
         }
 
@@ -819,7 +864,7 @@ document.addEventListener(
                 action: "keyboard_shortcut",
                 timestamp: new Date().toISOString(),
                 url: window.location.href,
-                title: document.title,
+                title: `Press ${combo}`,
                 value: combo,
                 element: getElementInfo(getActionableElement(element))
             });
