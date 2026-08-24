@@ -6178,14 +6178,6 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
         }
     }
 }
-        showToast(`Failed to generate animation: ${e.message}`, 4000);
-    } finally {
-        if (btnGenerateAnimation) {
-            btnGenerateAnimation.disabled = false;
-            updateDemoButtonState(step);
-        }
-    }
-}
 
 if (btnGenerateAnimation) {
     btnGenerateAnimation.onclick = () => triggerAnimateGeneration(getCurrentStep());
