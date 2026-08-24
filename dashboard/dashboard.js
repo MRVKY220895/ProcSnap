@@ -3705,6 +3705,13 @@ function renderStepsTab() {
                     showToast("Step deleted");
                     renderStepsTab();
                     renderStepThumbnails();
+                } catch(err) {
+                    showToast(`Delete failed: ${err.message}`);
+                }
+            }
+        };
+    });
+
     // Auto-update BPMN Flowchart if active in Split or BPMN view
     if (typeof bpmnEngine !== 'undefined' && bpmnEngine.currentMode !== 'cards') {
         bpmnEngine.render();
@@ -8445,6 +8452,13 @@ function initDesktopRecorderModal() {
             } catch (e) {
                 console.error("Desktop recorder stop error:", e);
                 showToast("Failed to stop recording: " + e.message);
+                stopBtn.disabled = false;
+                stopBtn.innerHTML = `⏹ Stop & Open Studio`;
+            }
+        };
+    }
+}
+
 // =========================================================
 // 📊 INTERACTIVE BPMN 2.0 & PROCESS FLOW ENGINE
 // =========================================================
