@@ -300,6 +300,10 @@
                                             <span id="focusToggleDot" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
                                             <span id="focusToggleLabel">Focus: Enabled</span>
                                         </button>
+                                        <!-- Interactive Click-to-Place Hotspot Finder Button -->
+                                        <button class="btn btn-secondary btn-sm" id="btnPickHotspotTool" style="padding: 0 9px; height: 30px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;" title="Click anywhere on the screenshot to place the hotspot target (H)">
+                                            <span>🎯</span> Pin Target
+                                        </button>
                                         <button class="btn btn-secondary btn-sm" id="clearAnnotationsBtn" style="padding: 0 8px; height: 30px; font-size: 11.5px;">Clear</button>
                                         <button class="btn btn-secondary btn-sm" id="btnGenerateAnimation" style="padding: 0 8px; height: 30px; font-size: 11.5px; font-weight: 700; color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Generate 2-second animated cursor demo GIF">
                                             🎬 Micro-Demo
@@ -446,10 +450,15 @@
                                                     <input type="number" id="hotspotH" min="2" max="100" step="1" value="20" class="form-control coord-input">
                                                 </div>
                                             </div>
-                                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 8px;">
-                                                <button id="btnSyncFromSpotlight" class="btn btn-secondary btn-xs" style="padding: 5px 2px; font-size: 10.5px; font-weight: 600; justify-content: center; text-align: center; white-space: nowrap;" title="Sync hotspot with spotlight bounding box">🎯 Spotlight</button>
-                                                <button id="btnResetHotspot" class="btn btn-secondary btn-xs" style="padding: 5px 2px; font-size: 10.5px; font-weight: 600; justify-content: center; text-align: center; white-space: nowrap;" title="Center hotspot in screenshot">⊕ Center</button>
-                                                <button id="btnAutoDetectHotspot" class="btn btn-secondary btn-xs" style="padding: 5px 2px; font-size: 10.5px; font-weight: 600; justify-content: center; text-align: center; white-space: nowrap;" title="Auto-detect UI element target">⚡ Auto-Detect</button>
+                                            <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
+                                                <button id="btnPickHotspotClick" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);" title="Click anywhere on the screenshot to place and lock the target">
+                                                    <span>📍</span> Click on Image to Place Hotspot
+                                                </button>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;">
+                                                    <button id="btnSyncFromSpotlight" class="btn btn-secondary btn-xs" style="padding: 5px 2px; font-size: 10.5px; font-weight: 600; justify-content: center; text-align: center; white-space: nowrap;" title="Sync hotspot with spotlight bounding box">🎯 Spotlight</button>
+                                                    <button id="btnResetHotspot" class="btn btn-secondary btn-xs" style="padding: 5px 2px; font-size: 10.5px; font-weight: 600; justify-content: center; text-align: center; white-space: nowrap;" title="Center hotspot in screenshot">⊕ Center</button>
+                                                    <button id="btnAutoDetectHotspot" class="btn btn-secondary btn-xs" style="padding: 5px 2px; font-size: 10.5px; font-weight: 600; justify-content: center; text-align: center; white-space: nowrap;" title="Auto-detect UI element target">⚡ Auto-Detect</button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

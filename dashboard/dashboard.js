@@ -6287,10 +6287,38 @@ if (cmdModal) {
 
 
 /* =========================================================
-   🎯 INTERACTIVE DRAG-AND-DROP HOTSPOT RETICLE & MICRO-DEMO POSITIONER
+   🎯 INTERACTIVE DRAG-AND-DROP & CLICK-TO-PIN HOTSPOT FINDER
 ========================================================= */
 
 let isDraggingReticle = false;
+let isHotspotClickMode = false;
+
+function toggleHotspotClickMode(forceState = null) {
+    isHotspotClickMode = forceState !== null ? forceState : !isHotspotClickMode;
+    const wrapper = $("canvasWrapper");
+    const toolBtn = $("btnPickHotspotTool");
+    const drawerBtn = $("btnPickHotspotClick");
+
+    if (wrapper) wrapper.classList.toggle("hotspot-picking-mode", isHotspotClickMode);
+    if (toolBtn) toolBtn.classList.toggle("active", isHotspotClickMode);
+    if (drawerBtn) drawerBtn.classList.toggle("active", isHotspotClickMode);
+
+    if (isHotspotClickMode) {
+        showToast("🎯 Click Mode Active: Click anywhere on the screenshot to pinpoint the hotspot!", 3000);
+    }
+}
+
+function createCanvasClickRipple(x, y, parentEl) {
+    if (!parentEl) return;
+    const ripple = document.createElement("div");
+    ripple.className = "reticle-ripple-burst";
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    parentEl.appendChild(ripple);
+    setTimeout(() => {
+        if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
+    }, 700);
+}
 
 function updateHotspotReticlePosition(step) {
     const reticle = $("hotspotReticleHandle");
@@ -6319,8 +6347,7 @@ function initHotspotReticle() {
     const wrapper = $("canvasWrapper");
     if (!reticle || !wrapper) return;
 
-    let startX = 0, startY = 0;
-
+    // 1. Drag & Drop Listener on Reticle Handle
     reticle.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -6337,11 +6364,8 @@ function initHotspotReticle() {
         const rect = wrapper.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return;
 
-        const clientX = e.clientX;
-        const clientY = e.clientY;
-
-        let xPct = ((clientX - rect.left) / rect.width) * 100;
-        let yPct = ((clientY - rect.top) / rect.height) * 100;
+        let xPct = ((e.clientX - rect.left) / rect.width) * 100;
+        let yPct = ((e.clientY - rect.top) / rect.height) * 100;
 
         xPct = Math.max(1, Math.min(99, xPct));
         yPct = Math.max(1, Math.min(99, yPct));
@@ -6391,6 +6415,65 @@ function initHotspotReticle() {
 
     reticle.addEventListener("pointerup", finishDrag);
     reticle.addEventListener("pointercancel", finishDrag);
+
+    // 2. Click-to-Pin Hotspot Finder on Canvas
+    wrapper.addEventListener("click", (e) => {
+        if (!isHotspotClickMode) return;
+        if (e.target.closest("#hotspotReticleHandle")) return;
+
+        const rect = wrapper.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        let xPct = ((e.clientX - rect.left) / rect.width) * 100;
+        let yPct = ((e.clientY - rect.top) / rect.height) * 100;
+
+        xPct = Math.max(1, Math.min(99, xPct));
+        yPct = Math.max(1, Math.min(99, yPct));
+
+        // Snap Reticle to clicked position
+        reticle.style.left = `${xPct}%`;
+        reticle.style.top = `${yPct}%`;
+
+        const label = $("reticleCoordsLabel");
+        if (label) label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
+
+        const curW = Number($("hotspotW")?.value || 20);
+        const curH = Number($("hotspotH")?.value || 20);
+        const newLeft = Math.max(0, Math.min(100 - curW, Math.round(xPct - curW / 2)));
+        const newTop = Math.max(0, Math.min(100 - curH, Math.round(yPct - curH / 2)));
+
+        setVal("hotspotX", newLeft);
+        setVal("hotspotY", newTop);
+
+        const step = getCurrentStep();
+        if (step) {
+            step.hotspot = {
+                xPct: newLeft,
+                yPct: newTop,
+                wPct: curW,
+                hPct: curH,
+                prompt: $("guideHotspotPrompt")?.value || (step.title || getDefaultTitle(step)),
+                type: "custom"
+            };
+            saveActiveStepEditsSilent();
+        }
+
+        createCanvasClickRipple(e.clientX - rect.left, e.clientY - rect.top, wrapper);
+        showToast(`🎯 Hotspot placed at (${Math.round(xPct)}%, ${Math.round(yPct)}%)!`, 2500);
+        toggleHotspotClickMode(false);
+    });
+
+    // 3. Wire Click Mode Trigger Buttons
+    setOnclick("btnPickHotspotTool", () => toggleHotspotClickMode());
+    setOnclick("btnPickHotspotClick", () => toggleHotspotClickMode());
+
+    // 4. Hotkey 'H' to toggle Hotspot Click Finder Mode
+    window.addEventListener("keydown", (e) => {
+        if (e.key.toLowerCase() === "h" && !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName) && !document.activeElement?.isContentEditable) {
+            e.preventDefault();
+            toggleHotspotClickMode();
+        }
+    });
 }
 
 
