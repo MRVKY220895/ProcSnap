@@ -2363,7 +2363,15 @@ class StepAnimatePayload(BaseModel):
     y_pct: Optional[float] = None
 
 @app.post("/sessions/{session_id}/steps/{step_id}/animate")
-def generate_step_animation(session_id: str, step_id: int, payload: Optional[StepAnimatePayload] = Body(default=None)):
+def generate_step_animation(
+    session_id: str,
+    step_id: int,
+    payload: Optional[StepAnimatePayload] = Body(default=None),
+    x_pct: Optional[float] = Query(None),
+    y_pct: Optional[float] = Query(None),
+    target_x_param: Optional[float] = Query(None, alias="target_x"),
+    target_y_param: Optional[float] = Query(None, alias="target_y")
+):
     """
     Generates a 14-frame animated micro-demo GIF for the step.
     Interpolates a simulated moving cursor towards the hotspot coordinate,
@@ -2410,13 +2418,17 @@ def generate_step_animation(session_id: str, step_id: int, payload: Optional[Ste
         target_x, target_y = None, None
 
         # 1. Percentage coordinates from client (exact frontend percentage alignment)
-        if payload:
-            if payload.x_pct is not None and payload.y_pct is not None:
-                target_x = (float(payload.x_pct) / 100.0) * float(width)
-                target_y = (float(payload.y_pct) / 100.0) * float(height)
-            elif payload.target_x is not None and payload.target_y is not None:
-                target_x = float(payload.target_x)
-                target_y = float(payload.target_y)
+        req_x_pct = (payload.x_pct if payload and payload.x_pct is not None else x_pct)
+        req_y_pct = (payload.y_pct if payload and payload.y_pct is not None else y_pct)
+        req_tx = (payload.target_x if payload and payload.target_x is not None else target_x_param)
+        req_ty = (payload.target_y if payload and payload.target_y is not None else target_y_param)
+
+        if req_x_pct is not None and req_y_pct is not None:
+            target_x = (float(req_x_pct) / 100.0) * float(width)
+            target_y = (float(req_y_pct) / 100.0) * float(height)
+        elif req_tx is not None and req_ty is not None:
+            target_x = float(req_tx)
+            target_y = float(req_ty)
 
         # 2. Check annotations for custom hotspot coordinates
         if target_x is None:

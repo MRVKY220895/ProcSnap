@@ -6006,13 +6006,15 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
     }
 
     try {
-        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/animate`, {
+        const queryUrl = `/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/animate?x_pct=${encodeURIComponent(finalXPct)}&y_pct=${encodeURIComponent(finalYPct)}`;
+        const res = await api(queryUrl, {
             method: "POST",
             body: JSON.stringify(payload)
         });
 
         if (res.success && res.gif_url) {
             step.hasActiveDemo = true;
+            step.screenshotUrl = res.gif_url;
             const imgEl = $("guideImg");
             if (imgEl) {
                 imgEl.src = `${normalizeImageUrl(res.gif_url)}?t=${Date.now()}`;
@@ -6022,6 +6024,7 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
             if (typeof updateHotspotReticlePosition === "function") {
                 updateHotspotReticlePosition(step);
             }
+            renderStepThumbnails();
             showToast(`🎬 Micro-Demo generated at target (${Math.round(finalXPct)}%, ${Math.round(finalYPct)}%)!`, 3500);
         }
     } catch (e) {
@@ -6054,12 +6057,20 @@ if (btnRemoveAnimation) {
             step.hasActiveDemo = false;
             
             // Revert image to original static PNG
+            const seq = Number(step.sequence || 1);
+            const pngUrl = `/screenshots/${workflow.id}/step-${String(seq).padStart(3, '0')}.png`;
+            step.screenshotUrl = pngUrl;
+            
             const imgEl = $("guideImg");
-            if (imgEl && step.screenshotUrl) {
-                imgEl.src = `${API_BASE + step.screenshotUrl}?t=${Date.now()}`;
+            if (imgEl) {
+                imgEl.src = `${normalizeImageUrl(pngUrl)}?t=${Date.now()}`;
+                imgEl.classList.remove("hidden");
             }
             
-            // Reapply annotations
+            updateDemoButtonState(step);
+            loadActiveStepDetails();
+            renderStepThumbnails();
+            
             if (canvasEngine) {
                 const userAnno = getStepAnnotations(step);
                 const withSpot = canvasEngine.applyAutoSpotlight(
