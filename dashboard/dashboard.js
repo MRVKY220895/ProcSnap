@@ -5947,88 +5947,95 @@ function updateDemoButtonState(step) {
     }
 }
 
-if (btnGenerateAnimation) {
-    btnGenerateAnimation.onclick = async () => {
-        const step = getCurrentStep();
-        if (!step || !workflow) {
-            showToast("Please select a step with a screenshot first");
-            return;
+async function triggerAnimateGeneration(step, customTargetX = null, customTargetY = null) {
+    if (!step || !workflow) {
+        showToast("Please select a step with a screenshot first");
+        return;
+    }
+    if (!step.screenshotUrl) {
+        showToast("This step does not have a screenshot to animate");
+        return;
+    }
+
+    const imgEl = $("guideImg");
+    const naturalW = imgEl?.naturalWidth || 1920;
+    const naturalH = imgEl?.naturalHeight || 1080;
+
+    let targetX = customTargetX;
+    let targetY = customTargetY;
+
+    if (targetX === null || targetY === null) {
+        // Priority 1: User-set Hotspot (from Inspector inputs or Reticle drag)
+        const hsX = Number($("hotspotX")?.value);
+        const hsY = Number($("hotspotY")?.value);
+        const hsW = Number($("hotspotW")?.value || 20);
+        const hsH = Number($("hotspotH")?.value || 20);
+
+        if (!isNaN(hsX) && !isNaN(hsY) && step.hotspot?.type === "custom") {
+            targetX = ((hsX + (hsW / 2)) / 100) * naturalW;
+            targetY = ((hsY + (hsH / 2)) / 100) * naturalH;
+        } else if (step.hotspot && typeof step.hotspot.xPct === "number") {
+            targetX = ((step.hotspot.xPct + (step.hotspot.wPct || 20) / 2) / 100) * naturalW;
+            targetY = ((step.hotspot.yPct + (step.hotspot.hPct || 20) / 2) / 100) * naturalH;
+        } else if (step.element?.screen) {
+            // Priority 2: DOM element.screen (red dashed focus box)
+            const sc = step.element.screen;
+            const sw = Number(sc.viewportWidth || naturalW);
+            const sh = Number(sc.viewportHeight || naturalH);
+            const scaleX = naturalW / Math.max(1, sw);
+            const scaleY = naturalH / Math.max(1, sh);
+            targetX = (Number(sc.x || 0) + (Number(sc.width || 0) / 2)) * scaleX;
+            targetY = (Number(sc.y || 0) + (Number(sc.height || 0) / 2)) * scaleY;
+        } else {
+            // Priority 3: Fallback default hotspot
+            const hs = calculateDefaultHotspot(step);
+            targetX = ((hs.xPct + (hs.wPct / 2)) / 100) * naturalW;
+            targetY = ((hs.yPct + (hs.hPct / 2)) / 100) * naturalH;
         }
-        if (!step.screenshotUrl) {
-            showToast("This step does not have a screenshot to animate");
-            return;
-        }
-        
-        btnGenerateAnimation.disabled = true;
-        const prevHTML = btnGenerateAnimation.innerHTML;
-        btnGenerateAnimation.innerHTML = `<span>⏳</span> Generating...`;
-        
-        try {
-            // Calculate precise target coordinate from active canvas / element / annotations
-            const imgEl = $("guideImg");
-            const naturalW = imgEl?.naturalWidth || 1920;
-            const naturalH = imgEl?.naturalHeight || 1080;
-            
-            let targetX = null;
-            let targetY = null;
-            
-            // 1. From active annotations
-            const annos = getStepAnnotations(step);
-            for (const a of annos) {
-                if (["spotlight", "rect", "circle", "badge"].includes(a.type) && a.x !== undefined && a.y !== undefined) {
-                    targetX = Number(a.x) + (Number(a.w || 0) / 2);
-                    targetY = Number(a.y) + (Number(a.h || 0) / 2);
-                    break;
-                }
-            }
-            
-            // 2. From DOM element.screen (red dashed focus box)
-            if (targetX === null && step.element?.screen) {
-                const sc = step.element.screen;
-                const sw = Number(sc.viewportWidth || naturalW);
-                const sh = Number(sc.viewportHeight || naturalH);
-                const scaleX = naturalW / Math.max(1, sw);
-                const scaleY = naturalH / Math.max(1, sh);
-                targetX = (Number(sc.x || 0) + (Number(sc.width || 0) / 2)) * scaleX;
-                targetY = (Number(sc.y || 0) + (Number(sc.height || 0) / 2)) * scaleY;
-            }
-            
-            // 3. Fallback to default hotspot percentages
-            if (targetX === null) {
-                const hs = calculateDefaultHotspot(step);
-                targetX = ((hs.xPct + (hs.wPct / 2)) / 100) * naturalW;
-                targetY = ((hs.yPct + (hs.hPct / 2)) / 100) * naturalH;
-            }
-            
-            const payload = {
-                target_x: targetX,
-                target_y: targetY,
-                x_pct: (targetX / naturalW) * 100,
-                y_pct: (targetY / naturalH) * 100
-            };
-            
-            const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/animate`, {
-                method: "POST",
-                body: JSON.stringify(payload)
-            });
-            if (res.success && res.gif_url) {
-                step.hasActiveDemo = true;
-                if (imgEl) {
-                    imgEl.src = `${normalizeImageUrl(res.gif_url)}?t=${Date.now()}`;
-                    imgEl.classList.remove("hidden");
-                }
-                updateDemoButtonState(step);
-                showToast("🎬 Micro-Demo loop active! Click 'Remove Demo' anytime to revert.", 4000);
-            }
-        } catch (e) {
-            showToast(`Failed to generate animation: ${e.message}`, 4000);
-        } finally {
-            btnGenerateAnimation.disabled = false;
-            if (!step.hasActiveDemo) {
-                btnGenerateAnimation.innerHTML = prevHTML;
-            }
-        }
+    }
+
+    const payload = {
+        target_x: targetX,
+        target_y: targetY,
+        x_pct: (targetX / naturalW) * 100,
+        y_pct: (targetY / naturalH) * 100
     };
+
+    if (btnGenerateAnimation) {
+        btnGenerateAnimation.disabled = true;
+        btnGenerateAnimation.innerHTML = `<span>⏳</span> Generating...`;
+    }
+
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/animate`, {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+
+        if (res.success && res.gif_url) {
+            step.hasActiveDemo = true;
+            if (imgEl) {
+                imgEl.src = `${normalizeImageUrl(res.gif_url)}?t=${Date.now()}`;
+                imgEl.classList.remove("hidden");
+            }
+            updateDemoButtonState(step);
+            if (typeof updateHotspotReticlePosition === "function") {
+                updateHotspotReticlePosition(step);
+            }
+            showToast("🎬 Micro-Demo generated at target!", 3500);
+        }
+    } catch (e) {
+        showToast(`Failed to generate animation: ${e.message}`, 4000);
+    } finally {
+        if (btnGenerateAnimation) {
+            btnGenerateAnimation.disabled = false;
+            updateDemoButtonState(step);
+        }
+    }
+}
+
+if (btnGenerateAnimation) {
+    btnGenerateAnimation.onclick = () => triggerAnimateGeneration(getCurrentStep());
 }
 
 if (btnRemoveAnimation) {
@@ -6339,7 +6346,13 @@ function updateHotspotReticlePosition(step) {
     reticle.style.top = `${yPct}%`;
 
     const label = $("reticleCoordsLabel");
-    if (label) label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
+    if (label) {
+        if (step.hasActiveDemo) {
+            label.textContent = `🎯 Drag to Adjust GIF (${Math.round(xPct)}%, ${Math.round(yPct)}%)`;
+        } else {
+            label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
+        }
+    }
 }
 
 function initHotspotReticle() {
@@ -6373,8 +6386,15 @@ function initHotspotReticle() {
         reticle.style.left = `${xPct}%`;
         reticle.style.top = `${yPct}%`;
 
+        const step = getCurrentStep();
         const label = $("reticleCoordsLabel");
-        if (label) label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
+        if (label) {
+            if (step?.hasActiveDemo) {
+                label.textContent = `🎯 Drag to Adjust GIF (${Math.round(xPct)}%, ${Math.round(yPct)}%)`;
+            } else {
+                label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
+            }
+        }
 
         // Update inspector coordinate fields in real time
         const curW = Number($("hotspotW")?.value || 20);
@@ -6386,7 +6406,7 @@ function initHotspotReticle() {
         setVal("hotspotY", newTop);
     });
 
-    const finishDrag = (e) => {
+    const finishDrag = async (e) => {
         if (!isDraggingReticle) return;
         isDraggingReticle = false;
         reticle.classList.remove("dragging");
@@ -6410,14 +6430,26 @@ function initHotspotReticle() {
         };
 
         saveActiveStepEditsSilent();
-        showToast(`🎯 Hotspot target updated: (${leftVal}%, ${topVal}%)`, 2000);
+
+        const imgEl = $("guideImg");
+        const naturalW = imgEl?.naturalWidth || 1920;
+        const naturalH = imgEl?.naturalHeight || 1080;
+        const targetX = ((leftVal + (wVal / 2)) / 100) * naturalW;
+        const targetY = ((topVal + (hVal / 2)) / 100) * naturalH;
+
+        if (step.hasActiveDemo) {
+            showToast("🔄 Re-generating Micro-Demo at dragged location...", 2500);
+            await triggerAnimateGeneration(step, targetX, targetY);
+        } else {
+            showToast(`🎯 Hotspot target updated: (${leftVal}%, ${topVal}%)`, 2000);
+        }
     };
 
     reticle.addEventListener("pointerup", finishDrag);
     reticle.addEventListener("pointercancel", finishDrag);
 
     // 2. Click-to-Pin Hotspot Finder on Canvas
-    wrapper.addEventListener("click", (e) => {
+    wrapper.addEventListener("click", async (e) => {
         if (!isHotspotClickMode) return;
         if (e.target.closest("#hotspotReticleHandle")) return;
 
@@ -6433,9 +6465,6 @@ function initHotspotReticle() {
         // Snap Reticle to clicked position
         reticle.style.left = `${xPct}%`;
         reticle.style.top = `${yPct}%`;
-
-        const label = $("reticleCoordsLabel");
-        if (label) label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
 
         const curW = Number($("hotspotW")?.value || 20);
         const curH = Number($("hotspotH")?.value || 20);
@@ -6458,9 +6487,30 @@ function initHotspotReticle() {
             saveActiveStepEditsSilent();
         }
 
+        const label = $("reticleCoordsLabel");
+        if (label) {
+            if (step?.hasActiveDemo) {
+                label.textContent = `🎯 Drag to Adjust GIF (${Math.round(xPct)}%, ${Math.round(yPct)}%)`;
+            } else {
+                label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
+            }
+        }
+
         createCanvasClickRipple(e.clientX - rect.left, e.clientY - rect.top, wrapper);
-        showToast(`🎯 Hotspot placed at (${Math.round(xPct)}%, ${Math.round(yPct)}%)!`, 2500);
         toggleHotspotClickMode(false);
+
+        const imgEl = $("guideImg");
+        const naturalW = imgEl?.naturalWidth || 1920;
+        const naturalH = imgEl?.naturalHeight || 1080;
+        const targetX = ((newLeft + (curW / 2)) / 100) * naturalW;
+        const targetY = ((newTop + (curH / 2)) / 100) * naturalH;
+
+        if (step?.hasActiveDemo) {
+            showToast("🔄 Re-generating Micro-Demo at clicked location...", 2500);
+            await triggerAnimateGeneration(step, targetX, targetY);
+        } else {
+            showToast(`🎯 Hotspot placed at (${Math.round(xPct)}%, ${Math.round(yPct)}%)!`, 2500);
+        }
     });
 
     // 3. Wire Click Mode Trigger Buttons
