@@ -2,6 +2,18 @@ const API_BASE = (typeof window !== "undefined" && window.location.protocol.star
     ? ""
     : "http://127.0.0.1:8000";
 
+function normalizeImageUrl(url) {
+    if (!url) return "";
+    let clean = String(url).trim();
+    if (clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("data:")) {
+        return clean;
+    }
+    clean = clean.replace(/\\/g, "/");
+    if (!clean.startsWith("/")) clean = "/" + clean;
+    if (clean.startsWith("/storage/")) clean = clean.replace("/storage/", "/");
+    return (API_BASE ? API_BASE : "") + clean;
+}
+
 let workflows = [];
 let selectedWorkflowId = null;
 let workflow = null;
@@ -3803,17 +3815,7 @@ async function openExportPreview(type) {
             copyBtn.classList.remove("hidden");
             currentExportDownloadAction = () => $("exportCsvBtn")?.click();
         } else if (type === "json") {
-            try {
-                const res = await fetch(`${API_BASE}/sessions/${encodeURIComponent(workflow.id)}/export/json`);
-                if (res.ok) {
-                    const jsonVal = await res.json();
-                    currentExportPreviewText = JSON.stringify(jsonVal, null, 2);
-                } else {
-                    currentExportPreviewText = JSON.stringify(workflow, null, 2);
-                }
-            } catch (_) {
-                currentExportPreviewText = JSON.stringify(workflow, null, 2);
-            }
+            currentExportPreviewText = JSON.stringify(workflow, null, 2);
             textWrap.textContent = currentExportPreviewText;
             textWrap.classList.remove("hidden");
             copyBtn.classList.remove("hidden");
@@ -3833,7 +3835,7 @@ async function openExportPreview(type) {
                                 ${esc(st.title || getDefaultTitle(st))}
                             </h2>
                             <p style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 14px 0;">${esc(st.description || getDefaultDescription(st))}</p>
-                            ${st.screenshotUrl ? `<img src="${API_BASE + st.screenshotUrl}" style="max-width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; display: block;">` : ''}
+                            ${st.screenshotUrl ? `<img src="${normalizeImageUrl(st.screenshotUrl)}" style="max-width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; display: block;">` : ''}
                             ${st.note ? `<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #92400e; margin-bottom: 8px;"><strong>Note:</strong> ${esc(st.note)}</div>` : ''}
                             ${st.expected ? `<div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #065f46;"><strong>Expected Result:</strong> ${esc(st.expected)}</div>` : ''}
                         </div>
@@ -3864,7 +3866,7 @@ async function openExportPreview(type) {
                                 <div style="font-size: 12px; font-weight: 600; color: #64748b;">Step ${st.sequence} of ${steps.length}</div>
                             </div>
                             <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; margin: 12px 0;">
-                                ${st.screenshotUrl ? `<img src="${API_BASE + st.screenshotUrl}" style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;">` : '<div style="color: #94a3b8;">No Screenshot</div>'}
+                                ${st.screenshotUrl ? `<img src="${normalizeImageUrl(st.screenshotUrl)}" style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;">` : '<div style="color: #94a3b8;">No Screenshot</div>'}
                             </div>
                             <div style="background: #f8fafc; padding: 10px 14px; border-radius: 6px; font-size: 13px; color: #334155; border-left: 3px solid #d97706;">
                                 ${esc(st.description || getDefaultDescription(st))}
@@ -4022,15 +4024,19 @@ function renderExportTab() {
 async function getBakedBase64Image(step) {
     if (!step.screenshotUrl) return "";
     
-    const imgUrl = API_BASE + step.screenshotUrl;
+    const imgUrl = normalizeImageUrl(step.screenshotUrl);
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = imgUrl;
     
-    await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
+    await new Promise((resolve) => {
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
     });
+
+    if (!img.complete || img.naturalWidth === 0) {
+        return imgUrl;
+    }
 
     const canvas = document.createElement("canvas");
     canvas.width = img.naturalWidth;
