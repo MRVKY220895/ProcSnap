@@ -2957,6 +2957,11 @@ function loadActiveStepDetails() {
         pinLabel.textContent = step.hidePin ? "OFF" : "ON";
         pinLabel.style.color = step.hidePin ? "#94a3b8" : "#10b981";
     }
+    const drawerPinLabel = $("drawerPinLabel");
+    if (drawerPinLabel) {
+        drawerPinLabel.textContent = step.hidePin ? "HIDDEN" : "VISIBLE";
+        drawerPinLabel.style.color = step.hidePin ? "#94a3b8" : "#10b981";
+    }
 
     // Populate Interactive Hotspot values (Requirement 2)
     const hs = calculateDefaultHotspot(step);
@@ -6937,22 +6942,38 @@ function initHotspotReticle() {
     setOnclick("btnPickHotspotClick", () => toggleHotspotClickMode());
     setOnclick("btnToggleLockHotspot", () => toggleHotspotLock());
 
-    const btnTogglePin = $("btnTogglePinVisibility");
-    if (btnTogglePin) {
-        btnTogglePin.onclick = () => {
-            const step = getCurrentStep();
-            if (!step) return;
-            step.hidePin = !step.hidePin;
-            const label = $("pinVisibilityLabel");
-            if (label) {
-                label.textContent = step.hidePin ? "OFF" : "ON";
-                label.style.color = step.hidePin ? "#94a3b8" : "#10b981";
+    const togglePinAction = (customStep = null) => {
+        const step = customStep || getCurrentStep();
+        if (!step) return;
+        step.hidePin = !step.hidePin;
+
+        const syncLabels = () => {
+            const vLabel = $("pinVisibilityLabel");
+            if (vLabel) {
+                vLabel.textContent = step.hidePin ? "OFF" : "ON";
+                vLabel.style.color = step.hidePin ? "#94a3b8" : "#10b981";
             }
-            updateHotspotReticlePosition(step);
-            saveActiveStepEditsSilent();
-            showToast(step.hidePin ? "🎯 Pin target hidden for this step." : "🎯 Pin target visible.");
+            const dLabel = $("drawerPinLabel");
+            if (dLabel) {
+                dLabel.textContent = step.hidePin ? "HIDDEN" : "VISIBLE";
+                dLabel.style.color = step.hidePin ? "#94a3b8" : "#10b981";
+            }
+            const pLabel = $("playPinLabel");
+            if (pLabel) {
+                pLabel.textContent = step.hidePin ? "OFF" : "ON";
+                pLabel.style.color = step.hidePin ? "#94a3b8" : "#10b981";
+            }
         };
-    }
+
+        syncLabels();
+        updateHotspotReticlePosition(step);
+        saveActiveStepEditsSilent();
+        showToast(step.hidePin ? "🎯 Pin target hidden for this step." : "🎯 Pin target visible.");
+    };
+
+    setOnclick("btnTogglePinVisibility", () => togglePinAction());
+    setOnclick("btnDrawerTogglePin", () => togglePinAction());
+    setOnclick("btnTogglePlayPinTarget", () => togglePinAction());
 
     // 4. Hotkey 'H' to toggle Hotspot Click Finder Mode
     window.addEventListener("keydown", (e) => {
