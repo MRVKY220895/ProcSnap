@@ -2620,3 +2620,192 @@ svg {
     transform: scale(1.05);
 }
 
+/* =========================================================
+   DONATE / SPONSOR MODAL
+========================================================= */
+.donate-modal-dialog {
+    max-width: 520px;
+    background: #1e293b;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.donate-options-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.donate-option-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 16px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.donate-option-card:hover {
+    transform: translateY(-2px);
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+.donate-card-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+.donate-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 2px;
+}
+.donate-card-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+.donate-creator-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+}
+.creator-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: #fff;
+    font-weight: 800;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+}
+
+/* =========================================================
+   CANVAS TOOLBAR REFINEMENT (Senior UI/UX)
+========================================================= */
+.canvas-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    background: #111827;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 8px;
+    z-index: 100;
+}
+.tool-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 3px 6px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.tool-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: #94a3b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.tool-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f8fafc;
+}
+.tool-btn.active {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+}
+.tool-divider {
+    width: 1px;
+    height: 18px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+}
+
+/* Screenshot Canvas Stage Elevation */
+.screenshot-stage {
+    background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.canvas-wrapper {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+/* Light Theme Complete Harmonization */
+[data-theme="light"] .screenshot-stage {
+    background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%) !important;
+}
+[data-theme="light"] .canvas-wrapper {
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+[data-theme="light"] .tool-group {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .tool-btn {
+    color: #475569 !important;
+}
+[data-theme="light"] .tool-btn:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .tool-btn.active {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+}
+[data-theme="light"] .tool-divider {
+    background: #cbd5e1 !important;
+}
+[data-theme="light"] .sidebar-stats {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .tag-chip {
+    background: #e2e8f0 !important;
+    color: #334155 !important;
+    border-color: #cbd5e1 !important;
+}
+[data-theme="light"] .tag-chip.active {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+}
+[data-theme="light"] .donate-modal-dialog {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .donate-card-title {
+    color: #0f172a !important;
+}
+[data-theme="light"] .donate-option-card {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .donate-creator-box {
+    background: #e0e7ff !important;
+    border-color: #c7d2fe !important;
+}
+
+

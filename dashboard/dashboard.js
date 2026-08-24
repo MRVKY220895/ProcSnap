@@ -286,6 +286,20 @@ async function init() {
         };
     }
 
+    // ── Support / Donate Modal Binding ─────────────────────────────────────────
+    const donateBtn = $("donateBtn");
+    const donateModal = $("donateModal");
+    const donateClose = $("donateModalClose");
+    const donateDone = $("donateModalDoneBtn");
+    if (donateBtn && donateModal) {
+        donateBtn.onclick = () => donateModal.classList.remove("hidden");
+        if (donateClose) donateClose.onclick = () => donateModal.classList.add("hidden");
+        if (donateDone) donateDone.onclick = () => donateModal.classList.add("hidden");
+        donateModal.onclick = (e) => {
+            if (e.target === donateModal) donateModal.classList.add("hidden");
+        };
+    }
+
     // ── Theme Toggle (Light/Dark) ──────────────────────────────────────────────
     const themeToggleBtn = $("themeToggleBtn");
     const applyTheme = (theme) => {

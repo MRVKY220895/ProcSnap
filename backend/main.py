@@ -2398,6 +2398,17 @@ Write-Output "OK:$outPath"
                 except Exception as e:
                     errors.append(f"capture_screen.py: {e}")
 
+            # ── Method 5: macOS native screencapture CLI ──────────────────────────
+            if not captured and sys.platform == "darwin":
+                try:
+                    result = subprocess.run(["screencapture", "-x", file_path_str], capture_output=True, timeout=10)
+                    if result.returncode == 0 and file_path.exists() and file_path.stat().st_size > 1000:
+                        captured = True
+                    else:
+                        errors.append(f"screencapture: rc={result.returncode}")
+                except Exception as e:
+                    errors.append(f"screencapture: {e}")
+
             if not captured:
                 raise RuntimeError(f"All capture methods failed: {'; '.join(errors)}")
 
