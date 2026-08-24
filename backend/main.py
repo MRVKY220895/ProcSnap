@@ -2356,8 +2356,14 @@ def crop_step_screenshot(session_id: str, step_id: int, request: CropScreenshotR
 # ANIMATED STEP MICRO-DEMO GENERATOR (GIF)
 # =========================================================
 
+class StepAnimatePayload(BaseModel):
+    target_x: Optional[float] = None
+    target_y: Optional[float] = None
+    x_pct: Optional[float] = None
+    y_pct: Optional[float] = None
+
 @app.post("/sessions/{session_id}/steps/{step_id}/animate")
-def generate_step_animation(session_id: str, step_id: int):
+def generate_step_animation(session_id: str, step_id: int, payload: Optional[StepAnimatePayload] = Body(default=None)):
     """
     Generates a 14-frame animated micro-demo GIF for the step.
     Interpolates a simulated moving cursor towards the hotspot coordinate,
@@ -2392,25 +2398,35 @@ def generate_step_animation(session_id: str, step_id: int):
         base_img = Image.open(img_path).convert("RGBA")
         width, height = base_img.size
 
-        # Check annotations for custom hotspot coordinates first
-        anno_row = cursor.execute(
-            "SELECT data FROM step_annotations WHERE step_id = ?",
-            (step_id,)
-        ).fetchone()
-
         target_x, target_y = None, None
-        if anno_row and anno_row["data"]:
-            try:
-                annos = json.loads(anno_row["data"])
-                for a in annos:
-                    if a.get("type") in ("spotlight", "rect", "circle", "badge") and "x" in a and "y" in a:
-                        target_x = float(a["x"]) + (float(a.get("w", 0)) / 2.0)
-                        target_y = float(a["y"]) + (float(a.get("h", 0)) / 2.0)
-                        break
-            except Exception:
-                pass
 
-        # Fallback to DOM element screen coordinates
+        # 1. Client-provided coordinates (exact frontend canvas/DOM alignment)
+        if payload:
+            if payload.target_x is not None and payload.target_y is not None:
+                target_x = float(payload.target_x)
+                target_y = float(payload.target_y)
+            elif payload.x_pct is not None and payload.y_pct is not None:
+                target_x = (float(payload.x_pct) / 100.0) * width
+                target_y = (float(payload.y_pct) / 100.0) * height
+
+        # 2. Check annotations for custom hotspot coordinates
+        if target_x is None:
+            anno_row = cursor.execute(
+                "SELECT data FROM step_annotations WHERE step_id = ?",
+                (step_id,)
+            ).fetchone()
+            if anno_row and anno_row["data"]:
+                try:
+                    annos = json.loads(anno_row["data"])
+                    for a in annos:
+                        if a.get("type") in ("spotlight", "rect", "circle", "badge") and "x" in a and "y" in a:
+                            target_x = float(a["x"]) + (float(a.get("w", 0)) / 2.0)
+                            target_y = float(a["y"]) + (float(a.get("h", 0)) / 2.0)
+                            break
+                except Exception:
+                    pass
+
+        # 3. Fallback to DOM element screen coordinates
         if target_x is None and step["element_json"]:
             try:
                 elem = json.loads(step["element_json"])
@@ -2431,7 +2447,7 @@ def generate_step_animation(session_id: str, step_id: int):
             except Exception as ex:
                 print("Error parsing element_json coords:", ex)
 
-        # Fallback to center of image if completely unspecified
+        # 4. Fallback to center of image if completely unspecified
         if target_x is None:
             target_x = width * 0.5
             target_y = height * 0.5
@@ -2441,8 +2457,13 @@ def generate_step_animation(session_id: str, step_id: int):
         target_y = max(24.0, min(float(height) - 24.0, target_y))
 
         # Start position (offset down-right for smooth trajectory)
-        start_x = min(float(width) - 30.0, target_x + 160.0)
-        start_y = min(float(height) - 30.0, target_y + 130.0)
+        offset_dist_x = max(180.0, float(width) * 0.15)
+        offset_dist_y = max(140.0, float(height) * 0.12)
+        start_x = min(float(width) - 30.0, target_x + offset_dist_x)
+        start_y = min(float(height) - 30.0, target_y + offset_dist_y)
+        if start_x <= target_x + 20 and start_y <= target_y + 20:
+            start_x = max(30.0, target_x - offset_dist_x)
+            start_y = max(30.0, target_y - offset_dist_y)
 
         frames = []
         total_frames = 14

@@ -5963,14 +5963,57 @@ if (btnGenerateAnimation) {
         btnGenerateAnimation.innerHTML = `<span>⏳</span> Generating...`;
         
         try {
+            // Calculate precise target coordinate from active canvas / element / annotations
+            const imgEl = $("guideImg");
+            const naturalW = imgEl?.naturalWidth || 1920;
+            const naturalH = imgEl?.naturalHeight || 1080;
+            
+            let targetX = null;
+            let targetY = null;
+            
+            // 1. From active annotations
+            const annos = getStepAnnotations(step);
+            for (const a of annos) {
+                if (["spotlight", "rect", "circle", "badge"].includes(a.type) && a.x !== undefined && a.y !== undefined) {
+                    targetX = Number(a.x) + (Number(a.w || 0) / 2);
+                    targetY = Number(a.y) + (Number(a.h || 0) / 2);
+                    break;
+                }
+            }
+            
+            // 2. From DOM element.screen (red dashed focus box)
+            if (targetX === null && step.element?.screen) {
+                const sc = step.element.screen;
+                const sw = Number(sc.viewportWidth || naturalW);
+                const sh = Number(sc.viewportHeight || naturalH);
+                const scaleX = naturalW / Math.max(1, sw);
+                const scaleY = naturalH / Math.max(1, sh);
+                targetX = (Number(sc.x || 0) + (Number(sc.width || 0) / 2)) * scaleX;
+                targetY = (Number(sc.y || 0) + (Number(sc.height || 0) / 2)) * scaleY;
+            }
+            
+            // 3. Fallback to default hotspot percentages
+            if (targetX === null) {
+                const hs = calculateDefaultHotspot(step);
+                targetX = ((hs.xPct + (hs.wPct / 2)) / 100) * naturalW;
+                targetY = ((hs.yPct + (hs.hPct / 2)) / 100) * naturalH;
+            }
+            
+            const payload = {
+                target_x: targetX,
+                target_y: targetY,
+                x_pct: (targetX / naturalW) * 100,
+                y_pct: (targetY / naturalH) * 100
+            };
+            
             const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/animate`, {
-                method: "POST"
+                method: "POST",
+                body: JSON.stringify(payload)
             });
             if (res.success && res.gif_url) {
                 step.hasActiveDemo = true;
-                const imgEl = $("guideImg");
                 if (imgEl) {
-                    imgEl.src = `${API_BASE + res.gif_url}?t=${Date.now()}`;
+                    imgEl.src = `${normalizeImageUrl(res.gif_url)}?t=${Date.now()}`;
                     imgEl.classList.remove("hidden");
                 }
                 updateDemoButtonState(step);
