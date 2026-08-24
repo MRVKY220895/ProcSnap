@@ -100,27 +100,30 @@
                     <!-- Workflow Info Header -->
                     <div class="workflow-header">
                         <div class="wf-title-section">
-                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <div class="wf-title-main-row" style="display: flex; align-items: center; gap: 8px;">
                                 <span id="detailApplication" class="application-badge">Chrome</span>
                                 <h2 id="detailName" class="workflow-name-display" contenteditable="true" title="Click to rename">Untitled Workflow</h2>
-                            </div>
-                            <div class="wf-tags-row" id="wfTagsRow">
-                                <span class="wf-tags-icon" title="Categories / Tags">🏷️</span>
-                                <div id="wfTagsContainer" class="wf-tags-container"></div>
-                                <button id="addTagBtn" class="btn-add-tag" title="Add category tag">+ Tag</button>
-                                <div id="detailMeta" class="detail-meta">0 steps • Completed</div>
                                 <!-- Auto Save Status Indicator -->
                                 <div id="autoSaveIndicator" class="auto-save-badge hidden">
                                     <span class="auto-save-icon">✓</span>
                                     <span id="autoSaveText">Saved</span>
                                 </div>
                             </div>
-                            <!-- Approval Progress Bar -->
-                            <div id="approvalProgressWrap" class="approval-progress-wrap hidden">
-                                <div class="approval-progress-bar-bg">
-                                    <div id="approvalProgressFill" class="approval-progress-fill" style="width:0%"></div>
+                            <div class="wf-title-meta-row" style="display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap;">
+                                <div class="wf-tags-row" id="wfTagsRow" style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="wf-tags-icon" title="Categories / Tags">🏷️</span>
+                                    <div id="wfTagsContainer" class="wf-tags-container"></div>
+                                    <button id="addTagBtn" class="btn-add-tag" title="Add category tag">+ Tag</button>
                                 </div>
-                                <span id="approvalProgressLabel" class="approval-progress-label">0 / 0 approved</span>
+                                <span style="color: var(--text-muted); font-size: 11px;">•</span>
+                                <div id="detailMeta" class="detail-meta">0 steps • Completed</div>
+                                <!-- Approval Progress Bar -->
+                                <div id="approvalProgressWrap" class="approval-progress-wrap hidden">
+                                    <div class="approval-progress-bar-bg">
+                                        <div id="approvalProgressFill" class="approval-progress-fill" style="width:0%"></div>
+                                    </div>
+                                    <span id="approvalProgressLabel" class="approval-progress-label">0 / 0 approved</span>
+                                </div>
                             </div>
                         </div>
                         <div class="header-actions">

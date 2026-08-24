@@ -3156,6 +3156,135 @@ svg {
 }
 [data-theme="light"] .drawer-accordion-content {
     border-top-color: #e2e8f0 !important;
+    background: #ffffff !important;
 }
+
+/* =========================================================
+   PIXEL-PERFECT UI/UX & THEME HARMONIZATION (Senior Designer)
+========================================================= */
+/* Sidebar Stats Enhancement */
+.sidebar-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.stat-num {
+    font-size: 14px;
+    font-weight: 800;
+    color: #818cf8;
+    line-height: 1.2;
+}
+.stat-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+[data-theme="light"] .sidebar-stats {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .stat-num {
+    color: #4f46e5 !important;
+}
+[data-theme="light"] .stat-label {
+    color: #64748b !important;
+}
+
+/* Sidebar Workflow Cards Fix */
+.workflow-card {
+    padding: 11px 13px !important;
+    border-radius: 10px !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.workflow-card .workflow-name {
+    max-width: 175px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-weight: 700 !important;
+}
+.workflow-card .status {
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    font-size: 9.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.03em !important;
+    text-transform: uppercase !important;
+    flex-shrink: 0 !important;
+}
+.workflow-card .status.completed {
+    background: rgba(16, 185, 129, 0.12) !important;
+    color: #10b981 !important;
+}
+[data-theme="light"] .workflow-card .status.completed {
+    background: #ecfdf5 !important;
+    color: #059669 !important;
+    border: 1px solid #a7f3d0 !important;
+}
+
+/* Right Inspector High-Contrast Form Inputs in Light Mode */
+[data-theme="light"] .step-detail-drawer {
+    background: #ffffff !important;
+    border-left-color: #e2e8f0 !important;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.04) !important;
+}
+[data-theme="light"] .guide-card-header {
+    background: #f8fafc !important;
+    border-bottom-color: #e2e8f0 !important;
+}
+[data-theme="light"] .guide-card-body {
+    background: #ffffff !important;
+}
+[data-theme="light"] .guide-card-footer {
+    background: #f8fafc !important;
+    border-top-color: #e2e8f0 !important;
+}
+[data-theme="light"] .field-group label,
+[data-theme="light"] .coord-field label {
+    color: #475569 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+}
+[data-theme="light"] .form-control,
+[data-theme="light"] .coord-input,
+[data-theme="light"] textarea {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+[data-theme="light"] .form-control:focus,
+[data-theme="light"] .coord-input:focus,
+[data-theme="light"] textarea:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+[data-theme="light"] .meta-label {
+    color: #64748b !important;
+}
+[data-theme="light"] .meta-val {
+    color: #0f172a !important;
+}
+[data-theme="light"] .meta-val-code {
+    background: #f1f5f9 !important;
+    color: #4338ca !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
 
 
