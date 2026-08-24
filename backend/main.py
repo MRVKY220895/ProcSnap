@@ -1503,6 +1503,97 @@ def start_ollama():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+def _find_ollama_path() -> str | None:
+    """Locate the ollama executable."""
+    p = shutil.which("ollama")
+    if p:
+        return p
+    for candidate in [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe",
+        Path(os.environ.get("ProgramFiles", "")) / "Ollama" / "ollama.exe",
+        Path(os.environ.get("ProgramFiles(x86)", "")) / "Ollama" / "ollama.exe",
+    ]:
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+@app.post("/ai/pull-models")
+def pull_ai_models():
+    """
+    Pull the required AI models (moondream + qwen2.5) via `ollama pull`.
+    Runs both pulls sequentially and returns combined log output.
+    The endpoint will block until complete (can take 5-30 min depending on connection).
+    """
+    ollama_path = _find_ollama_path()
+    if not ollama_path:
+        return {
+            "success": False,
+            "output": "❌ Ollama executable not found. Please install Ollama first via https://ollama.com/download",
+            "models_pulled": []
+        }
+
+    # Make sure the service is running before pulling
+    if not get_ollama_heartbeat():
+        try:
+            subprocess.Popen([ollama_path, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            import time
+            for _ in range(15):
+                time.sleep(1)
+                if get_ollama_heartbeat():
+                    break
+        except Exception:
+            pass
+
+    models_to_pull = [
+        ("moondream", "Vision AI — describes screenshots automatically"),
+        ("qwen2.5",   "Text AI — polishes and refines SOP descriptions"),
+    ]
+
+    combined_output = []
+    models_pulled = []
+
+    for model_name, model_purpose in models_to_pull:
+        # Skip if already installed
+        installed_names = [m.split(":")[0] for m in get_installed_models()]
+        if model_name in installed_names:
+            combined_output.append(f"✓ {model_name} — already installed, skipping pull.")
+            models_pulled.append(model_name)
+            continue
+
+        combined_output.append(f"\n⬇ Pulling {model_name} ({model_purpose})...")
+        try:
+            result = subprocess.run(
+                [ollama_path, "pull", model_name],
+                capture_output=True,
+                text=True,
+                timeout=1800  # 30 min max
+            )
+            stdout = result.stdout.strip()
+            stderr = result.stderr.strip()
+            if result.returncode == 0:
+                combined_output.append(f"✓ {model_name} pulled successfully.")
+                models_pulled.append(model_name)
+            else:
+                combined_output.append(f"✗ {model_name} pull failed (exit {result.returncode}).")
+                if stderr:
+                    combined_output.append(f"  Error: {stderr[:400]}")
+        except subprocess.TimeoutExpired:
+            combined_output.append(f"✗ {model_name} pull timed out after 30 minutes.")
+        except Exception as e:
+            combined_output.append(f"✗ {model_name} pull error: {str(e)}")
+
+    all_ok = all(m in models_pulled for m, _ in models_to_pull)
+    summary = "\n✅ All required AI models are ready!" if all_ok else "\n⚠️ Some models could not be pulled. Check your internet connection and try again."
+    combined_output.append(summary)
+
+    return {
+        "success": all_ok,
+        "output": "\n".join(combined_output),
+        "models_pulled": models_pulled,
+    }
+
 class TTSRequest(BaseModel):
     text: Optional[str] = None
     voice: str = "en-US-AriaNeural"
@@ -2602,3 +2693,75 @@ def open_extension_installer():
             return {"success": False, "message": str(e)}
     return {"success": False, "message": "install_extension.bat not found."}
 
+
+@app.post("/system/git-pull")
+def git_pull_latest():
+    """
+    Pull the latest commits from origin/main into the local installation.
+    Uses git executable from common Windows install paths.
+    Returns combined stdout+stderr output so the dashboard can display it.
+    """
+    # Locate git executable
+    git_exe = shutil.which("git")
+    if not git_exe:
+        common_paths = [
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Git" / "cmd" / "git.exe",
+            Path("C:/Program Files/Git/cmd/git.exe"),
+            Path("C:/Program Files (x86)/Git/cmd/git.exe"),
+        ]
+        for p in common_paths:
+            if p.exists():
+                git_exe = str(p)
+                break
+
+    if not git_exe:
+        return {
+            "success": False,
+            "output": (
+                "❌ Git not found on this machine.\n"
+                "Download and install Git from https://git-scm.com/download/win\n"
+                "Then re-run this update."
+            )
+        }
+
+    repo_root = BASE_DIR.parent  # project root (one level above backend/)
+    output_lines = [f"📁 Repository root: {repo_root}", f"🔧 Git: {git_exe}", ""]
+
+    # Ensure remote is set correctly
+    try:
+        subprocess.run(
+            [git_exe, "remote", "set-url", "origin", "https://github.com/MRVKY220895/ProcSnap.git"],
+            cwd=str(repo_root), capture_output=True, text=True, timeout=15
+        )
+        output_lines.append("✓ Remote origin verified.")
+    except Exception as e:
+        output_lines.append(f"⚠ Could not set remote: {e}")
+
+    # Run git pull
+    output_lines.append("\n⬇ Running: git pull origin main ...\n")
+    try:
+        result = subprocess.run(
+            [git_exe, "pull", "origin", "main"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}  # disable interactive prompts
+        )
+        if result.stdout:
+            output_lines.append(result.stdout.strip())
+        if result.stderr:
+            output_lines.append(result.stderr.strip())
+
+        success = result.returncode == 0
+        if success:
+            output_lines.append("\n✅ Update complete! Please restart ProcSnap to apply changes.")
+        else:
+            output_lines.append(f"\n⚠ git pull exited with code {result.returncode}.")
+            output_lines.append("If you see authentication errors, the repo may be private or requires a token.")
+
+        return {"success": success, "output": "\n".join(output_lines)}
+    except subprocess.TimeoutExpired:
+        return {"success": False, "output": "\n".join(output_lines) + "\n\n⏰ Timed out after 2 minutes."}
+    except Exception as e:
+        return {"success": False, "output": "\n".join(output_lines) + f"\n\n❌ Error: {str(e)}"}

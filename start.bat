@@ -77,6 +77,28 @@ if errorlevel 1 (
 echo [OK] Dependencies ready.
 
 :: ─────────────────────────────────────────────
+:: STEP 3b: Optional — Check for GitHub updates
+:: ─────────────────────────────────────────────
+where git >nul 2>&1
+if not errorlevel 1 (
+    set /p CHECK_UPDATES="[?] Check for updates from GitHub? (Y/N) [default: N]: "
+    if /i "!CHECK_UPDATES!"=="Y" (
+        echo.
+        echo [..] Pulling latest changes from GitHub...
+        set "PATH=%LOCALAPPDATA%\Programs\Git\cmd;%PATH%"
+        git remote set-url origin https://github.com/MRVKY220895/ProcSnap.git >nul 2>&1
+        git pull origin main
+        echo.
+        if errorlevel 1 (
+            echo [NOTE] git pull encountered an issue - continuing with local version.
+        ) else (
+            echo [OK] Up to date!
+        )
+        echo.
+    )
+)
+
+:: ─────────────────────────────────────────────
 :: STEP 4: Start backend server (with automatic port fallback)
 :: ─────────────────────────────────────────────
 set "APP_PORT=8000"

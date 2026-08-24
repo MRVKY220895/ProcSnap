@@ -138,16 +138,18 @@ async function checkStatus() {
         if (res.diagnostic_message && statusEl) {
             statusEl.title = res.diagnostic_message;
         }
+        const aiReady = res.running && res.required_models_present;
         if (res.running) {
             if (res.required_models_present) {
                 statusEl.textContent = "AI Connected";
                 statusEl.className = "api-status online";
                 statusEl.removeAttribute("style");
             } else {
-                statusEl.textContent = "AI Pulling Models";
+                statusEl.textContent = "AI: Pull Models";
                 statusEl.style.backgroundColor = "rgba(234, 179, 8, 0.12)";
                 statusEl.style.color = "#d97706";
                 statusEl.className = "api-status";
+                statusEl.title = res.diagnostic_message || "Open Requirements → Pull AI Models to download moondream & qwen2.5";
             }
             if ($("startOllamaBtn")) $("startOllamaBtn").classList.add("hidden");
         } else {
@@ -156,6 +158,24 @@ async function checkStatus() {
             statusEl.removeAttribute("style");
             if ($("startOllamaBtn")) $("startOllamaBtn").classList.remove("hidden");
         }
+        // Toggle AI feature buttons so users know they are optional / unavailable
+        const aiOfflineHint = aiReady ? "" : "AI offline — open 🛠️ Requirements → Pull AI Models to enable";
+        ["aiEnhanceStepBtn", "aiPolishBtn"].forEach(id => {
+            const el = $(id);
+            if (!el) return;
+            if (aiReady) {
+                el.removeAttribute("disabled");
+                el.style.opacity = "";
+                el.style.cursor = "";
+                el.title = el.getAttribute("data-original-title") || el.title;
+            } else {
+                el.setAttribute("disabled", "true");
+                el.style.opacity = "0.4";
+                el.style.cursor = "not-allowed";
+                if (!el.getAttribute("data-original-title")) el.setAttribute("data-original-title", el.title);
+                el.title = aiOfflineHint;
+            }
+        });
     } catch (e) {
         const statusEl = $("aiStatus");
         if (statusEl) {
@@ -165,6 +185,16 @@ async function checkStatus() {
             statusEl.removeAttribute("style");
         }
         if ($("startOllamaBtn")) $("startOllamaBtn").classList.remove("hidden");
+        // Disable AI buttons when offline
+        ["aiEnhanceStepBtn", "aiPolishBtn"].forEach(id => {
+            const el = $(id);
+            if (!el) return;
+            el.setAttribute("disabled", "true");
+            el.style.opacity = "0.4";
+            el.style.cursor = "not-allowed";
+            if (!el.getAttribute("data-original-title")) el.setAttribute("data-original-title", el.title);
+            el.title = "AI offline — open 🛠️ Requirements → Pull AI Models to enable";
+        });
     }
 }
 
@@ -4201,6 +4231,81 @@ function openSystemRequirementsModal() {
             } finally {
                 btnAi.disabled = false;
                 btnAi.textContent = "🤖 Start Ollama AI";
+            }
+        };
+    }
+
+    // Pull AI Models — downloads moondream + qwen2.5 via ollama pull
+    const btnPullModels = $("btnPullModels");
+    if (btnPullModels) {
+        btnPullModels.onclick = async () => {
+            const terminalWrap  = $("repairTerminalWrapper");
+            const terminalOut   = $("repairTerminalOutput");
+            const terminalLabel = $("repairTerminalLabel");
+            const terminalStatus = $("repairTerminalStatus");
+            if (terminalWrap) terminalWrap.classList.remove("hidden");
+            if (terminalLabel) terminalLabel.textContent = "AI Model Download Output";
+            if (terminalStatus) { terminalStatus.textContent = "Downloading models…"; terminalStatus.style.color = "#a5b4fc"; }
+            if (terminalOut) terminalOut.textContent = "⬇ Initiating AI model downloads…\n\nThis can take 5–30 min depending on your internet speed.\nmoondream ≈ 1.7 GB  |  qwen2.5 ≈ 4.7 GB\n\nPlease keep this window open…";
+
+            btnPullModels.disabled = true;
+            btnPullModels.textContent = "⬇️ Pulling Models...";
+
+            try {
+                const res = await api("/ai/pull-models", { method: "POST", timeout: 2100000 }); // 35 min max
+                if (terminalOut) terminalOut.textContent = res.output || "Pull finished.";
+                if (res.success) {
+                    if (terminalStatus) { terminalStatus.textContent = "✓ Models Ready"; terminalStatus.style.color = "#34d399"; }
+                    showToast("✅ AI models downloaded successfully! Ollama is fully operational.");
+                } else {
+                    if (terminalStatus) { terminalStatus.textContent = "✗ Pull Failed"; terminalStatus.style.color = "#f87171"; }
+                    showToast("Model pull encountered issues — check the output log.");
+                }
+                await loadSystemRequirements();
+            } catch(e) {
+                if (terminalOut) terminalOut.textContent = "Request error: " + e.message + "\n\nTip: If this timed out, the models may still be downloading in the background.";
+                if (terminalStatus) { terminalStatus.textContent = "✗ Error"; terminalStatus.style.color = "#f87171"; }
+                showToast("Pull models error: " + e.message);
+            } finally {
+                btnPullModels.disabled = false;
+                btnPullModels.textContent = "⬇️ Pull AI Models";
+            }
+        };
+    }
+
+    // Pull Latest Update from GitHub
+    const btnGitPull = $("btnGitPull");
+    if (btnGitPull) {
+        btnGitPull.onclick = async () => {
+            const terminalWrap   = $("repairTerminalWrapper");
+            const terminalOut    = $("repairTerminalOutput");
+            const terminalLabel  = $("repairTerminalLabel");
+            const terminalStatus = $("repairTerminalStatus");
+            if (terminalWrap) terminalWrap.classList.remove("hidden");
+            if (terminalLabel) terminalLabel.textContent = "GitHub Update Output";
+            if (terminalStatus) { terminalStatus.textContent = "Pulling…"; terminalStatus.style.color = "#a5b4fc"; }
+            if (terminalOut) terminalOut.textContent = "⬇ Connecting to GitHub…\n";
+
+            btnGitPull.disabled = true;
+            btnGitPull.textContent = "⬇️ Pulling...";
+
+            try {
+                const res = await api("/system/git-pull", { method: "POST", timeout: 180000 });
+                if (terminalOut) terminalOut.textContent = res.output || "git pull finished.";
+                if (res.success) {
+                    if (terminalStatus) { terminalStatus.textContent = "✓ Up to date"; terminalStatus.style.color = "#34d399"; }
+                    showToast("✅ ProcSnap updated! Please restart the server to apply changes.");
+                } else {
+                    if (terminalStatus) { terminalStatus.textContent = "✗ Failed"; terminalStatus.style.color = "#f87171"; }
+                    showToast("git pull encountered issues — check the output log.");
+                }
+            } catch(e) {
+                if (terminalOut) terminalOut.textContent = "git pull error: " + e.message;
+                if (terminalStatus) { terminalStatus.textContent = "✗ Error"; terminalStatus.style.color = "#f87171"; }
+                showToast("git pull failed: " + e.message);
+            } finally {
+                btnGitPull.disabled = false;
+                btnGitPull.textContent = "⬇️ Pull Latest Update";
             }
         };
     }
