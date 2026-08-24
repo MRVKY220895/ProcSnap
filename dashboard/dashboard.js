@@ -3705,12 +3705,10 @@ function renderStepsTab() {
                     showToast("Step deleted");
                     renderStepsTab();
                     renderStepThumbnails();
-                } catch(err) {
-                    showToast(`Delete failed: ${err.message}`);
-                }
-            }
-        };
-    });
+    // Auto-update BPMN Flowchart if active in Split or BPMN view
+    if (typeof bpmnEngine !== 'undefined' && bpmnEngine.currentMode !== 'cards') {
+        bpmnEngine.render();
+    }
 }
 
 // =========================================================
@@ -8447,12 +8445,498 @@ function initDesktopRecorderModal() {
             } catch (e) {
                 console.error("Desktop recorder stop error:", e);
                 showToast("Failed to stop recording: " + e.message);
-                stopBtn.disabled = false;
-                stopBtn.innerHTML = `⏹ Stop & Open Studio`;
+// =========================================================
+// 📊 INTERACTIVE BPMN 2.0 & PROCESS FLOW ENGINE
+// =========================================================
+
+class BpmnFlowchartEngine {
+    constructor() {
+        this.currentMode = "cards"; // "cards", "bpmn", "split"
+        this.zoom = 1;
+        this.panX = 40;
+        this.panY = 60;
+        this.isPanning = false;
+        this.startPan = { x: 0, y: 0 };
+        this.showSwimlanes = true;
+        this.nodes = [];
+        this.connections = [];
+    }
+
+    init() {
+        // 1. View Mode Switcher
+        const modes = ["cards", "bpmn", "split"];
+        modes.forEach(mode => {
+            const btn = $(`btnViewMode${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
+            if (btn) {
+                btn.onclick = () => this.setMode(mode);
             }
+        });
+
+        // 2. Swimlane Toggle
+        const swimBtn = $("btnToggleBpmnSwimlanes");
+        if (swimBtn) {
+            swimBtn.onclick = () => {
+                this.showSwimlanes = !this.showSwimlanes;
+                const label = $("bpmnSwimlaneLabel");
+                if (label) {
+                    label.textContent = this.showSwimlanes ? "ON" : "OFF";
+                    label.style.color = this.showSwimlanes ? "#10b981" : "#94a3b8";
+                }
+                this.render();
+                showToast(this.showSwimlanes ? "🏊 Swimlanes Enabled" : "🏊 Swimlanes Disabled");
+            };
+        }
+
+        // 3. Zoom Controls
+        setOnclick("btnBpmnZoomIn", () => this.setZoom(this.zoom + 0.15));
+        setOnclick("btnBpmnZoomOut", () => this.setZoom(this.zoom - 0.15));
+        setOnclick("btnBpmnFit", () => this.fitToScreen());
+
+        // 4. Pan & Drag Canvas
+        const stage = $("bpmnCanvasStage");
+        if (stage) {
+            stage.addEventListener("mousedown", (e) => {
+                if (e.target.closest(".bpmn-node-group") || e.target.closest("button")) return;
+                this.isPanning = true;
+                this.startPan = { x: e.clientX - this.panX, y: e.clientY - this.panY };
+                stage.classList.add("panning");
+            });
+
+            window.addEventListener("mousemove", (e) => {
+                if (!this.isPanning) return;
+                this.panX = e.clientX - this.startPan.x;
+                this.panY = e.clientY - this.startPan.y;
+                this.updateTransform();
+            });
+
+            window.addEventListener("mouseup", () => {
+                this.isPanning = false;
+                stage.classList.remove("panning");
+            });
+
+            // Wheel Zoom
+            stage.addEventListener("wheel", (e) => {
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.1 : -0.1;
+                this.setZoom(this.zoom + delta);
+            }, { passive: false });
+        }
+
+        // 5. Add Decision Branch Gateway
+        setOnclick("btnBpmnAddBranch", () => {
+            const step = getCurrentStep();
+            if (!step) {
+                showToast("Please select a step to add decision branches");
+                return;
+            }
+            const targetSeq = prompt("Enter Target Step Number to branch to:", String(Math.min((workflow.steps || []).length, Number(step.sequence || 1) + 2)));
+            if (!targetSeq) return;
+            const label = prompt("Enter Branch Condition Label (e.g., 'If Approved', 'On Error'):", "If Condition Met");
+            
+            if (!step.branches) step.branches = [];
+            step.branches.push({
+                target_sequence: parseInt(targetSeq, 10),
+                label: label || "Alternative Path"
+            });
+            saveActiveStepEditsSilent();
+            this.render();
+            showToast(`🔀 Decision branch added: ${label} ➔ Step ${targetSeq}`);
+        });
+
+        // 6. Export Actions
+        setOnclick("btnBpmnExportSvg", () => this.exportSvg());
+        setOnclick("btnBpmnExportPng", () => this.exportPng());
+        setOnclick("btnBpmnCopyMermaid", () => this.copyMermaid());
+    }
+
+    setMode(mode) {
+        this.currentMode = mode;
+        const layout = $("stepsDualViewLayout");
+        const workspace = $("stepBpmnFlowchartWorkspace");
+        if (!layout) return;
+
+        layout.className = `steps-dual-view-layout view-${mode}`;
+
+        document.querySelectorAll(".view-mode-btn").forEach(b => {
+            b.classList.toggle("active", b.dataset.mode === mode);
+        });
+
+        if (mode === "bpmn" || mode === "split") {
+            if (workspace) workspace.classList.remove("hidden");
+            setTimeout(() => this.render(), 50);
+        }
+    }
+
+    setZoom(val) {
+        this.zoom = Math.max(0.3, Math.min(2.5, val));
+        const label = $("bpmnZoomLabel");
+        if (label) label.textContent = `${Math.round(this.zoom * 100)}%`;
+        this.updateTransform();
+    }
+
+    fitToScreen() {
+        this.zoom = 1;
+        this.panX = 40;
+        this.panY = 60;
+        const label = $("bpmnZoomLabel");
+        if (label) label.textContent = "100%";
+        this.updateTransform();
+    }
+
+    updateTransform() {
+        const group = $("bpmnViewportGroup");
+        if (group) {
+            group.setAttribute("transform", `translate(${this.panX}, ${this.panY}) scale(${this.zoom})`);
+        }
+    }
+
+    getActionIcon(action) {
+        switch ((action || "").toLowerCase()) {
+            case "input": return "⌨️";
+            case "click": return "👆";
+            case "keypress_enter": return "↵";
+            case "navigate": return "🌐";
+            case "keyboard_shortcut": return "⚡";
+            default: return "📌";
+        }
+    }
+
+    render() {
+        if (!workflow || !workflow.steps) return;
+        const steps = workflow.steps.filter(s => !s.hidden);
+        if (steps.length === 0) return;
+
+        const swimlanesLayer = $("bpmnSwimlanesLayer");
+        const connectorsLayer = $("bpmnConnectorsLayer");
+        const nodesLayer = $("bpmnNodesLayer");
+        if (!swimlanesLayer || !connectorsLayer || !nodesLayer) return;
+
+        swimlanesLayer.innerHTML = "";
+        connectorsLayer.innerHTML = "";
+        nodesLayer.innerHTML = "";
+
+        const nodeW = 210;
+        const nodeH = 76;
+        const gapX = 70;
+        const gapY = 120;
+        const startX = 60;
+        const startY = 80;
+
+        let curX = startX;
+        let curY = startY;
+
+        this.nodes = [];
+        this.connections = [];
+
+        // 1. Draw Start Event Node (BPMN Green Circle)
+        const startNode = {
+            id: "start",
+            type: "start",
+            x: curX,
+            y: curY + (nodeH / 2) - 18,
+            w: 36,
+            h: 36
         };
+        this.nodes.push(startNode);
+
+        nodesLayer.innerHTML += `
+            <g class="bpmn-node-group" transform="translate(${startNode.x}, ${startNode.y})">
+                <circle cx="18" cy="18" r="18" class="bpmn-start-event" />
+                <polygon points="14,10 26,18 14,26" fill="#ffffff" />
+                <text x="18" y="48" font-size="10" font-weight="700" fill="#10b981" text-anchor="middle">START</text>
+            </g>
+        `;
+
+        curX += 36 + gapX;
+
+        // Group steps by domain for Swimlanes
+        const domainGroups = {};
+        steps.forEach(st => {
+            let domain = "Application / Web";
+            if (st.url) {
+                try { domain = new URL(st.url).hostname || "Web App"; } catch { domain = "Web App"; }
+            }
+            if (!domainGroups[domain]) domainGroups[domain] = [];
+            domainGroups[domain].push(st);
+        });
+
+        // 2. Compute Node Positions & Generate Activity / Gateway Nodes
+        steps.forEach((st, idx) => {
+            const hasBranches = (st.branches && st.branches.length > 0);
+            
+            const taskNode = {
+                id: `step-${st.sequence}`,
+                step: st,
+                type: "task",
+                x: curX,
+                y: curY,
+                w: nodeW,
+                h: nodeH
+            };
+            this.nodes.push(taskNode);
+
+            // Connect previous node to this node
+            const prevNode = idx === 0 ? startNode : this.nodes[this.nodes.length - 2];
+            this.connections.push({
+                from: prevNode,
+                to: taskNode,
+                type: "sequence"
+            });
+
+            // If Step has Branching Logic, insert a BPMN Decision Gateway (Diamond)
+            if (hasBranches) {
+                const gwNode = {
+                    id: `gateway-${st.sequence}`,
+                    step: st,
+                    type: "gateway",
+                    x: curX + nodeW + 35,
+                    y: curY + (nodeH / 2) - 20,
+                    w: 40,
+                    h: 40,
+                    branches: st.branches
+                };
+                this.nodes.push(gwNode);
+
+                // Connect Task -> Gateway
+                this.connections.push({
+                    from: taskNode,
+                    to: gwNode,
+                    type: "sequence"
+                });
+
+                // Connect Gateway Branches
+                st.branches.forEach(b => {
+                    this.connections.push({
+                        from: gwNode,
+                        toSeq: b.target_sequence,
+                        label: b.label,
+                        type: "branch"
+                    });
+                });
+
+                curX += nodeW + 40 + gapX + 35;
+            } else {
+                curX += nodeW + gapX;
+            }
+
+            // Wrap to next line if flowchart exceeds 1300px width
+            if (curX > 1400) {
+                curX = startX + 50;
+                curY += gapY + 30;
+            }
+        });
+
+        // 3. Draw End Event Node (BPMN Red Circle)
+        const lastNode = this.nodes[this.nodes.length - 1];
+        const endNode = {
+            id: "end",
+            type: "end",
+            x: curX,
+            y: curY + (nodeH / 2) - 18,
+            w: 36,
+            h: 36
+        };
+        this.nodes.push(endNode);
+        this.connections.push({
+            from: lastNode,
+            to: endNode,
+            type: "sequence"
+        });
+
+        nodesLayer.innerHTML += `
+            <g class="bpmn-node-group" transform="translate(${endNode.x}, ${endNode.y})">
+                <circle cx="18" cy="18" r="18" class="bpmn-end-event" />
+                <rect x="11" y="11" width="14" height="14" rx="2" fill="#ffffff" />
+                <text x="18" y="48" font-size="10" font-weight="700" fill="#ef4444" text-anchor="middle">END</text>
+            </g>
+        `;
+
+        // 4. Render Step Task Nodes & Decision Gateways
+        this.nodes.forEach(node => {
+            if (node.type === "task") {
+                const st = node.step;
+                const icon = this.getActionIcon(st.action);
+                const title = esc(st.title || getDefaultTitle(st));
+                const isSelected = (workflow.steps[currentStepIndex]?.sequence === st.sequence);
+                const shortTitle = title.length > 26 ? title.substring(0, 24) + "..." : title;
+                const desc = esc(st.description || getDefaultDescription(st) || "");
+                const shortDesc = desc.length > 30 ? desc.substring(0, 28) + "..." : desc;
+
+                const nodeMarkup = `
+                    <g class="bpmn-node-group ${isSelected ? 'active' : ''}" data-seq="${st.sequence}" transform="translate(${node.x}, ${node.y})">
+                        <rect width="${node.w}" height="${node.h}" class="bpmn-node-card" />
+                        <!-- Step Badge Pill -->
+                        <rect x="8" y="8" width="24" height="18" rx="5" class="bpmn-node-badge" />
+                        <text x="20" y="21" font-size="10.5" font-weight="800" fill="#ffffff" text-anchor="middle">${st.sequence}</text>
+                        <!-- Action Icon & Title -->
+                        <text x="38" y="21" font-size="12" font-weight="700" class="bpmn-node-title">${icon} ${shortTitle}</text>
+                        <!-- Description Subtitle -->
+                        <text x="10" y="44" font-size="10" class="bpmn-node-sub">${shortDesc || 'Click to view & edit details'}</text>
+                        <!-- Status Tag -->
+                        <rect x="10" y="54" width="60" height="14" rx="4" fill="${st.approved ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'}" />
+                        <text x="40" y="64" font-size="8.5" font-weight="700" fill="${st.approved ? '#10b981' : '#f59e0b'}" text-anchor="middle">${st.approved ? '✓ Approved' : '⏳ Pending'}</text>
+                    </g>
+                `;
+                nodesLayer.innerHTML += nodeMarkup;
+            } else if (node.type === "gateway") {
+                const gwMarkup = `
+                    <g class="bpmn-node-group" data-gw-seq="${node.step.sequence}" transform="translate(${node.x}, ${node.y})">
+                        <!-- Diamond Polygon -->
+                        <polygon points="20,0 40,20 20,40 0,20" class="bpmn-gateway-diamond" />
+                        <text x="20" y="26" font-size="18" font-weight="900" fill="#ffffff" text-anchor="middle">✕</text>
+                        <text x="20" y="52" font-size="9" font-weight="800" fill="#f59e0b" text-anchor="middle">DECISION</text>
+                    </g>
+                `;
+                nodesLayer.innerHTML += gwMarkup;
+            }
+        });
+
+        // 5. Draw Orthogonal & Curved Connector Lines
+        this.connections.forEach(conn => {
+            let startPt, endPt;
+            let targetNode = conn.to;
+
+            if (conn.type === "branch") {
+                targetNode = this.nodes.find(n => n.step && n.step.sequence === conn.toSeq);
+            }
+
+            if (!conn.from || !targetNode) return;
+
+            // Compute connection points
+            startPt = { x: conn.from.x + conn.from.w, y: conn.from.y + (conn.from.h / 2) };
+            endPt = { x: targetNode.x, y: targetNode.y + (targetNode.h / 2) };
+
+            // Orthogonal bezier elbow curve
+            const midX = (startPt.x + endPt.x) / 2;
+            const pathD = (startPt.y === endPt.y)
+                ? `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`
+                : `M ${startPt.x} ${startPt.y} C ${midX} ${startPt.y}, ${midX} ${endPt.y}, ${endPt.x} ${endPt.y}`;
+
+            const markerAttr = (conn.type === "branch") ? 'marker-end="url(#bpmnBranchArrow)"' : 'marker-end="url(#bpmnArrowhead)"';
+            const lineClass = (conn.type === "branch") ? 'bpmn-connector-line branch-line' : 'bpmn-connector-line';
+
+            connectorsLayer.innerHTML += `<path d="${pathD}" class="${lineClass}" ${markerAttr} />`;
+
+            // Draw Branch Decision Label Badge if applicable
+            if (conn.label) {
+                const labelX = (startPt.x + endPt.x) / 2;
+                const labelY = (startPt.y + endPt.y) / 2 - 10;
+                const labelW = Math.max(70, conn.label.length * 6.5);
+                connectorsLayer.innerHTML += `
+                    <g transform="translate(${labelX - (labelW/2)}, ${labelY})">
+                        <rect width="${labelW}" height="18" class="bpmn-branch-label-bg" />
+                        <text x="${labelW/2}" y="12" class="bpmn-branch-label-text">${esc(conn.label)}</text>
+                    </g>
+                `;
+            }
+        });
+
+        // 6. Draw Swimlanes (if enabled)
+        if (this.showSwimlanes && Object.keys(domainGroups).length > 1) {
+            let laneY = startY - 30;
+            Object.keys(domainGroups).forEach((dom, i) => {
+                const laneH = 160;
+                swimlanesLayer.innerHTML += `
+                    <g transform="translate(20, ${laneY})">
+                        <rect width="1380" height="${laneH}" class="bpmn-swimlane-rect" />
+                        <rect width="180" height="24" rx="4" class="bpmn-swimlane-header-bg" />
+                        <text x="12" y="16" class="bpmn-swimlane-header-text">🏊 Lane: ${esc(dom)}</text>
+                    </g>
+                `;
+                laneY += laneH + 20;
+            });
+        }
+
+        // 7. Wire Node Click Sync
+        nodesLayer.querySelectorAll(".bpmn-node-group[data-seq]").forEach(grp => {
+            grp.onclick = () => {
+                const seq = parseInt(grp.dataset.seq, 10);
+                const stepIdx = (workflow.steps || []).findIndex(s => s.sequence === seq);
+                if (stepIdx !== -1) {
+                    currentStepIndex = stepIdx;
+                    renderGuideTab();
+                    renderStepsTab();
+                    showToast(`📍 Selected Step ${seq} in Studio`);
+                }
+            };
+        });
+
+        this.updateTransform();
+    }
+
+    exportSvg() {
+        const svg = $("bpmnSvgCanvas");
+        if (!svg) return;
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `procsnap-bpmn-flowchart-${Date.now()}.svg`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("🖼️ Flowchart exported as SVG vector file!");
+    }
+
+    exportPng() {
+        const svg = $("bpmnSvgCanvas");
+        if (!svg) return;
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const img = new Image();
+        const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(svgBlob);
+        
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = 1600;
+            canvas.height = 900;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#0f172a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            
+            const pngUrl = canvas.toDataURL("image/png");
+            const a = document.createElement("a");
+            a.href = pngUrl;
+            a.download = `procsnap-bpmn-flowchart-${Date.now()}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast("📸 Flowchart exported as High-Res PNG!");
+        };
+        img.src = url;
+    }
+
+    copyMermaid() {
+        if (!workflow || !workflow.steps) return;
+        const steps = workflow.steps.filter(s => !s.hidden);
+        let code = "graph TD\n";
+        code += "    Start([🟢 Start]) --> Step1\n";
+
+        steps.forEach((st, i) => {
+            const id = `Step${st.sequence}`;
+            const title = (st.title || `Step ${st.sequence}`).replace(/["\n]/g, "");
+            code += `    ${id}["${st.sequence}. ${title}"]\n`;
+
+            if (st.branches && st.branches.length > 0) {
+                const gwId = `GW${st.sequence}`;
+                code += `    ${id} --> ${gwId}{{"🔀 Decision"}}\n`;
+                st.branches.forEach(b => {
+                    code += `    ${gwId} -- "${b.label}" --> Step${b.target_sequence}\n`;
+                });
+            } else if (i < steps.length - 1) {
+                code += `    ${id} --> Step${steps[i+1].sequence}\n`;
+            } else {
+                code += `    ${id} --> End([🔴 End])\n`;
+            }
+        });
+
+        navigator.clipboard.writeText(code).then(() => {
+            showToast("🧜 Mermaid.js Flowchart syntax copied to clipboard!");
+        });
     }
 }
+
+const bpmnEngine = new BpmnFlowchartEngine();
 
 
 // Initialize All Platform Enhancements
@@ -8471,5 +8955,6 @@ initStepListFilterAndBulkActions();
 initSlideshowAutoPlayAndFullscreen();
 initPrintSopPdf();
 initDesktopRecorderModal();
+bpmnEngine.init();
 
 

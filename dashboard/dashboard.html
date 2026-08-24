@@ -720,27 +720,38 @@
                         </div>
                     </section>
 
-                    <!-- 2. Step Editor Tab -->
+                    <!-- 2. Step Editor Tab with BPMN Process Flow Visualizer -->
                     <section id="tab-steps" class="tab-panel hidden">
                         <div class="editor-workspace">
                             <div class="editor-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
                                 <div>
-                                    <h2 style="font-size: 18px; font-weight: 800; color: var(--text-main, #fff); margin: 0 0 4px 0;">Step List &amp; Procedure Sequence</h2>
+                                    <h2 style="font-size: 18px; font-weight: 800; color: var(--text-main, #fff); margin: 0 0 4px 0;">Step List &amp; BPMN Process Flow</h2>
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <span id="sopDurationBadge" class="badge" style="background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px;">⏱️ 0m 0s total • 0 steps</span>
                                     </div>
                                 </div>
-                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                    <button id="btnOpenWorkflowGraph" class="btn btn-secondary btn-sm" style="font-weight: 700; color: #818cf8; border-color: rgba(99,102,241,0.35);" title="View interactive visual flowchart and decision branch paths">🗺️ Visual Workflow Graph</button>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <!-- Segmented View Mode Switcher -->
+                                    <div class="step-view-mode-pill" id="stepViewModePill">
+                                        <button class="view-mode-btn active" id="btnViewModeCards" data-mode="cards">
+                                            <span>📋</span> Cards
+                                        </button>
+                                        <button class="view-mode-btn" id="btnViewModeBpmn" data-mode="bpmn">
+                                            <span>📊</span> BPMN Flow
+                                        </button>
+                                        <button class="view-mode-btn" id="btnViewModeSplit" data-mode="split">
+                                            <span>🔲</span> Split
+                                        </button>
+                                    </div>
                                     <button id="bulkApproveAllBtn" class="btn btn-secondary btn-sm" title="Mark all steps as approved">✓ Approve All</button>
                                     <button id="bulkUnhideAllBtn" class="btn btn-secondary btn-sm" title="Restore/unhide all steps">👁 Unhide All</button>
-                                    <button id="aiPolishBtn" class="btn btn-secondary btn-sm" title="AI Polish descriptions of all steps">🤖 AI Polish SOP</button>
-                                    <button id="addNewStepBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700;">+ Insert Manual Step</button>
+                                    <button id="aiPolishBtn" class="btn btn-secondary btn-sm" title="AI Polish descriptions of all steps">🤖 AI Polish</button>
+                                    <button id="addNewStepBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700;">+ Insert Step</button>
                                 </div>
                             </div>
 
                             <!-- Filter & Search Sub-Bar -->
-                            <div class="step-filter-subbar" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(0,0,0,0.15); padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.06)); margin-bottom: 12px; flex-wrap: wrap;">
+                            <div class="step-filter-subbar" id="stepFilterSubbar" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(0,0,0,0.15); padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.06)); margin-bottom: 12px; flex-wrap: wrap;">
                                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                     <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text-muted, #94a3b8); cursor: pointer; margin-right: 6px;">
                                         <input type="checkbox" id="selectAllStepsCb" style="cursor: pointer; accent-color: #6366f1;"> Select All
@@ -757,7 +768,66 @@
                                 </div>
                             </div>
 
-                            <div id="stepListContainer" class="step-list-rows"></div>
+                            <!-- Dual Split View Grid Wrapper -->
+                            <div class="steps-dual-view-layout" id="stepsDualViewLayout">
+                                <!-- Left Column: Classic Step Card List -->
+                                <div id="stepListContainer" class="step-list-rows"></div>
+
+                                <!-- Right Column: Interactive BPMN Flowchart Studio Canvas -->
+                                <div id="stepBpmnFlowchartWorkspace" class="bpmn-flowchart-workspace hidden">
+                                    <!-- Flowchart HUD Controls Toolbar -->
+                                    <div class="bpmn-hud-toolbar">
+                                        <div class="bpmn-hud-left">
+                                            <span class="bpmn-hud-badge">📊 BPMN 2.0 Process Map</span>
+                                            <button class="btn btn-secondary btn-xs" id="btnToggleBpmnSwimlanes" title="Toggle Swimlanes by Domain / Application">
+                                                <span>🏊</span> Swimlanes: <span id="bpmnSwimlaneLabel" style="color:#10b981; font-weight:800;">ON</span>
+                                            </button>
+                                            <button class="btn btn-secondary btn-xs" id="btnBpmnAddBranch" title="Add Decision Branching Gateway to selected step">
+                                                <span>🔀</span> + Decision Gateway
+                                            </button>
+                                        </div>
+                                        <div class="bpmn-hud-right">
+                                            <button class="bpmn-zoom-btn" id="btnBpmnZoomOut" title="Zoom Out">−</button>
+                                            <span class="bpmn-zoom-level" id="bpmnZoomLabel">100%</span>
+                                            <button class="bpmn-zoom-btn" id="btnBpmnZoomIn" title="Zoom In">+</button>
+                                            <button class="btn btn-secondary btn-xs" id="btnBpmnFit" title="Fit flowchart to canvas">⊡ Fit</button>
+                                            <div class="dock-divider" style="height: 16px; margin: 0 4px;"></div>
+                                            <button class="btn btn-secondary btn-xs" id="btnBpmnExportSvg" title="Export as Vector SVG">🖼️ SVG</button>
+                                            <button class="btn btn-secondary btn-xs" id="btnBpmnExportPng" title="Export as High-Res PNG">📸 PNG</button>
+                                            <button class="btn btn-secondary btn-xs" id="btnBpmnCopyMermaid" title="Copy Mermaid.js Diagram Syntax">🧜 Mermaid</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Interactive SVG Flowchart Render Canvas -->
+                                    <div class="bpmn-canvas-stage" id="bpmnCanvasStage">
+                                        <svg id="bpmnSvgCanvas" class="bpmn-svg-canvas" width="100%" height="100%">
+                                            <defs>
+                                                <!-- Marker for Arrowheads -->
+                                                <marker id="bpmnArrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#6366f1" />
+                                                </marker>
+                                                <marker id="bpmnBranchArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b" />
+                                                </marker>
+                                                <marker id="bpmnEndArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#ef4444" />
+                                                </marker>
+                                                <filter id="bpmnGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                                    <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#6366f1" flood-opacity="0.35"/>
+                                                </filter>
+                                            </defs>
+                                            <g id="bpmnViewportGroup">
+                                                <!-- Swimlanes Layer -->
+                                                <g id="bpmnSwimlanesLayer"></g>
+                                                <!-- Connectors Layer -->
+                                                <g id="bpmnConnectorsLayer"></g>
+                                                <!-- Nodes Layer -->
+                                                <g id="bpmnNodesLayer"></g>
+                                            </g>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
 
                             <!-- Floating Multi-Select Bulk Actions Bar -->
                             <div id="stepBulkActionBar" class="step-bulk-action-bar hidden" style="position: sticky; bottom: 20px; z-index: 100; margin-top: 16px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 12px; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 12px 35px rgba(0,0,0,0.6);">
