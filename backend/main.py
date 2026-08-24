@@ -1331,6 +1331,53 @@ def edit_step(session_id: str, step_id: int, request: StepEditRequest):
     return {"success": True, "message": "Step edits saved"}
 
 
+@app.delete("/sessions/{session_id}/steps/{step_id}")
+def delete_step_permanently(session_id: str, step_id: int):
+    """
+    Permanently deletes a step from the database and removes its screenshot from disk.
+    """
+    connection = get_connection()
+    try:
+        cursor = connection.cursor()
+        step = cursor.execute(
+            "SELECT id, screenshot_path, sequence FROM workflow_steps WHERE id = ? AND workflow_id = ?",
+            (step_id, session_id)
+        ).fetchone()
+        
+        if not step:
+            raise HTTPException(status_code=404, detail="Step not found")
+            
+        screenshot_path = step["screenshot_path"]
+        if screenshot_path:
+            file_path = BASE_DIR / screenshot_path
+            if file_path.exists() and file_path.is_file():
+                try:
+                    file_path.unlink()
+                except Exception as e:
+                    print(f"Warning: Could not delete screenshot file {file_path}: {e}")
+                    
+        # Delete from annotations and edits
+        cursor.execute("DELETE FROM step_annotations WHERE step_id = ? AND workflow_id = ?", (step_id, session_id))
+        cursor.execute("DELETE FROM step_edits WHERE step_id = ? AND workflow_id = ?", (step_id, session_id))
+        cursor.execute("DELETE FROM workflow_steps WHERE id = ? AND workflow_id = ?", (step_id, session_id))
+        
+        # Renumber remaining steps to maintain contiguous sequences
+        remaining_steps = cursor.execute(
+            "SELECT id FROM workflow_steps WHERE workflow_id = ? ORDER BY sequence ASC",
+            (session_id,)
+        ).fetchall()
+        
+        for new_seq, r in enumerate(remaining_steps, 1):
+            cursor.execute("UPDATE workflow_steps SET sequence = ? WHERE id = ?", (new_seq, r["id"]))
+            
+        connection.commit()
+        perform_auto_backup()
+    finally:
+        connection.close()
+        
+    return {"success": True, "message": "Step permanently deleted"}
+
+
 # =========================================================
 # OFFLINE AI ENHANCEMENTS (Ollama)
 # =========================================================

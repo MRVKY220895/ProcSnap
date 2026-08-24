@@ -12,28 +12,36 @@ echo.
 set "INSTALL_DIR=%LOCALAPPDATA%\ProcSnap"
 set "SRC_DIR=%~dp0"
 
-echo [1/6] Preparing installation directory:
-echo       %INSTALL_DIR%
-echo.
-
-if not exist "%INSTALL_DIR%" (
-    mkdir "%INSTALL_DIR%" >nul 2>&1
-)
-
-:: Copying core project files
-echo [2/6] Copying application files to your user folder...
+:STAGE_FILES
+echo [1/6] Copying application files to %INSTALL_DIR% ...
+if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%" >nul 2>&1
 robocopy "%SRC_DIR%backend" "%INSTALL_DIR%\backend" /E /XD .venv __pycache__ .git /XF *.pyc /NFL /NDL /NJH /NJS >nul
 robocopy "%SRC_DIR%dashboard" "%INSTALL_DIR%\dashboard" /E /NFL /NDL /NJH /NJS >nul
 robocopy "%SRC_DIR%extension" "%INSTALL_DIR%\extension" /E /NFL /NDL /NJH /NJS >nul
 copy /Y "%SRC_DIR%start.bat" "%INSTALL_DIR%\start.bat" >nul
 copy /Y "%SRC_DIR%install_extension.bat" "%INSTALL_DIR%\install_extension.bat" >nul
 copy /Y "%SRC_DIR%uninstall.bat" "%INSTALL_DIR%\uninstall.bat" >nul
+copy /Y "%SRC_DIR%repair.bat" "%INSTALL_DIR%\repair.bat" >nul
 copy /Y "%SRC_DIR%create_desktop_shortcut.vbs" "%INSTALL_DIR%\create_desktop_shortcut.vbs" >nul
-echo       [OK] Application files copied.
+if errorlevel 8 (
+    echo [✗] FAILED: Could not copy application files.
+    goto PROMPT_RETRY_FILES
+)
+echo       [✓] SUCCESS: Application files copied.
 echo.
+goto STAGE_PYTHON
 
-:: Check Python
-echo [3/6] Verifying Python environment...
+:PROMPT_RETRY_FILES
+echo.
+echo Options: [1] Retry file copy  [2] Skip and continue  [3] Abort
+set /p OPT="Select option (1-3) [default: 1]: "
+if "%OPT%"=="" set OPT=1
+if "%OPT%"=="1" goto STAGE_FILES
+if "%OPT%"=="2" goto STAGE_PYTHON
+exit /b 1
+
+:STAGE_PYTHON
+echo [2/6] Verifying Python runtime environment...
 set "PY_CMD="
 
 python --version >nul 2>&1
@@ -53,41 +61,74 @@ if not errorlevel 1 (
 )
 
 if "%PY_CMD%"=="" (
-    echo [!] Python not detected. Attempting user-space installation via winget...
+    echo [..] Python not found. Attempting automatic user-space install via winget...
     winget install --id Python.Python.3.13 --scope user --accept-source-agreements --accept-package-agreements --silent
     if errorlevel 1 (
-        echo [!] Winget unavailable. Please install Python from https://python.org/downloads/
-        echo     (Make sure to check "Add python.exe to PATH")
-        pause
-        exit /b 1
+        echo [✗] FAILED: Python installation could not be completed automatically.
+        goto PROMPT_RETRY_PYTHON
     )
     set "PY_CMD=python"
 )
-echo       [OK] Python found: !PY_CMD!
+echo       [✓] SUCCESS: Python detected (!PY_CMD!)
 echo.
+goto STAGE_VENV
 
-:: Virtual Environment setup in user space
-echo [4/6] Setting up virtual environment and Python dependencies...
+:PROMPT_RETRY_PYTHON
+echo.
+echo Options: [1] Retry Python check/install  [2] Skip and continue  [3] Abort
+set /p OPT="Select option (1-3) [default: 1]: "
+if "%OPT%"=="" set OPT=1
+if "%OPT%"=="1" goto STAGE_PYTHON
+if "%OPT%"=="2" goto STAGE_VENV
+exit /b 1
+
+:STAGE_VENV
+echo [3/6] Setting up virtual environment...
 cd /d "%INSTALL_DIR%"
 if not exist "backend\.venv\" (
-    echo       Creating Python virtual environment...
+    echo       Creating isolated Python virtualenv...
     !PY_CMD! -m venv backend\.venv
+    if errorlevel 1 (
+        echo [✗] FAILED: Virtual environment creation failed.
+        goto PROMPT_RETRY_VENV
+    )
 )
-
-if exist "backend\.venv\Scripts\python.exe" (
-    echo       Installing / updating required packages...
-    backend\.venv\Scripts\python.exe -m pip install -q --upgrade pip >nul 2>&1
-    backend\.venv\Scripts\python.exe -m pip install -q -r backend\requirements.txt
-    echo       [OK] Python dependencies installed.
-) else (
-    echo [ERROR] Virtual environment creation failed.
-    pause
-    exit /b 1
-)
+echo       [✓] SUCCESS: Virtual environment ready.
 echo.
+goto STAGE_DEPS
 
-:: Create Shortcuts (Desktop + Start Menu)
-echo [5/6] Creating Desktop and Start Menu shortcuts...
+:PROMPT_RETRY_VENV
+echo.
+echo Options: [1] Retry venv creation  [2] Skip and continue  [3] Abort
+set /p OPT="Select option (1-3) [default: 1]: "
+if "%OPT%"=="" set OPT=1
+if "%OPT%"=="1" goto STAGE_VENV
+if "%OPT%"=="2" goto STAGE_DEPS
+exit /b 1
+
+:STAGE_DEPS
+echo [4/6] Installing / updating dependencies...
+backend\.venv\Scripts\python.exe -m pip install -q --upgrade pip >nul 2>&1
+backend\.venv\Scripts\python.exe -m pip install -q -r backend\requirements.txt
+if errorlevel 1 (
+    echo [✗] FAILED: Some packages failed to install. Please check your internet connection.
+    goto PROMPT_RETRY_DEPS
+)
+echo       [✓] SUCCESS: All backend dependencies installed.
+echo.
+goto STAGE_SHORTCUTS
+
+:PROMPT_RETRY_DEPS
+echo.
+echo Options: [1] Retry package installation  [2] Skip and continue  [3] Abort
+set /p OPT="Select option (1-3) [default: 1]: "
+if "%OPT%"=="" set OPT=1
+if "%OPT%"=="1" goto STAGE_DEPS
+if "%OPT%"=="2" goto STAGE_SHORTCUTS
+exit /b 1
+
+:STAGE_SHORTCUTS
+echo [5/6] Creating Desktop & Start Menu shortcuts...
 set "VBS_SCRIPT=%TEMP%\create_procsnap_shortcuts.vbs"
 (
     echo Set WshShell = CreateObject^("WScript.Shell"^)
@@ -113,11 +154,11 @@ set "VBS_SCRIPT=%TEMP%\create_procsnap_shortcuts.vbs"
 
 cscript //nologo "%VBS_SCRIPT%" >nul 2>&1
 del /f /q "%VBS_SCRIPT%" >nul 2>&1
-echo       [OK] ProcSnap shortcut added to Desktop and Start Menu.
+echo       [✓] SUCCESS: ProcSnap shortcuts added to Desktop and Start Menu.
 echo.
 
-:: Extension setup
-echo [6/6] Browser Extension Installation...
+:STAGE_EXTENSION
+echo [6/6] Setting up browser extension...
 call "%INSTALL_DIR%\install_extension.bat"
 echo.
 

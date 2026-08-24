@@ -1785,7 +1785,143 @@ svg {
     40%, 80% { transform: translateX(8px); }
 }
 
+/* Auto-Save Indicator Badge (Requirement 4) */
+.auto-save-indicator {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.3s ease;
+}
+
+.auto-save-indicator.saving {
+    background: rgba(59, 130, 246, 0.12);
+    color: #2563eb;
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Hotspot Editor Card (Requirement 2) */
+.hotspot-editor-card {
+    background: rgba(99, 102, 241, 0.04);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    margin-bottom: 12px;
+}
+
+.hotspot-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.hotspot-coords-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.coord-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.coord-field label {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.coord-input {
+    font-size: 11px !important;
+    padding: 3px 4px !important;
+    height: 24px !important;
+    text-align: center;
+}
+
+.btn-xs {
+    padding: 2px 6px !important;
+    font-size: 10.5px !important;
+    height: 22px !important;
+}
+
+/* Deleted / Hidden Step Highlighting (Requirement 3) */
+.editor-step-row.is-deleted {
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(239, 68, 68, 0.04),
+        rgba(239, 68, 68, 0.04) 10px,
+        rgba(239, 68, 68, 0.08) 10px,
+        rgba(239, 68, 68, 0.08) 20px
+    );
+    border: 1.5px dashed rgba(239, 68, 68, 0.45);
+    opacity: 0.75;
+    transition: opacity 0.2s, border-color 0.2s;
+}
+
+.editor-step-row.is-deleted:hover {
+    opacity: 0.95;
+    border-color: #ef4444;
+}
+
+.deleted-badge {
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 9.5px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+}
+
+.editor-step-thumb.is-deleted-thumb {
+    position: relative;
+    filter: grayscale(80%) brightness(0.85);
+}
+
+.editor-step-thumb.is-deleted-thumb::after {
+    content: "DELETED";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+}
+
+.btn-restore {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    font-weight: 600;
+}
+
+.btn-restore:hover {
+    background: #10b981;
+    color: #ffffff;
+}
+
 .hidden {
     display: none !important;
 }
+
 

@@ -268,7 +268,10 @@
                                 </div>
                                 <div class="guide-card-header">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                        <div class="step-badge" id="guideStepBadge">Step 1</div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div class="step-badge" id="guideStepBadge">Step 1</div>
+                                            <span id="autoSaveIndicator" class="auto-save-indicator">Saved ✓</span>
+                                        </div>
                                         <label class="approve-checkbox-label">
                                             <input type="checkbox" id="guideStepChecked"> Approved
                                         </label>
@@ -277,6 +280,40 @@
                                     <p id="guideStepDesc" contenteditable="true" placeholder="Enter instructions here..." class="step-desc-edit"></p>
                                 </div>
                                 <div class="guide-card-body">
+                                    <!-- Interactive Hotspot Editor Panel (Requirement 2) -->
+                                    <div class="hotspot-editor-card">
+                                        <div class="hotspot-editor-header">
+                                            <span style="font-weight: 700; font-size: 12px; color: var(--primary);">🎯 Interactive Click Hotspot</span>
+                                            <button id="btnAutoDetectHotspot" class="btn btn-secondary btn-xs" title="Calculate hotspot from clicked DOM element">Auto-Detect</button>
+                                        </div>
+                                        <div class="field-group" style="margin-bottom: 8px;">
+                                            <label style="font-size: 11px;">Target Click Prompt</label>
+                                            <input type="text" id="guideHotspotPrompt" placeholder="e.g. Click the Search Box" class="form-control" style="font-size: 12px; padding: 4px 8px;">
+                                        </div>
+                                        <div class="hotspot-coords-grid">
+                                            <div class="coord-field">
+                                                <label>Left (X%)</label>
+                                                <input type="number" id="hotspotX" min="0" max="100" step="1" value="40" class="form-control coord-input">
+                                            </div>
+                                            <div class="coord-field">
+                                                <label>Top (Y%)</label>
+                                                <input type="number" id="hotspotY" min="0" max="100" step="1" value="40" class="form-control coord-input">
+                                            </div>
+                                            <div class="coord-field">
+                                                <label>Width (%)</label>
+                                                <input type="number" id="hotspotW" min="2" max="100" step="1" value="20" class="form-control coord-input">
+                                            </div>
+                                            <div class="coord-field">
+                                                <label>Height (%)</label>
+                                                <input type="number" id="hotspotH" min="2" max="100" step="1" value="20" class="form-control coord-input">
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 6px; margin-top: 6px;">
+                                            <button id="btnSyncFromSpotlight" class="btn btn-secondary btn-xs" style="flex: 1;">Sync with Spotlight</button>
+                                            <button id="btnResetHotspot" class="btn btn-secondary btn-xs" style="flex: 1;">Center Target</button>
+                                        </div>
+                                    </div>
+
                                     <div class="field-group">
                                         <label>Expected Result</label>
                                         <textarea id="guideStepExpected" placeholder="What should happen after this step?"></textarea>

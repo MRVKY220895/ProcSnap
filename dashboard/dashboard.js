@@ -1697,9 +1697,79 @@ function captureStreamFrame(stream) {
             }
         });
 
-        // Save Edits Click
+        // Save Edits Click (Manual)
         setOnclick("saveEditsBtn", saveActiveStepEdits);
         setOnclick("hideStepBtn", toggleActiveStepHidden);
+
+        // Auto-Save listeners for step details (Requirement 4)
+        const autoSaveInputs = [
+            "guideStepTitle", "guideStepDesc", "guideStepExpected", 
+            "guideStepNote", "guideStepVoiceover", "guideHotspotPrompt",
+            "hotspotX", "hotspotY", "hotspotW", "hotspotH"
+        ];
+        autoSaveInputs.forEach(id => {
+            const el = $(id);
+            if (el) {
+                el.addEventListener("input", () => scheduleAutoSave(600));
+                el.addEventListener("change", () => scheduleAutoSave(200));
+            }
+        });
+
+        // Hotspot Editor buttons (Requirement 2)
+        setOnclick("btnAutoDetectHotspot", () => {
+            const steps = workflow.steps || [];
+            const step = steps[currentStepIndex];
+            if (!step || !step.element || !step.element.screen) {
+                showToast("No recorded DOM element coordinates for this step");
+                return;
+            }
+            const sc = step.element.screen;
+            const vw = sc.viewportWidth || 1280;
+            const vh = sc.viewportHeight || 800;
+            const xPct = Math.round(Math.max(0, Math.min(95, (sc.x / vw) * 100)));
+            const yPct = Math.round(Math.max(0, Math.min(95, (sc.y / vh) * 100)));
+            const wPct = Math.round(Math.max(4, Math.min(80, (sc.width / vw) * 100)));
+            const hPct = Math.round(Math.max(4, Math.min(80, (sc.height / vh) * 100)));
+            setVal("hotspotX", xPct);
+            setVal("hotspotY", yPct);
+            setVal("hotspotW", wPct);
+            setVal("hotspotH", hPct);
+            showToast("Hotspot auto-detected from recorded action");
+            scheduleAutoSave(200);
+        });
+
+        setOnclick("btnSyncFromSpotlight", () => {
+            const steps = workflow.steps || [];
+            const step = steps[currentStepIndex];
+            if (!step) return;
+            const annotations = Array.isArray(step.annotations) ? step.annotations : [];
+            const spot = annotations.find(a => a.type === "spotlight" || a.type === "rect" || a.type === "circle");
+            if (spot && spot.w > 0 && spot.h > 0) {
+                const imgW = 1280;
+                const imgH = 800;
+                const xPct = Math.round(Math.max(0, Math.min(95, (spot.x / imgW) * 100)));
+                const yPct = Math.round(Math.max(0, Math.min(95, (spot.y / imgH) * 100)));
+                const wPct = Math.round(Math.max(4, Math.min(80, (spot.w / imgW) * 100)));
+                const hPct = Math.round(Math.max(4, Math.min(80, (spot.h / imgH) * 100)));
+                setVal("hotspotX", xPct);
+                setVal("hotspotY", yPct);
+                setVal("hotspotW", wPct);
+                setVal("hotspotH", hPct);
+                showToast("Hotspot synced from canvas spotlight");
+                scheduleAutoSave(200);
+            } else {
+                showToast("No spotlight annotation found on canvas");
+            }
+        });
+
+        setOnclick("btnResetHotspot", () => {
+            setVal("hotspotX", 40);
+            setVal("hotspotY", 40);
+            setVal("hotspotW", 20);
+            setVal("hotspotH", 20);
+            showToast("Hotspot reset to center");
+            scheduleAutoSave(200);
+        });
 
         // Zoom Click Bindings (Phase 11)
         setOnclick("zoomInBtn", () => {
@@ -1949,6 +2019,21 @@ function loadActiveStepDetails() {
     setVal("guideStepNote", step.note || "");
     setVal("guideStepVoiceover", step.voiceover || "");
 
+    // Populate Interactive Hotspot values (Requirement 2)
+    const hs = calculateDefaultHotspot(step);
+    setVal("hotspotX", Math.round(hs.xPct));
+    setVal("hotspotY", Math.round(hs.yPct));
+    setVal("hotspotW", Math.round(hs.wPct));
+    setVal("hotspotH", Math.round(hs.hPct));
+    setVal("guideHotspotPrompt", step.hotspot?.prompt || hs.prompt || (step.title || getDefaultTitle(step)));
+
+    // Reset auto-save badge
+    const autoSaveBadge = $("autoSaveIndicator");
+    if (autoSaveBadge) {
+        autoSaveBadge.textContent = "Saved ✓";
+        autoSaveBadge.className = "auto-save-indicator";
+    }
+
     const hideBtn = $("hideStepBtn");
     if (hideBtn) {
         hideBtn.textContent = step.hidden ? "Show Step" : "Hide Step";
@@ -2007,6 +2092,112 @@ function loadActiveStepDetails() {
     }
 }
 
+// Calculate or retrieve default hotspot for a step
+function calculateDefaultHotspot(step) {
+    if (step.hotspot && typeof step.hotspot.xPct === "number") {
+        return step.hotspot;
+    }
+    const annotations = Array.isArray(step.annotations) ? step.annotations : [];
+    const spot = annotations.find(a => a.type === "spotlight" || a.type === "rect" || a.type === "circle");
+    if (spot && spot.w > 0 && spot.h > 0) {
+        return {
+            xPct: Math.max(0, Math.min(95, (spot.x / 1280) * 100)),
+            yPct: Math.max(0, Math.min(95, (spot.y / 800) * 100)),
+            wPct: Math.max(4, Math.min(80, (spot.w / 1280) * 100)),
+            hPct: Math.max(4, Math.min(80, (spot.h / 800) * 100)),
+            prompt: step.title || getDefaultTitle(step)
+        };
+    }
+    if (step.element && step.element.screen) {
+        const sc = step.element.screen;
+        const vw = sc.viewportWidth || 1280;
+        const vh = sc.viewportHeight || 800;
+        if (sc.width > 0 && sc.height > 0 && vw > 0 && vh > 0) {
+            return {
+                xPct: Math.max(0, Math.min(95, (sc.x / vw) * 100)),
+                yPct: Math.max(0, Math.min(95, (sc.y / vh) * 100)),
+                wPct: Math.max(4, Math.min(80, (sc.width / vw) * 100)),
+                hPct: Math.max(4, Math.min(80, (sc.height / vh) * 100)),
+                prompt: step.title || getDefaultTitle(step)
+            };
+        }
+    }
+    return {
+        xPct: 40,
+        yPct: 40,
+        wPct: 20,
+        hPct: 20,
+        prompt: step.title || getDefaultTitle(step)
+    };
+}
+
+// Debounced Auto-Save Engine (Requirement 4)
+let autoSaveDebounceTimer = null;
+function scheduleAutoSave(delayMs = 600) {
+    const indicator = $("autoSaveIndicator");
+    if (indicator) {
+        indicator.textContent = "Saving...";
+        indicator.className = "auto-save-indicator saving";
+    }
+    clearTimeout(autoSaveDebounceTimer);
+    autoSaveDebounceTimer = setTimeout(async () => {
+        await saveActiveStepEditsSilent();
+        if (indicator) {
+            indicator.textContent = "Saved ✓";
+            indicator.className = "auto-save-indicator";
+        }
+    }, delayMs);
+}
+
+// Silent save function for background auto-saving
+async function saveActiveStepEditsSilent() {
+    const steps = workflow.steps || [];
+    const step = steps[currentStepIndex];
+    if (!step) return;
+
+    const title = $("guideStepTitle") ? $("guideStepTitle").textContent.trim() : step.title;
+    const desc = $("guideStepDesc") ? $("guideStepDesc").textContent.trim() : step.description;
+    const expected = $("guideStepExpected") ? $("guideStepExpected").value.trim() : (step.expected || "");
+    const note = $("guideStepNote") ? $("guideStepNote").value.trim() : (step.note || "");
+    const voiceover = $("guideStepVoiceover") ? $("guideStepVoiceover").value.trim() : (step.voiceover || "");
+
+    // Read hotspot values
+    const hx = parseFloat($("hotspotX")?.value) || 40;
+    const hy = parseFloat($("hotspotY")?.value) || 40;
+    const hw = parseFloat($("hotspotW")?.value) || 20;
+    const hh = parseFloat($("hotspotH")?.value) || 20;
+    const hPrompt = $("guideHotspotPrompt")?.value.trim() || title;
+
+    step.hotspot = {
+        xPct: Math.max(0, Math.min(95, hx)),
+        yPct: Math.max(0, Math.min(95, hy)),
+        wPct: Math.max(4, Math.min(80, hw)),
+        hPct: Math.max(4, Math.min(80, hh)),
+        prompt: hPrompt
+    };
+
+    step.title = title;
+    step.description = desc;
+    step.expected = expected;
+    step.note = note;
+    step.voiceover = voiceover;
+
+    try {
+        await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/edits`, {
+            method: "PATCH",
+            body: JSON.stringify({
+                title: title,
+                description: desc,
+                expected: expected,
+                note: note,
+                voiceover: voiceover
+            })
+        });
+    } catch (e) {
+        console.warn("Silent auto-save notice:", e);
+    }
+}
+
 // Render horizontal thumbnails row
 function renderStepThumbnails() {
     const steps = workflow.steps || [];
@@ -2031,13 +2222,11 @@ function renderStepThumbnails() {
             currentStepIndex = parseInt(card.dataset.index);
             loadActiveStepDetails();
             renderStepThumbnails();
-            // After re-render, query the newly created active card and scroll to it
             const newActive = strip.querySelector(".thumb-card.active");
             if (newActive) newActive.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
         };
     });
 
-    // Scroll active thumbnail into view on initial render
     const active = strip.querySelector(".thumb-card.active");
     if (active) active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
 }
@@ -2060,41 +2249,11 @@ async function saveStepAnnotations(annotations) {
     }
 }
 
-// Save titles/descriptions edits
+// Save titles/descriptions edits (Manual button handler)
 async function saveActiveStepEdits() {
-    const steps = workflow.steps || [];
-    const step = steps[currentStepIndex];
-    if (!step) return;
-
-    const title = $("guideStepTitle").textContent.trim();
-    const desc = $("guideStepDesc").textContent.trim();
-    const expected = $("guideStepExpected").value.trim();
-    const note = $("guideStepNote").value.trim();
-    const voiceover = $("guideStepVoiceover") ? $("guideStepVoiceover").value.trim() : "";
-
-    try {
-        await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/edits`, {
-            method: "PATCH",
-            body: JSON.stringify({
-                title: title,
-                description: desc,
-                expected: expected,
-                note: note,
-                voiceover: voiceover
-            })
-        });
-        
-        step.title = title;
-        step.description = desc;
-        step.expected = expected;
-        step.note = note;
-        step.voiceover = voiceover;
-        
-        showToast("Step details saved successfully.");
-        renderStepThumbnails();
-    } catch (e) {
-        showToast(`Save failed: ${e.message}`);
-    }
+    await saveActiveStepEditsSilent();
+    showToast("Step details saved successfully.");
+    renderStepThumbnails();
 }
 
 // Toggle active step visibility
@@ -2136,22 +2295,31 @@ function renderStepsTab() {
     }
 
     container.innerHTML = steps.map((s, index) => `
-        <div class="editor-step-row" data-id="${s.id}" data-index="${index}">
+        <div class="editor-step-row ${s.hidden ? 'is-deleted' : ''}" data-id="${s.id}" data-index="${index}">
             <div class="editor-step-row-left">
                 <span class="drag-handle">☰</span>
                 <div class="row-badge">${s.sequence}</div>
-                <div class="editor-step-thumb">
+                <div class="editor-step-thumb ${s.hidden ? 'is-deleted-thumb' : ''}">
                     ${s.screenshotUrl ? `<img src="${esc(API_BASE + s.screenshotUrl)}" alt="Step ${s.sequence}">` : '<div class="no-thumb">No img</div>'}
                 </div>
                 <div class="row-info">
-                    <div class="row-title">${esc(s.title || getDefaultTitle(s))}</div>
+                    <div class="row-title">
+                        ${esc(s.title || getDefaultTitle(s))}
+                        ${s.hidden ? '<span class="deleted-badge">🗑️ DELETED / HIDDEN</span>' : ''}
+                    </div>
                     <div class="row-desc">${esc(s.description || getDefaultDescription(s))}</div>
                 </div>
             </div>
             <div class="editor-step-row-actions">
-                <button class="btn btn-secondary btn-sm btn-up" ${index === 0 ? "disabled" : ""}>▲</button>
-                <button class="btn btn-secondary btn-sm btn-down" ${index === steps.length - 1 ? "disabled" : ""}>▼</button>
-                <button class="btn btn-danger btn-sm btn-del">Remove</button>
+                ${s.hidden ? `
+                    <button class="btn btn-restore btn-sm btn-restore-step">↺ Restore Step</button>
+                    <button class="btn btn-danger btn-sm btn-perm-del" title="Permanently delete from database">✖ Delete</button>
+                ` : `
+                    <button class="btn btn-secondary btn-sm btn-up" ${index === 0 ? "disabled" : ""}>▲</button>
+                    <button class="btn btn-secondary btn-sm btn-down" ${index === steps.length - 1 ? "disabled" : ""}>▼</button>
+                    <button class="btn btn-secondary btn-sm btn-hide-step" title="Hide this step from SOP exports">Hide</button>
+                    <button class="btn btn-danger btn-sm btn-perm-del" title="Permanently delete from database">Delete</button>
+                `}
             </div>
         </div>
     `).join("");
@@ -2171,25 +2339,73 @@ function renderStepsTab() {
         };
     });
 
-    container.querySelectorAll(".btn-del").forEach(btn => {
+    // Hide step
+    container.querySelectorAll(".btn-hide-step").forEach(btn => {
         btn.onclick = async (e) => {
             const row = e.target.closest(".editor-step-row");
             const id = parseInt(row.dataset.id);
-            if (confirm("Are you sure you want to permanently delete this step? This will remove its screenshot too.")) {
+            const index = parseInt(row.dataset.index);
+            try {
+                await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${id}/edits`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ hidden: true })
+                });
+                workflow.steps[index].hidden = true;
+                showToast("Step hidden from SOP exports");
+                renderStepsTab();
+                renderStepThumbnails();
+            } catch(err) {
+                showToast(`Failed: ${err.message}`);
+            }
+        };
+    });
+
+    // Restore hidden/deleted step
+    container.querySelectorAll(".btn-restore-step").forEach(btn => {
+        btn.onclick = async (e) => {
+            const row = e.target.closest(".editor-step-row");
+            const id = parseInt(row.dataset.id);
+            const index = parseInt(row.dataset.index);
+            try {
+                await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${id}/edits`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ hidden: false })
+                });
+                workflow.steps[index].hidden = false;
+                showToast("Step restored to SOP!");
+                renderStepsTab();
+                renderStepThumbnails();
+            } catch(err) {
+                showToast(`Failed to restore: ${err.message}`);
+            }
+        };
+    });
+
+    // Permanent step delete
+    container.querySelectorAll(".btn-perm-del").forEach(btn => {
+        btn.onclick = async (e) => {
+            const row = e.target.closest(".editor-step-row");
+            const id = parseInt(row.dataset.id);
+            const index = parseInt(row.dataset.index);
+            if (confirm("Are you sure you want to PERMANENTLY delete this step? This will erase its screenshot and data from disk.")) {
                 try {
-                    // We delete from steps by triggering visibility edit hidden (or actually deleting,
-                    // but since backend doesn't have custom delete step endpoint yet, we can hide it, 
-                    // or let's call PATCH edits to hide it.
-                    // Actually, hide step is safer, but if we want to delete it, we could edit details or hide).
-                    await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${id}/edits`, {
-                        method: "PATCH",
-                        body: JSON.stringify({ hidden: true })
+                    await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${id}`, {
+                        method: "DELETE"
                     });
-                    workflow.steps[row.dataset.index].hidden = true;
-                    showToast("Step removed from guide");
+                    workflow.steps.splice(index, 1);
+                    // Renumber sequences locally
+                    workflow.steps.forEach((st, i) => st.sequence = i + 1);
+                    if (currentStepIndex >= workflow.steps.length) {
+                        currentStepIndex = Math.max(0, workflow.steps.length - 1);
+                    }
+                    showToast("Step permanently deleted");
                     renderStepsTab();
+                    renderStepThumbnails();
+                    if (workflow.steps.length > 0) {
+                        loadActiveStepDetails();
+                    }
                 } catch(err) {
-                    showToast(err.message);
+                    showToast(`Delete failed: ${err.message}`);
                 }
             }
         };
@@ -2744,32 +2960,16 @@ async function generateInteractiveWalkthroughHtml() {
         }
 
         // Calculate hotspot bounding box in percentages (0-100%)
-        let hotspot = { xPct: 40, yPct: 40, wPct: 20, hPct: 20, type: "fallback" };
-        const annotations = Array.isArray(s.annotations) ? s.annotations : [];
-        const spot = annotations.find(a => a.type === "spotlight" || a.type === "rect" || a.type === "circle");
-        
-        if (spot && spot.w > 0 && spot.h > 0) {
-            // Hotspot from annotation (approx canvas size 1280x800)
+        let hotspot = calculateDefaultHotspot(s);
+        if (s.hotspot && typeof s.hotspot.xPct === "number") {
             hotspot = {
-                xPct: Math.max(0, Math.min(95, (spot.x / naturalW) * 100)),
-                yPct: Math.max(0, Math.min(95, (spot.y / naturalH) * 100)),
-                wPct: Math.max(4, Math.min(80, (spot.w / naturalW) * 100)),
-                hPct: Math.max(4, Math.min(80, (spot.h / naturalH) * 100)),
-                type: "annotation"
+                xPct: s.hotspot.xPct,
+                yPct: s.hotspot.yPct,
+                wPct: s.hotspot.wPct,
+                hPct: s.hotspot.hPct,
+                prompt: s.hotspot.prompt || s.title || getDefaultTitle(s),
+                type: "custom"
             };
-        } else if (s.element && s.element.screen) {
-            const sc = s.element.screen;
-            const vw = sc.viewportWidth || naturalW;
-            const vh = sc.viewportHeight || naturalH;
-            if (sc.width > 0 && sc.height > 0 && vw > 0 && vh > 0) {
-                hotspot = {
-                    xPct: Math.max(0, Math.min(95, (sc.x / vw) * 100)),
-                    yPct: Math.max(0, Math.min(95, (sc.y / vh) * 100)),
-                    wPct: Math.max(4, Math.min(80, (sc.width / vw) * 100)),
-                    hPct: Math.max(4, Math.min(80, (sc.height / vh) * 100)),
-                    type: "element"
-                };
-            }
         }
 
         interactiveSteps.push({
