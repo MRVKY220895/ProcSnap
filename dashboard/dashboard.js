@@ -2200,18 +2200,18 @@ function captureStreamFrame(stream) {
                     })
                 });
 
-                if (res.success) {
-                    $("guideStepTitle").textContent = res.title;
-                    $("guideStepDesc").textContent = res.description;
-                    $("guideStepExpected").value = res.expected;
+                if (res.success || res.title) {
+                    if (res.title) $("guideStepTitle").textContent = res.title;
+                    if (res.description) $("guideStepDesc").textContent = res.description;
+                    if (res.expected && $("guideStepExpected")) $("guideStepExpected").value = res.expected;
                     
-                    step.title = res.title;
-                    step.description = res.description;
-                    step.expected = res.expected;
+                    if (res.title) step.title = res.title;
+                    if (res.description) step.description = res.description;
+                    if (res.expected) step.expected = res.expected;
 
-                    showToast("Step details enhanced with AI.");
+                    showToast("✨ Step enhanced with AI!");
                 } else {
-                    showToast("Ollama is running, but enhance failed.");
+                    showToast("AI model returned empty response.");
                 }
             } catch (e) {
                 console.error("AI Enhance Error:", e);

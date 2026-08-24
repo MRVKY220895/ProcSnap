@@ -1998,6 +1998,7 @@ def ai_describe_step(request: AIDescribeRequest):
         connection.commit()
         
         return {
+            "success": True,
             "step_id": request.step_id,
             "title": title,
             "description": description,
