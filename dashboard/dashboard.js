@@ -5545,6 +5545,11 @@ async function loadSystemRequirements() {
 // 🔀 DECISION BRANCHING (DECISION TREES)
 // =========================================================
 
+function getCurrentStep() {
+    if (!workflow || !workflow.steps || workflow.steps.length === 0) return null;
+    return workflow.steps[currentStepIndex] || null;
+}
+
 function renderStepBranches(step) {
     const listEl = $("stepBranchList");
     if (!listEl) return;
@@ -5594,8 +5599,7 @@ function renderStepBranches(step) {
             const idx = parseInt(e.target.dataset.index, 10);
             if (step.branches[idx]) {
                 step.branches[idx].label = e.target.value;
-                if (typeof triggerAutoSaveStepEdits === "function") triggerAutoSaveStepEdits();
-                else saveStepEdits();
+                saveActiveStepEditsSilent();
             }
         };
     });
@@ -5605,8 +5609,7 @@ function renderStepBranches(step) {
             const idx = parseInt(e.target.dataset.index, 10);
             if (step.branches[idx]) {
                 step.branches[idx].target_sequence = parseInt(e.target.value, 10);
-                if (typeof triggerAutoSaveStepEdits === "function") triggerAutoSaveStepEdits();
-                else saveStepEdits();
+                saveActiveStepEditsSilent();
             }
         };
     });
@@ -5616,8 +5619,7 @@ function renderStepBranches(step) {
             const idx = parseInt(e.currentTarget.dataset.index, 10);
             step.branches.splice(idx, 1);
             renderStepBranches(step);
-            if (typeof triggerAutoSaveStepEdits === "function") triggerAutoSaveStepEdits();
-            else saveStepEdits();
+            saveActiveStepEditsSilent();
             renderStepThumbnails();
         };
     });
@@ -5627,8 +5629,11 @@ function renderStepBranches(step) {
 const btnAddStepBranch = $("btnAddStepBranch");
 if (btnAddStepBranch) {
     btnAddStepBranch.onclick = () => {
-        const step = currentStep();
-        if (!step) return;
+        const step = getCurrentStep();
+        if (!step) {
+            showToast("No active step selected");
+            return;
+        }
         if (!step.branches || !Array.isArray(step.branches)) step.branches = [];
         const allSteps = workflow ? (workflow.steps || []) : [];
         const nextSeq = Math.min(allSteps.length, (step.sequence || 1) + 1);
@@ -5636,9 +5641,13 @@ if (btnAddStepBranch) {
             label: `Path ${step.branches.length + 1}`,
             target_sequence: nextSeq
         });
+        
+        // Auto expand accordion if collapsed
+        const content = $("drawerAccBranching");
+        if (content) content.classList.remove("hidden");
+
         renderStepBranches(step);
-        if (typeof triggerAutoSaveStepEdits === "function") triggerAutoSaveStepEdits();
-        else saveStepEdits();
+        saveActiveStepEditsSilent();
         renderStepThumbnails();
     };
 }
@@ -5651,8 +5660,15 @@ if (btnAddStepBranch) {
 const btnGenerateAnimation = $("btnGenerateAnimation");
 if (btnGenerateAnimation) {
     btnGenerateAnimation.onclick = async () => {
-        const step = currentStep();
-        if (!step || !workflow) return;
+        const step = getCurrentStep();
+        if (!step || !workflow) {
+            showToast("Please select a step with a screenshot first");
+            return;
+        }
+        if (!step.screenshotUrl) {
+            showToast("This step does not have a screenshot to animate");
+            return;
+        }
         
         btnGenerateAnimation.disabled = true;
         const prevHTML = btnGenerateAnimation.innerHTML;
@@ -5663,11 +5679,12 @@ if (btnGenerateAnimation) {
                 method: "POST"
             });
             if (res.success && res.gif_url) {
-                const img = $("screenshotImg");
-                if (img) {
-                    img.src = `${API_BASE + res.gif_url}?t=${Date.now()}`;
+                const imgEl = $("guideImg");
+                if (imgEl) {
+                    imgEl.src = `${API_BASE + res.gif_url}?t=${Date.now()}`;
+                    imgEl.classList.remove("hidden");
                 }
-                showToast("🎬 Micro-Demo loop generated successfully!", 3000);
+                showToast("🎬 Micro-Demo loop generated & playing!", 3500);
             }
         } catch (e) {
             showToast(`Failed to generate animation: ${e.message}`, 4000);
@@ -5817,7 +5834,7 @@ async function selectCommandPaletteItem(index) {
         const targetIdx = Math.max(0, (item.sequence || 1) - 1);
         if (typeof setTab === "function") setTab("guide");
         currentStepIndex = targetIdx;
-        renderActiveStep();
+        loadActiveStepDetails();
         renderStepThumbnails();
     }
 }
