@@ -396,17 +396,22 @@ async function captureStep(step, senderTabId = null, senderWindowId = null) {
         }
     }
 
-    if (!image && senderWindowId !== null) {
+    if (!image) {
         try {
-            image = await chrome.tabs.captureVisibleTab(
-                senderWindowId,
-                { format: "png" }
-            );
+            const targetWinId = senderWindowId !== null ? senderWindowId : null;
+            image = await chrome.tabs.captureVisibleTab(targetWinId, { format: "png" });
         } catch (error) {
-            console.warn(
-                "ProcSnap: VISIBLE TAB SCREENSHOT FAILED",
-                error
-            );
+            console.warn("ProcSnap: Primary capture failed, trying active window fallback...", error);
+            try {
+                const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+                if (activeTab && activeTab.windowId) {
+                    image = await chrome.tabs.captureVisibleTab(activeTab.windowId, { format: "png" });
+                } else {
+                    image = await chrome.tabs.captureVisibleTab(null, { format: "png" });
+                }
+            } catch (fallbackError) {
+                console.error("ProcSnap: VISIBLE TAB SCREENSHOT FAILED", fallbackError);
+            }
         }
     }
 

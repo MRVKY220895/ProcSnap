@@ -658,17 +658,21 @@ document.addEventListener(
         lastClickTime = clickTime;
         lastClickElement = element;
 
+        const elemInfo = getElementInfo(element);
+        const targetName = elemInfo?.cleanLabel || elemInfo?.ariaLabel || (elemInfo?.text && elemInfo.text.length < 50 ? elemInfo.text : null) || elemInfo?.placeholder || elemInfo?.tagName?.toLowerCase() || "item";
+        const smartTitle = `Click on "${targetName}"`;
+
         const step = {
             action: "click",
             timestamp: new Date().toISOString(),
             url: window.location.href,
-            title: document.title,
+            title: smartTitle,
             value: null,
             clickPoint: {
                 x: Number(event.clientX.toFixed(2)),
                 y: Number(event.clientY.toFixed(2))
             },
-            element: getElementInfo(element),
+            element: elemInfo,
             _screenshotMode: "before-click"
         };
 
@@ -707,7 +711,7 @@ document.addEventListener(
                 saveInput(element);
                 inputTimers.delete(element);
             },
-            600
+            1200
         );
 
         inputTimers.set(element, timer);
@@ -743,13 +747,18 @@ function saveInput(element) {
 
     lastInputValues.set(element, value);
 
+    const elemInfo = getElementInfo(element);
+    const label = elemInfo?.cleanLabel || elemInfo?.placeholder || elemInfo?.name || "field";
+    const valDisplay = elemInfo?.isSensitive ? "password" : value;
+    const smartTitle = `Type "${valDisplay}" into ${label}`;
+
     const step = {
         action: "input",
         timestamp: new Date().toISOString(),
         url: window.location.href,
-        title: document.title,
+        title: smartTitle,
         value: value,
-        element: getElementInfo(element)
+        element: elemInfo
     };
 
     sendStep(step);
