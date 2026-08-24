@@ -77,6 +77,9 @@
                             📥 Import JSON
                             <input type="file" id="importJsonInput" accept=".json,.procsnap.json" style="display: none;">
                         </label>
+                        <button id="btnOpenMergeModal" class="btn btn-secondary btn-xs" style="padding: 6px 8px; font-size: 11px; font-weight: 700; color: #10b981; border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.08); display: inline-flex; align-items: center; justify-content: center; gap: 4px; grid-column: span 2; margin-top: 2px;" title="Stitch & merge multiple recorded workflows into one cohesive Master SOP">
+                            🔗 Stitch / Merge Workflows
+                        </button>
                     </div>
                     <!-- Library Stats Strip -->
                     <div class="sidebar-stats" id="sidebarStats">
@@ -1458,6 +1461,49 @@
                     <span><kbd style="font-family: monospace;">↵</kbd> to select</span>
                 </div>
                 <span id="cmdPaletteCount">0 results</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Stitcher / Merge Workflows Modal -->
+    <div id="mergeWorkflowsModal" class="modal-backdrop hidden" style="position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; z-index: 10000; background: rgba(10, 15, 29, 0.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 20px;">
+        <div class="merge-modal-card" style="width: 720px; max-width: 95vw; max-height: 88vh; background: var(--bg-surface-elevated, #182234); border: 1px solid var(--border-subtle, rgba(255,255,255,0.12)); border-radius: 16px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.85); display: flex; flex-direction: column; overflow: hidden;">
+            <!-- Modal Header -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(0,0,0,0.15);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981, #059669); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;">🔗</div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main, #fff); margin: 0;">Session Stitcher (Merge Workflows)</h3>
+                        <div style="font-size: 12px; color: var(--text-muted, #94a3b8);">Select 2 or more workflows to combine into a single sequential Master SOP</div>
+                    </div>
+                </div>
+                <button id="btnCloseMergeModal" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; border-radius: 6px;" title="Close (Esc)">✕</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted, #94a3b8); margin-bottom: 6px; display: block;">Master SOP Title</label>
+                    <input type="text" id="mergeMasterTitle" placeholder="e.g. Master Employee Onboarding &amp; Setup SOP" class="form-control" style="font-size: 13.5px; padding: 10px 14px; border-radius: 8px; width: 100%; box-sizing: border-box;">
+                </div>
+
+                <div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted, #94a3b8);">Select &amp; Order Workflows to Stitch</label>
+                        <span id="mergeSelectedCount" style="font-size: 11.5px; font-weight: 700; color: #10b981;">0 selected</span>
+                    </div>
+                    <div id="mergeWorkflowList" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; padding-right: 4px;">
+                        <!-- Injected dynamically by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="padding: 16px 24px; border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+                <button id="btnCancelMergeModal" class="btn btn-secondary btn-sm" style="font-weight: 600;">Cancel</button>
+                <button id="btnExecuteMerge" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; padding: 8px 18px; box-shadow: 0 4px 14px rgba(16,185,129,0.35);">
+                    ✨ Merge into Master SOP
+                </button>
             </div>
         </div>
     </div>

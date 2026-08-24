@@ -849,6 +849,60 @@ chrome.runtime.onMessage.addListener(
 
 
 /* =========================================================
+   🌐 MULTI-TAB SEAMLESS TRACKING CONTINUITY
+========================================================= */
+
+// When a new tab is opened while recording is active (e.g. clicking target="_blank")
+if (typeof chrome !== "undefined" && chrome.tabs && chrome.tabs.onCreated) {
+    chrome.tabs.onCreated.addListener(async (tab) => {
+        if (!recording || !currentSessionId) return;
+        if (!tab.id || (tab.url && (tab.url.startsWith("chrome://") || tab.url.startsWith("chrome-extension://")))) return;
+
+        console.log("[ProcSnap] New tab opened during active recording session:", tab.id);
+        try {
+            if (chrome.scripting && chrome.scripting.executeScript) {
+                await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ["content.js"]
+                });
+            }
+            chrome.tabs.sendMessage(tab.id, {
+                type: "RECORDING_STATE_CHANGED",
+                recording: true,
+                paused: false
+            }).catch(() => {});
+        } catch (e) {
+            console.debug("[ProcSnap] Auto-injection on tab creation deferred:", e);
+        }
+    });
+}
+
+// When any tab updates or navigates to a new page while recording is active
+if (typeof chrome !== "undefined" && chrome.tabs && chrome.tabs.onUpdated) {
+    chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+        if (!recording || !currentSessionId) return;
+        if (changeInfo.status === "complete" && tab.url && !tab.url.startsWith("chrome://") && !tab.url.startsWith("chrome-extension://")) {
+            try {
+                if (chrome.scripting && chrome.scripting.executeScript) {
+                    await chrome.scripting.executeScript({
+                        target: { tabId: tabId },
+                        files: ["content.js"]
+                    });
+                }
+                chrome.tabs.sendMessage(tabId, {
+                    type: "RECORDING_STATE_CHANGED",
+                    recording: true,
+                    paused: false
+                }).catch(() => {});
+            } catch (e) {
+                console.debug("[ProcSnap] Auto-injection on tab update deferred:", e);
+            }
+        }
+    });
+}
+
+
+/* =========================================================
    STARTUP & KEYBOARD SHORTCUTS
 ========================================================= */
 

@@ -7437,6 +7437,150 @@ function initCopyRichSopToClipboard() {
 }
 
 
+// =========================================================
+// 🔗 SESSION STITCHER (MERGE WORKFLOWS MODAL)
+// =========================================================
+
+function initWorkflowMergeModal() {
+    const openBtn = $("btnOpenMergeModal");
+    const modal = $("mergeWorkflowsModal");
+    const closeBtn = $("btnCloseMergeModal");
+    const cancelBtn = $("btnCancelMergeModal");
+    const executeBtn = $("btnExecuteMerge");
+    const listContainer = $("mergeWorkflowList");
+    const countBadge = $("mergeSelectedCount");
+    const titleInput = $("mergeMasterTitle");
+
+    if (!openBtn || !modal) return;
+
+    let availableWorkflows = [];
+
+    const closeModal = () => {
+        modal.classList.add("hidden");
+    };
+
+    const updateSelectedCount = () => {
+        const checked = listContainer.querySelectorAll(".merge-wf-checkbox:checked");
+        if (countBadge) countBadge.textContent = `${checked.length} selected`;
+    };
+
+    const renderMergeList = () => {
+        if (!listContainer) return;
+        if (availableWorkflows.length === 0) {
+            listContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 24px;">No workflows found in your library.</div>`;
+            return;
+        }
+
+        listContainer.innerHTML = availableWorkflows.map((wf, idx) => `
+            <div class="merge-item-card" data-id="${wf.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-surface, rgba(255,255,255,0.03)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 10px; transition: all 0.15s ease;">
+                <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+                    <input type="checkbox" class="merge-wf-checkbox" data-id="${wf.id}" style="cursor: pointer; width: 16px; height: 16px; accent-color: #10b981;">
+                    <div style="min-width: 0; flex: 1;">
+                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main, #fff); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${wf.name || "Untitled Workflow"}</div>
+                        <div style="font-size: 11px; color: var(--text-muted, #94a3b8);">${wf.stepCount || 0} steps &bull; ${wf.application || "Web"} &bull; ${new Date(wf.startedAt || Date.now()).toLocaleDateString()}</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 4px;">
+                    <button class="btn btn-secondary btn-xs btn-move-up" style="padding: 2px 6px;" title="Move earlier in procedure">↑</button>
+                    <button class="btn btn-secondary btn-xs btn-move-down" style="padding: 2px 6px;" title="Move later in procedure">↓</button>
+                </div>
+            </div>
+        `).join("");
+
+        // Attach event listeners
+        listContainer.querySelectorAll(".merge-wf-checkbox").forEach(cb => {
+            cb.onchange = updateSelectedCount;
+        });
+
+        listContainer.querySelectorAll(".btn-move-up").forEach(btn => {
+            btn.onclick = (e) => {
+                const card = e.target.closest(".merge-item-card");
+                if (card && card.previousElementSibling) {
+                    card.parentNode.insertBefore(card, card.previousElementSibling);
+                }
+            };
+        });
+
+        listContainer.querySelectorAll(".btn-move-down").forEach(btn => {
+            btn.onclick = (e) => {
+                const card = e.target.closest(".merge-item-card");
+                if (card && card.nextElementSibling) {
+                    card.parentNode.insertBefore(card.nextElementSibling, card);
+                }
+            };
+        });
+
+        updateSelectedCount();
+    };
+
+    openBtn.onclick = async () => {
+        modal.classList.remove("hidden");
+        if (titleInput) titleInput.value = `Master SOP: ${workflow?.name || "Unified Procedure"}`;
+
+        try {
+            const res = await fetch(`${API_BASE}/sessions`);
+            if (res.ok) {
+                const data = await res.json();
+                availableWorkflows = data.sessions || [];
+                renderMergeList();
+            }
+        } catch (e) {
+            console.error("Error loading sessions for merge:", e);
+        }
+    };
+
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+
+    if (executeBtn) {
+        executeBtn.onclick = async () => {
+            const selectedCards = Array.from(listContainer.querySelectorAll(".merge-item-card"))
+                .filter(card => card.querySelector(".merge-wf-checkbox:checked"));
+
+            const sessionIds = selectedCards.map(c => c.dataset.id);
+
+            if (sessionIds.length < 2) {
+                showToast("Please select at least 2 workflows to stitch together.");
+                return;
+            }
+
+            const masterTitle = titleInput?.value?.trim() || "Master Standard Operating Procedure";
+            executeBtn.innerHTML = `<span>⏳</span> Merging Workflows...`;
+            executeBtn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE}/sessions/merge`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        session_ids: sessionIds,
+                        title: masterTitle,
+                        application: "Unified Procedure"
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Merge failed");
+                }
+
+                const data = await res.json();
+                showToast(`🎉 Master SOP created with ${data.stepCount} steps! Loading...`, 4000);
+                setTimeout(() => {
+                    window.location.href = `dashboard.html?session_id=${encodeURIComponent(data.masterSessionId)}`;
+                }, 1000);
+            } catch (e) {
+                console.error("Merge error:", e);
+                showToast("Failed to merge workflows: " + e.message);
+            } finally {
+                executeBtn.innerHTML = `✨ Merge into Master SOP`;
+                executeBtn.disabled = false;
+            }
+        };
+    }
+}
+
+
 // Initialize All Platform Enhancements
 initHotspotReticle();
 initCanvasFileDrop();
@@ -7448,6 +7592,6 @@ initWorkflowGraphModal();
 initSlideshowPracticeAndTeleprompter();
 initScormExport();
 initCopyRichSopToClipboard();
-initScormExport();
+initWorkflowMergeModal();
 
 

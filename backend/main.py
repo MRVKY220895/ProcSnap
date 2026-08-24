@@ -4165,4 +4165,150 @@ def delete_last_step(session_id: str):
         conn.close()
 
 
+# =========================================================
+# 🔗 SESSION STITCHER (MERGE MULTIPLE WORKFLOWS)
+# =========================================================
+
+class MergeSessionsRequest(BaseModel):
+    session_ids: List[str]
+    title: Optional[str] = "Master Standard Operating Procedure"
+    application: Optional[str] = "Unified Suite"
+
+@app.post("/sessions/merge")
+def merge_sessions(payload: MergeSessionsRequest):
+    """
+    Combines multiple recorded SOP sessions into one master procedure,
+    re-indexing all steps and cloning screenshots/annotations seamlessly.
+    """
+    if not payload.session_ids or len(payload.session_ids) < 2:
+        raise HTTPException(status_code=400, detail="At least two session IDs are required to merge.")
+
+    master_id = str(uuid4())
+    now = datetime.utcnow().isoformat()
+    master_dir = SCREENSHOTS_DIR / master_id
+    master_dir.mkdir(parents=True, exist_ok=True)
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        
+        # 1. Create master workflow
+        cur.execute(
+            """
+            INSERT INTO workflows (id, name, application, status, started_at, ended_at, created_at, updated_at, tags)
+            VALUES (?, ?, ?, 'completed', ?, ?, ?, ?, 'Merged Master SOP')
+            """,
+            (master_id, payload.title, payload.application, now, now, now, now)
+        )
+
+        global_seq = 1
+
+        # 2. Iterate through each source workflow in order
+        for source_id in payload.session_ids:
+            steps = cur.execute(
+                """
+                SELECT * FROM workflow_steps
+                WHERE workflow_id = ?
+                ORDER BY sequence ASC
+                """,
+                (source_id,)
+            ).fetchall()
+
+            for step in steps:
+                orig_step_id = step["id"]
+                new_screenshot_path = None
+
+                # Copy screenshot file if present
+                if step["screenshot_path"]:
+                    orig_file = BASE_DIR / step["screenshot_path"]
+                    if not orig_file.exists():
+                        orig_file = Path(step["screenshot_path"])
+
+                    if orig_file.exists():
+                        ext = orig_file.suffix or ".png"
+                        new_filename = f"step-{global_seq:03d}{ext}"
+                        new_dest = master_dir / new_filename
+                        shutil.copy2(orig_file, new_dest)
+                        new_screenshot_path = f"screenshots/{master_id}/{new_filename}"
+
+                # Insert re-indexed step into master
+                cur.execute(
+                    """
+                    INSERT INTO workflow_steps (
+                        workflow_id, sequence, action, timestamp, url, title, value,
+                        selected_text, previous_url, checked, element_json, screenshot_path
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        master_id,
+                        global_seq,
+                        step["action"],
+                        step["timestamp"] or now,
+                        step["url"],
+                        step["title"],
+                        step["value"],
+                        step["selected_text"],
+                        step["previous_url"],
+                        step["checked"],
+                        step["element_json"],
+                        new_screenshot_path
+                    )
+                )
+                new_step_id = cur.lastrowid
+
+                # Copy annotations if any
+                ann = cur.execute(
+                    "SELECT data FROM step_annotations WHERE step_id = ?",
+                    (orig_step_id,)
+                ).fetchone()
+                if ann:
+                    cur.execute(
+                        """
+                        INSERT INTO step_annotations (step_id, workflow_id, data, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (new_step_id, master_id, ann["data"], now, now)
+                    )
+
+                # Copy edits if any
+                edit = cur.execute(
+                    "SELECT * FROM step_edits WHERE step_id = ?",
+                    (orig_step_id,)
+                ).fetchone()
+                if edit:
+                    cur.execute(
+                        """
+                        INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, voiceover, hidden, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            new_step_id,
+                            master_id,
+                            edit["title"],
+                            edit["description"],
+                            edit["note"],
+                            edit["expected"],
+                            edit["voiceover"] if "voiceover" in edit.keys() else None,
+                            edit["hidden"] or 0,
+                            now
+                        )
+                    )
+
+                global_seq += 1
+
+        conn.commit()
+
+        return {
+            "success": True,
+            "masterSessionId": master_id,
+            "title": payload.title,
+            "stepCount": global_seq - 1,
+            "message": f"Successfully stitched {len(payload.session_ids)} workflows into Master SOP with {global_seq - 1} steps!"
+        }
+    finally:
+        conn.close()
+
+
+
 
