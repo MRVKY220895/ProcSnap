@@ -503,12 +503,13 @@ svg {
     display: none !important;
 }
 
-/* Guide Layout — canvas full width, drawer aside */
 .guide-layout {
     display: flex;
     gap: 0;
     flex: 1;
     min-height: 0;
+    width: 100%;
+    overflow: hidden;
     position: relative;
 }
 
@@ -648,15 +649,11 @@ svg {
 .canvas-workspace {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    flex: 1;
+    gap: 0;
+    flex: 1 1 0;
     min-width: 0;
-    transition: margin-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
     position: relative;
-}
-
-.canvas-workspace.drawer-open {
-    margin-right: 0;
 }
 
 /* Step Detail Side Drawer */
@@ -835,18 +832,7 @@ svg {
     padding: 4px 16px 12px;
 }
 
-.canvas-toolbar {
-    background-color: var(--light-surface);
-    border: 1px solid var(--light-border);
-    border-radius: var(--radius-lg);
-    padding: 8px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: var(--shadow-sm);
-    gap: 16px;
-    margin-bottom: 12px;
-}
+
 
 .tool-group {
     display: flex;
@@ -2740,12 +2726,18 @@ svg {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 14px;
+    padding: 6px 12px;
     background: #111827;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    gap: 8px;
-    z-index: 100;
+    gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+    z-index: 10;
 }
+.canvas-toolbar::-webkit-scrollbar { display: none; }
 .tool-group {
     display: inline-flex;
     align-items: center;
