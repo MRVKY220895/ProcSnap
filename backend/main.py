@@ -2526,6 +2526,42 @@ def generate_step_animation(session_id: str, step_id: int):
         connection.close()
 
 
+@app.delete("/sessions/{session_id}/steps/{step_id}/animate")
+def delete_step_animation(session_id: str, step_id: int):
+    """
+    Deletes the animated micro-demo GIF for the step if it exists.
+    """
+    connection = get_connection()
+    try:
+        cursor = connection.cursor()
+        step = cursor.execute(
+            "SELECT sequence FROM workflow_steps WHERE id = ? AND workflow_id = ?",
+            (step_id, session_id)
+        ).fetchone()
+        if not step:
+            raise HTTPException(status_code=404, detail="Step not found")
+
+        seq = int(step["sequence"])
+        gif_filename = f"step-{seq:03d}-demo.gif"
+        gif_path = SCREENSHOTS_DIR / session_id / gif_filename
+        
+        deleted = False
+        if gif_path.is_file():
+            try:
+                gif_path.unlink()
+                deleted = True
+            except Exception as e:
+                print("Error unlinking gif file:", e)
+
+        return {
+            "success": True,
+            "deleted": deleted,
+            "message": "Micro-demo animation removed successfully"
+        }
+    finally:
+        connection.close()
+
+
 # =========================================================
 # GLOBAL DEEP SEARCH (COMMAND PALETTE)
 # =========================================================

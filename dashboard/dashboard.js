@@ -2866,6 +2866,7 @@ function loadActiveStepDetails() {
     setVal("guideStepNote", step.note || "");
     setVal("guideStepVoiceover", step.voiceover || "");
     renderStepBranches(step);
+    if (typeof updateDemoButtonState === "function") updateDemoButtonState(step);
 
     // Populate Interactive Hotspot values (Requirement 2)
     const hs = calculateDefaultHotspot(step);
@@ -5890,10 +5891,26 @@ if (btnAddStepBranch) {
 
 
 // =========================================================
-// 🎬 ANIMATED STEP MICRO-DEMO GENERATOR (GIF)
+// 🎬 ANIMATED STEP MICRO-DEMO GENERATOR (GIF) & REMOVAL
 // =========================================================
 
 const btnGenerateAnimation = $("btnGenerateAnimation");
+const btnRemoveAnimation = $("btnRemoveAnimation");
+
+function updateDemoButtonState(step) {
+    if (!step) {
+        if (btnRemoveAnimation) btnRemoveAnimation.classList.add("hidden");
+        return;
+    }
+    if (step.hasActiveDemo) {
+        if (btnRemoveAnimation) btnRemoveAnimation.classList.remove("hidden");
+        if (btnGenerateAnimation) btnGenerateAnimation.innerHTML = `<span>🔄</span> Re-generate`;
+    } else {
+        if (btnRemoveAnimation) btnRemoveAnimation.classList.add("hidden");
+        if (btnGenerateAnimation) btnGenerateAnimation.innerHTML = `🎬 Micro-Demo`;
+    }
+}
+
 if (btnGenerateAnimation) {
     btnGenerateAnimation.onclick = async () => {
         const step = getCurrentStep();
@@ -5915,18 +5932,65 @@ if (btnGenerateAnimation) {
                 method: "POST"
             });
             if (res.success && res.gif_url) {
+                step.hasActiveDemo = true;
                 const imgEl = $("guideImg");
                 if (imgEl) {
                     imgEl.src = `${API_BASE + res.gif_url}?t=${Date.now()}`;
                     imgEl.classList.remove("hidden");
                 }
-                showToast("🎬 Micro-Demo loop generated & playing!", 3500);
+                updateDemoButtonState(step);
+                showToast("🎬 Micro-Demo loop active! Click 'Remove Demo' anytime to revert.", 4000);
             }
         } catch (e) {
             showToast(`Failed to generate animation: ${e.message}`, 4000);
         } finally {
             btnGenerateAnimation.disabled = false;
-            btnGenerateAnimation.innerHTML = prevHTML;
+            if (!step.hasActiveDemo) {
+                btnGenerateAnimation.innerHTML = prevHTML;
+            }
+        }
+    };
+}
+
+if (btnRemoveAnimation) {
+    btnRemoveAnimation.onclick = async () => {
+        const step = getCurrentStep();
+        if (!step || !workflow) return;
+        
+        btnRemoveAnimation.disabled = true;
+        btnRemoveAnimation.textContent = "Removing...";
+        
+        try {
+            await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/animate`, {
+                method: "DELETE"
+            });
+            
+            step.hasActiveDemo = false;
+            
+            // Revert image to original static PNG
+            const imgEl = $("guideImg");
+            if (imgEl && step.screenshotUrl) {
+                imgEl.src = `${API_BASE + step.screenshotUrl}?t=${Date.now()}`;
+            }
+            
+            // Reapply annotations
+            if (canvasEngine) {
+                const userAnno = getStepAnnotations(step);
+                const withSpot = canvasEngine.applyAutoSpotlight(
+                    step.element,
+                    step.sequence,
+                    userAnno
+                );
+                canvasEngine.setAnnotations(withSpot);
+            }
+            
+            updateDemoButtonState(step);
+            showToast("✕ Micro-Demo removed. Original screenshot restored.", 3500);
+        } catch (e) {
+            showToast(`Failed to remove animation: ${e.message}`, 4000);
+        } finally {
+            btnRemoveAnimation.disabled = false;
+            btnRemoveAnimation.textContent = "✕ Remove Demo";
         }
     };
 }
