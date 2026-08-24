@@ -43,19 +43,25 @@ async function getBackendUrl() {
     return cachedBackendUrl;
 }
 
-function setApiStatus(online) {
+const apiOfflineBanner = document.getElementById("api-offline-banner");
+const btnRetryApi = document.getElementById("btnRetryApi");
+const btnCopyStartCmd = document.getElementById("btnCopyStartCmd");
+
+function setApiStatus(online, port = "") {
     const openStudioLink = document.getElementById("openStudioLink");
     if (openStudioLink) {
         openStudioLink.href = `${cachedBackendUrl}/dashboard/dashboard.html`;
     }
     if (online) {
-        apiStatusPill.textContent = "API Connected";
+        apiStatusPill.textContent = port ? `Online (Port ${port})` : "API Connected";
         apiStatusPill.className = "api-status online";
         startButton.disabled = false;
+        if (apiOfflineBanner) apiOfflineBanner.classList.add("hidden");
     } else {
         apiStatusPill.textContent = "API Offline";
         apiStatusPill.className = "api-status offline";
         startButton.disabled = true;
+        if (apiOfflineBanner) apiOfflineBanner.classList.remove("hidden");
     }
 }
 
@@ -64,7 +70,9 @@ async function checkBackendHealth() {
         const backend = await getBackendUrl();
         const res = await fetch(`${backend}/health`);
         if (res.ok) {
-            setApiStatus(true);
+            const portMatch = backend.match(/:(\d+)$/);
+            const port = portMatch ? portMatch[1] : "8000";
+            setApiStatus(true, port);
             return true;
         }
     } catch (e) {
@@ -72,6 +80,38 @@ async function checkBackendHealth() {
     }
     setApiStatus(false);
     return false;
+}
+
+if (btnRetryApi) {
+    btnRetryApi.onclick = async () => {
+        btnRetryApi.disabled = true;
+        btnRetryApi.textContent = "⏳ Testing Ports 8000-8005...";
+        const ok = await checkBackendHealth();
+        btnRetryApi.disabled = false;
+        btnRetryApi.textContent = "🔄 Retry Connection";
+        if (ok) {
+            btnRetryApi.textContent = "✓ Connected!";
+            setTimeout(() => { btnRetryApi.textContent = "🔄 Retry Connection"; }, 1500);
+        }
+    };
+}
+
+if (btnCopyStartCmd) {
+    btnCopyStartCmd.onclick = async () => {
+        const cmd = `backend\\.venv\\Scripts\\python.exe -m uvicorn backend.main:app --port 8000`;
+        try {
+            await navigator.clipboard.writeText(cmd);
+            const prev = btnCopyStartCmd.textContent;
+            btnCopyStartCmd.textContent = "✓ Command Copied!";
+            setTimeout(() => { btnCopyStartCmd.textContent = prev; }, 2000);
+        } catch (_) {
+            alert(`Start command:\n${cmd}`);
+        }
+    };
+}
+
+if (apiStatusPill) {
+    apiStatusPill.onclick = () => checkBackendHealth();
 }
 
 function updateUI(recording, name = "Untitled Workflow", steps = 0, paused = false) {

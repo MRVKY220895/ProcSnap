@@ -521,11 +521,78 @@ async function init() {
         };
     }
 
+    // ── Workflow Hub Navigation Bindings ─────────────────────────────────────
+    const btnBackToHub = $("btnBackToHub");
+    const brandLogoHome = $("brandLogoHome");
+    const brandTitleGroup = $("brandTitleGroup");
+    if (btnBackToHub) btnBackToHub.onclick = () => showLibraryHub();
+    if (brandLogoHome) brandLogoHome.onclick = () => showLibraryHub();
+    if (brandTitleGroup) brandTitleGroup.onclick = () => showLibraryHub();
+
+    // Hub Quick Action Hero Cards
+    const hubActionRecordWeb = $("hubActionRecordWeb");
+    const hubActionVideoSOP = $("hubActionVideoSOP");
+    const hubActionDesktop = $("hubActionDesktop");
+    const hubImportJsonInput = $("hubImportJsonInput");
+
+    if (hubActionRecordWeb) hubActionRecordWeb.onclick = openExtModal;
+    if (hubActionVideoSOP) hubActionVideoSOP.onclick = () => {
+        if (btnOpenVideoImport) btnOpenVideoImport.click();
+    };
+    if (hubActionDesktop) hubActionDesktop.onclick = () => {
+        if (window.openDesktopCaptureModal) window.openDesktopCaptureModal();
+        else if ($("captureDesktopBtn")) $("captureDesktopBtn").click();
+    };
+    if (hubImportJsonInput) {
+        hubImportJsonInput.onchange = (e) => handleJsonImport(e.target.files[0]);
+    }
+
+    // Hub Search, Filter & Sort
+    const hubSearchInput = $("hubSearchInput");
+    if (hubSearchInput) {
+        hubSearchInput.oninput = () => renderLibraryHub();
+    }
+    const hubSortSelect = $("hubSortSelect");
+    if (hubSortSelect) {
+        hubSortSelect.onchange = (e) => {
+            hubSortBy = e.target.value;
+            renderLibraryHub();
+        };
+    }
+    const hubViewGridBtn = $("hubViewGridBtn");
+    const hubViewListBtn = $("hubViewListBtn");
+    if (hubViewGridBtn && hubViewListBtn) {
+        hubViewGridBtn.onclick = () => {
+            hubViewMode = "grid";
+            hubViewGridBtn.classList.add("active");
+            hubViewListBtn.classList.remove("active");
+            const grid = $("hubWorkflowGrid");
+            if (grid) {
+                grid.style.display = "grid";
+                grid.style.flexDirection = "";
+            }
+        };
+        hubViewListBtn.onclick = () => {
+            hubViewMode = "list";
+            hubViewListBtn.classList.add("active");
+            hubViewGridBtn.classList.remove("active");
+            const grid = $("hubWorkflowGrid");
+            if (grid) {
+                grid.style.display = "flex";
+                grid.style.flexDirection = "column";
+            }
+        };
+    }
+
     // ── Global Keyboard Shortcuts & Modal Escape Handler ───────────────────────
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
             const openModals = document.querySelectorAll(".modal-backdrop:not(.hidden), .dc-modal-overlay:not(.hidden)");
-            openModals.forEach((m) => m.classList.add("hidden"));
+            if (openModals.length > 0) {
+                openModals.forEach((m) => m.classList.add("hidden"));
+            } else if (selectedWorkflowId && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+                showLibraryHub();
+            }
         }
     });
 
@@ -848,7 +915,12 @@ async function handleJsonImport(file) {
     }
 }
 
-// Load Workflows List
+// Workflow Hub & Studio State
+let hubViewMode = "grid"; // "grid" | "list"
+let hubSortBy = "recent"; // "recent" | "steps" | "name"
+let hubFilterTag = "ALL";
+
+// Load Workflows List & Hub
 async function loadWorkflows() {
     try {
         const data = await api("/sessions");
@@ -856,19 +928,23 @@ async function loadWorkflows() {
         updateLibraryStats();
         renderTagFilterBar();
         renderWorkflowList();
+        renderLibraryHub();
         
-        if (workflows.length > 0) {
-            if (selectedWorkflowId && workflows.some(w => w.id === selectedWorkflowId)) {
-                await openWorkflow(selectedWorkflowId);
-            } else {
-                await openWorkflow(workflows[0].id);
-            }
+        const urlParams = new URLSearchParams(window.location.search);
+        const initSessionId = urlParams.get("session_id");
+
+        if (initSessionId && workflows.some(w => w.id === initSessionId)) {
+            await openWorkflow(initSessionId);
+        } else if (selectedWorkflowId && workflows.some(w => w.id === selectedWorkflowId)) {
+            await openWorkflow(selectedWorkflowId);
         } else {
-            showEmptyState();
+            showLibraryHub();
         }
     } catch (e) {
         const listEl = $("workflowList");
         if (listEl) listEl.innerHTML = `<div class="no-results">Error loading workflows: ${esc(e.message)}</div>`;
+        const gridEl = $("hubWorkflowGrid");
+        if (gridEl) gridEl.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--danger);">⚠️ Error loading library: ${esc(e.message)}</div>`;
     }
 }
 
@@ -891,7 +967,7 @@ function formatRelativeTime(iso) {
     }
 }
 
-// Render Workflows Sidebar List
+// Render Workflows Sidebar List (Quick Switcher)
 function renderWorkflowList() {
     const searchEl = $("searchInput");
     const q = (searchEl ? searchEl.value : "").trim().toLowerCase();
@@ -938,21 +1014,178 @@ function renderWorkflowList() {
     });
 }
 
-// Show Empty State UI
-function showEmptyState() {
-    $("emptyState").classList.remove("hidden");
-    $("studioView").classList.add("hidden");
+// Show Full-Screen Workflow Hub Gallery UI
+function showLibraryHub() {
+    selectedWorkflowId = null;
+    if ($("libraryHubView")) $("libraryHubView").classList.remove("hidden");
+    if ($("studioView")) $("studioView").classList.add("hidden");
+    if ($("topBreadcrumb")) $("topBreadcrumb").classList.add("hidden");
+    
+    // Auto-collapse sidebar in Hub view for full-width gallery experience
+    const sidebar = document.querySelector(".sidebar");
+    if (sidebar) sidebar.classList.add("collapsed");
+
+    // Clean URL query param
+    const url = new URL(window.location);
+    url.searchParams.delete("session_id");
+    window.history.replaceState({}, "", url);
+    
+    renderWorkflowList();
+    renderLibraryHub();
 }
 
-// Open and load detailed workflow
+// Render Modern Workflow Hub Gallery View
+function renderLibraryHub() {
+    const gridEl = $("hubWorkflowGrid");
+    if (!gridEl) return;
+    
+    const searchEl = $("hubSearchInput");
+    const q = (searchEl ? searchEl.value : "").trim().toLowerCase();
+    
+    let filtered = workflows.filter(w => {
+        const matchesQuery = (w.name || "").toLowerCase().includes(q) || 
+                             (w.application || "").toLowerCase().includes(q) ||
+                             (w.tags || "").toLowerCase().includes(q);
+        const matchesTag = hubFilterTag === "ALL" || 
+                           (w.tags || "").split(",").map(t => t.trim().toLowerCase()).includes(hubFilterTag.toLowerCase());
+        return matchesQuery && matchesTag;
+    });
+
+    // Sorting
+    if (hubSortBy === "recent") {
+        filtered.sort((a, b) => new Date(b.created_at || b.updated_at || 0) - new Date(a.created_at || a.updated_at || 0));
+    } else if (hubSortBy === "steps") {
+        filtered.sort((a, b) => (b.stepCount || 0) - (a.stepCount || 0));
+    } else if (hubSortBy === "name") {
+        filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }
+
+    renderHubTagFilterBar();
+
+    if (filtered.length === 0) {
+        gridEl.innerHTML = `
+            <div style="grid-column: 1 / -1; padding: 48px 24px; text-align: center; background: var(--bg-surface-elevated); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">
+                <div style="font-size: 32px; margin-bottom: 12px;">📁</div>
+                <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0 0 6px 0;">No SOP Workflows Found</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 16px 0;">Start by recording a web app, importing a video screen capture, or capturing your desktop.</p>
+                <button class="btn btn-primary btn-sm" id="hubEmptyStartExtBtn" style="display: inline-flex; align-items: center; gap: 6px;">
+                    🔴 Record New Workflow
+                </button>
+            </div>
+        `;
+        const emptyBtn = $("hubEmptyStartExtBtn");
+        if (emptyBtn) emptyBtn.onclick = () => {
+            if ($("startExtensionTopbarBtn")) $("startExtensionTopbarBtn").click();
+        };
+        return;
+    }
+
+    gridEl.innerHTML = filtered.map(w => {
+        const timeStr = formatRelativeTime(w.created_at || w.updated_at);
+        const coverUrl = `${API_BASE}/sessions/${encodeURIComponent(w.id)}/steps/0/image?t=${Date.now()}`;
+        const tagBadges = (w.tags || "").split(",").map(t => t.trim()).filter(Boolean).map(t => `
+            <span class="hub-card-tag">${esc(t)}</span>
+        `).join("");
+
+        return `
+            <div class="hub-card" data-id="${esc(w.id)}">
+                <div class="hub-card-thumb-wrap" onclick="openWorkflow('${esc(w.id)}')">
+                    <img class="hub-card-thumb" src="${coverUrl}" alt="Cover screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="hub-card-placeholder" style="display: none;">
+                        <span style="font-size: 28px;">📄</span>
+                        <span style="font-size: 11px; font-weight: 600;">ProcSnap SOP</span>
+                    </div>
+                    <span class="hub-card-badge-app">${esc(w.application || 'App')}</span>
+                    <span class="hub-card-badge-steps">${w.stepCount || 0} Step${w.stepCount === 1 ? '' : 's'}</span>
+                </div>
+                <div class="hub-card-body" onclick="openWorkflow('${esc(w.id)}')">
+                    <div class="hub-card-title">${esc(w.name || 'Untitled Workflow')}</div>
+                    <div class="hub-card-meta">
+                        <span>🕒 ${timeStr}</span>
+                        <span>•</span>
+                        <span style="color: #10b981; font-weight: 600;">${esc(w.status || 'Active')}</span>
+                    </div>
+                    ${tagBadges ? `<div class="hub-card-tags">${tagBadges}</div>` : ''}
+                </div>
+                <div class="hub-card-footer">
+                    <button class="hub-card-btn primary" onclick="openWorkflow('${esc(w.id)}')">
+                        ✏️ Edit SOP
+                    </button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="hub-card-btn" onclick="triggerGuideMeForWorkflow('${esc(w.id)}', event)" title="Start interactive Guide Me beacon">
+                            🎯 Guide Me
+                        </button>
+                        <button class="hub-card-btn" onclick="deleteWorkflowFromHub('${esc(w.id)}', event)" title="Delete workflow" style="color: var(--danger);">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+function renderHubTagFilterBar() {
+    const bar = $("hubTagFilterBar");
+    if (!bar) return;
+
+    const allTags = new Set();
+    workflows.forEach(w => {
+        (w.tags || "").split(",").forEach(t => {
+            const clean = t.trim();
+            if (clean) allTags.add(clean);
+        });
+    });
+
+    const tagsArr = ["ALL", ...Array.from(allTags).sort()];
+    bar.innerHTML = tagsArr.map(tag => `
+        <button class="hub-tag-pill ${hubFilterTag === tag ? 'active' : ''}" data-tag="${esc(tag)}">
+            ${tag === "ALL" ? "All Guides" : `#${esc(tag)}`}
+        </button>
+    `).join("");
+
+    bar.querySelectorAll(".hub-tag-pill").forEach(btn => {
+        btn.onclick = () => {
+            hubFilterTag = btn.dataset.tag;
+            renderLibraryHub();
+        };
+    });
+}
+
+async function deleteWorkflowFromHub(id, e) {
+    if (e) e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this workflow?")) return;
+    try {
+        await api(`/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
+        showToast("Workflow deleted");
+        await loadWorkflows();
+        renderLibraryHub();
+    } catch (err) {
+        showToast(`Failed to delete: ${err.message}`);
+    }
+}
+
+async function triggerGuideMeForWorkflow(id, e) {
+    if (e) e.stopPropagation();
+    await openWorkflow(id);
+    setTab("play");
+}
+
+// Open and load detailed workflow into Studio Workspace
 async function openWorkflow(id) {
     selectedWorkflowId = id;
     renderWorkflowList();
     
     try {
         workflow = await api(`/sessions/${encodeURIComponent(id)}`);
-        if ($("emptyState")) $("emptyState").classList.add("hidden");
+        if ($("libraryHubView")) $("libraryHubView").classList.add("hidden");
         if ($("studioView")) $("studioView").classList.remove("hidden");
+        if ($("topBreadcrumb")) $("topBreadcrumb").classList.remove("hidden");
+        
+        // Update URL query param
+        const url = new URL(window.location);
+        url.searchParams.set("session_id", id);
+        window.history.replaceState({}, "", url);
         
         setText("detailName", workflow.name || "Untitled Workflow");
         setText("detailApplication", workflow.application || "Chrome");
@@ -964,7 +1197,7 @@ async function openWorkflow(id) {
         setTab(activeTab);
     } catch (e) {
         showToast(`Failed to load workflow: ${e.message}`);
-        showEmptyState();
+        showLibraryHub();
     }
 }
 

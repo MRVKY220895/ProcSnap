@@ -12,8 +12,22 @@
                 <span class="logo-mark">P</span>
                 <span class="logo-text">ProcSnap</span>
             </div>
-            <div id="api-status-pill" class="api-status offline">API Offline</div>
+            <div id="api-status-pill" class="api-status offline" title="Click to test/reconnect API">API Offline</div>
         </header>
+
+        <!-- Backend Offline Assistant (shown when API is not reachable) -->
+        <div id="api-offline-banner" class="api-offline-card hidden">
+            <div class="api-offline-title">
+                <span>⚠️</span> Backend Server Offline
+            </div>
+            <div class="api-offline-desc">
+                ProcSnap backend is not responding on ports 8000-8005.
+            </div>
+            <div class="api-offline-actions">
+                <button id="btnRetryApi" class="btn btn-xs btn-primary">🔄 Retry Connection</button>
+                <button id="btnCopyStartCmd" class="btn btn-xs btn-secondary">📋 Copy Launch Command</button>
+            </div>
+        </div>
 
         <!-- Setup Form (shown when not recording) -->
         <div id="setup-panel" class="panel">

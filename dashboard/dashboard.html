@@ -15,13 +15,20 @@
         <!-- Top Navigation Bar -->
         <header class="topbar">
             <div class="brand">
-                <button id="toggleSidebarBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; margin-right: 8px; height: 32px; display: inline-flex; align-items: center; gap: 4px;" title="Toggle Left Sidebar">
+                <button id="toggleSidebarBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; margin-right: 6px; height: 32px; display: inline-flex; align-items: center; gap: 4px;" title="Toggle Quick Sidebar">
                     <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
                 </button>
-                <div class="brand-mark">P</div>
-                <div>
+                <div class="brand-mark" id="brandLogoHome" style="cursor: pointer;" title="Back to Workflow Hub">P</div>
+                <div id="brandTitleGroup" style="cursor: pointer;" title="Back to Workflow Hub">
                     <h1 class="brand-name">ProcSnap</h1>
                     <div class="brand-subtitle">Workflow Studio</div>
+                </div>
+                <!-- Breadcrumb Navigation for Studio Mode -->
+                <div id="topBreadcrumb" class="top-breadcrumb hidden" style="display: flex; align-items: center; gap: 6px; margin-left: 10px;">
+                    <span style="color: var(--text-muted); font-size: 13px;">/</span>
+                    <button id="btnBackToHub" class="btn btn-secondary btn-xs" style="padding: 4px 10px; font-size: 11.5px; font-weight: 700; color: #818cf8; border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Return to Workflow Hub gallery">
+                        ← Back to Hub
+                    </button>
                 </div>
                 <div class="developer-signature" title="ProcSnap Engine — Designed & Developed by MRV">Developed by <strong>MRV</strong></div>
             </div>
@@ -51,12 +58,11 @@
         </header>
 
         <div class="main-container">
-            <!-- Left Sidebar Library -->
-            <!-- Left Sidebar Library -->
-            <aside class="sidebar">
+            <!-- Left Sidebar Library (Quick Switcher) -->
+            <aside class="sidebar" id="sidebarLibrary">
                 <div class="sidebar-header">
                     <div class="sidebar-header-title-row">
-                        <div class="eyebrow" style="font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted);">Local Library</div>
+                        <div class="eyebrow" style="font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted);">Quick Library</div>
                     </div>
                     <div class="sidebar-header-actions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                         <button id="btnOpenVideoImportModal" class="btn btn-secondary btn-xs" style="padding: 6px 8px; font-size: 11px; font-weight: 700; color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08); display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;" title="Convert Loom, MP4, WebM, or GIF into step-by-step SOP">
@@ -86,13 +92,77 @@
                 </div>
             </aside>
 
-            <!-- Main Studio Workspace -->
+            <!-- Main Studio Workspace / Workflow Hub -->
             <main class="studio">
-                <!-- Empty State -->
-                <div id="emptyState" class="empty-state">
-                    <div class="empty-icon">T</div>
-                    <h2>Select a Workflow</h2>
-                    <p>Choose a workflow from the library sidebar to view, edit, annotate, or export as a standard operating procedure (SOP).</p>
+                <!-- Modern Full-Screen Workflow Hub Gallery (Home View) -->
+                <div id="libraryHubView" class="library-hub-view">
+                    <!-- Hub Hero Banner with Quick Actions -->
+                    <div class="hub-hero">
+                        <div class="hub-hero-header-row">
+                            <div>
+                                <h2 class="hub-hero-title">Standard Operating Procedures Hub</h2>
+                                <p class="hub-hero-sub">Create, organize, and export interactive step-by-step guides for any web or desktop application.</p>
+                            </div>
+                        </div>
+                        <div class="hub-hero-actions-grid">
+                            <div class="hub-action-card" id="hubActionRecordWeb">
+                                <div class="hub-action-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">🔴</div>
+                                <div class="hub-action-content">
+                                    <div class="hub-action-title">Record Web App</div>
+                                    <div class="hub-action-desc">Live capture with Chrome Extension</div>
+                                </div>
+                            </div>
+                            <div class="hub-action-card" id="hubActionVideoSOP">
+                                <div class="hub-action-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">🪄</div>
+                                <div class="hub-action-content">
+                                    <div class="hub-action-title">Video to SOP</div>
+                                    <div class="hub-action-desc">Convert MP4, Loom &amp; GIF to steps</div>
+                                </div>
+                            </div>
+                            <div class="hub-action-card" id="hubActionDesktop">
+                                <div class="hub-action-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">🖥️</div>
+                                <div class="hub-action-content">
+                                    <div class="hub-action-title">Capture Desktop</div>
+                                    <div class="hub-action-desc">Full screen capture for native apps</div>
+                                </div>
+                            </div>
+                            <label class="hub-action-card" style="cursor: pointer;">
+                                <div class="hub-action-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">📥</div>
+                                <div class="hub-action-content">
+                                    <div class="hub-action-title">Import JSON</div>
+                                    <div class="hub-action-desc">Restore .procsnap.json backup</div>
+                                </div>
+                                <input type="file" id="hubImportJsonInput" accept=".json,.procsnap.json" style="display: none;">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Hub Search, Filter & View Controls -->
+                    <div class="hub-toolbar">
+                        <div class="hub-search-wrap">
+                            <svg class="hub-search-icon" viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            <input id="hubSearchInput" type="search" placeholder="Search SOPs by name, app, or tag..." class="hub-search-input">
+                        </div>
+                        <div class="hub-tags-bar" id="hubTagFilterBar">
+                            <button class="hub-tag-pill active" data-tag="ALL">All Guides</button>
+                        </div>
+                        <div class="hub-controls-right">
+                            <select id="hubSortSelect" class="hub-sort-select">
+                                <option value="recent">⏱️ Most Recent</option>
+                                <option value="steps">🔢 Most Steps</option>
+                                <option value="name">🔤 Name A-Z</option>
+                            </select>
+                            <div class="hub-view-toggle">
+                                <button id="hubViewGridBtn" class="hub-view-btn active" title="Grid View">⊞</button>
+                                <button id="hubViewListBtn" class="hub-view-btn" title="List View">☰</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hub Workflows Grid & Table Container -->
+                    <div id="hubWorkflowGrid" class="hub-workflow-grid">
+                        <div class="loading" style="padding: 40px; text-align: center; color: var(--text-muted);">Loading SOP Library...</div>
+                    </div>
                 </div>
 
                 <!-- Studio Workspace -->
