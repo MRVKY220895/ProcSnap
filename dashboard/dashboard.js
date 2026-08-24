@@ -6201,13 +6201,15 @@ function updateLiveCursorOverlay(step) {
     const notice = $("activeDemoAdjustNotice");
     if (!overlay || !handle) return;
 
-    if (!step || !step.hasActiveDemo) {
+    if (!step || !step.hasActiveDemo || step.hidePin || step.hidden) {
         overlay.classList.add("hidden");
+        overlay.style.display = "none";
         if (notice) notice.classList.add("hidden");
         return;
     }
 
     overlay.classList.remove("hidden");
+    overlay.style.display = "block";
     if (notice) notice.classList.remove("hidden");
 
     const hs = calculateDefaultHotspot(step);
@@ -6757,12 +6759,14 @@ function updateHotspotReticlePosition(step) {
     const wrapper = $("canvasWrapper");
     if (!reticle || !wrapper) return;
 
-    if (!step || !step.screenshotUrl || step.hidden) {
+    if (!step || !step.screenshotUrl || step.hidden || step.hidePin) {
         reticle.classList.add("hidden");
+        reticle.style.display = "none";
         return;
     }
 
     reticle.classList.remove("hidden");
+    reticle.style.display = "flex";
     const hs = calculateDefaultHotspot(step);
     const xPct = Math.max(2, Math.min(98, hs.xPct + (hs.wPct / 2)));
     const yPct = Math.max(2, Math.min(98, hs.yPct + (hs.hPct / 2)));
@@ -6967,6 +6971,7 @@ function initHotspotReticle() {
 
         syncLabels();
         updateHotspotReticlePosition(step);
+        if (typeof updateLiveCursorOverlay === "function") updateLiveCursorOverlay(step);
         saveActiveStepEditsSilent();
         showToast(step.hidePin ? "🎯 Pin target hidden for this step." : "🎯 Pin target visible.");
     };

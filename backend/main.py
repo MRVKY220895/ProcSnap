@@ -2,6 +2,7 @@ import base64
 import json
 import re
 import sqlite3
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Union
@@ -2415,49 +2416,56 @@ def generate_step_animation(
             (step_id, step_id, session_id)
         ).fetchone()
         if not step:
-            # Fallback: search by sequence or first step
             step = cursor.execute(
                 "SELECT id, sequence, element_json, screenshot_path FROM workflow_steps WHERE workflow_id = ? ORDER BY sequence LIMIT 1",
                 (session_id,)
             ).fetchone()
-            
-        if not step or not step["screenshot_path"]:
-            raise HTTPException(status_code=404, detail="Step or screenshot not found in database")
 
-        raw_path = step["screenshot_path"]
-        seq = int(step["sequence"])
+        if not step:
+            raise HTTPException(status_code=404, detail="Step not found in database")
+
+        raw_path = step["screenshot_path"] or ""
+        seq = int(step["sequence"] or 1)
+
         candidate_paths = [
-            # Check for original png first
             SCREENSHOTS_DIR / session_id / f"step-{seq:03d}.png",
             SCREENSHOTS_DIR / session_id / f"step_{seq}.png",
             SCREENSHOTS_DIR / session_id / f"step-{seq}.png",
-            BASE_DIR / raw_path,
-            BASE_DIR / "screenshots" / session_id / Path(raw_path).name,
-            SCREENSHOTS_DIR / session_id / Path(raw_path).name,
-            Path(raw_path)
+            SCREENSHOTS_DIR / session_id / f"step-{seq:03d}.jpg",
+            SCREENSHOTS_DIR / session_id / f"step_{seq}.jpg",
         ]
+        if raw_path:
+            candidate_paths.extend([
+                BASE_DIR / raw_path,
+                BASE_DIR / "screenshots" / session_id / Path(raw_path).name,
+                SCREENSHOTS_DIR / session_id / Path(raw_path).name,
+                Path(raw_path)
+            ])
+
         img_path = None
         for p in candidate_paths:
-            if p.is_file() and not p.name.endswith("-demo.gif"):
+            if p and p.is_file() and not p.name.endswith("-demo.gif"):
                 img_path = p
                 break
-        if not img_path:
-            for p in candidate_paths:
-                if p.is_file():
-                    img_path = p
-                    break
 
-        # Additional fallback: inspect directory
+        # Fallback: scan session screenshots folder for any matching sequence image
         if not img_path and (SCREENSHOTS_DIR / session_id).exists():
             for f in (SCREENSHOTS_DIR / session_id).glob("*.png"):
                 if not f.name.endswith("-demo.gif"):
                     img_path = f
                     break
+            if not img_path:
+                for f in (SCREENSHOTS_DIR / session_id).glob("*.jpg"):
+                    img_path = f
+                    break
 
         if not img_path:
-            raise HTTPException(status_code=404, detail="Screenshot file missing on disk")
+            # Generate clean fallback background if screenshot is not on disk
+            base_img = Image.new("RGBA", (1280, 720), (15, 23, 42, 255))
+        else:
+            base_img = Image.open(img_path).convert("RGBA")
 
-        base_img = Image.open(img_path).convert("RGBA")
+        width, height = base_img.size
         width, height = base_img.size
 
         target_x, target_y = None, None
