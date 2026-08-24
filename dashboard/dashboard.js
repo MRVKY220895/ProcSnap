@@ -5972,27 +5972,40 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
     let yPct = customYPct;
 
     if (xPct === null || yPct === null) {
-        // Priority 1: User-set Hotspot (from Inspector inputs or Reticle drag)
+        // Priority 1: Check live Reticle position on screen
+        const reticle = $("hotspotReticleHandle");
+        if (reticle && reticle.style.left && reticle.style.top && !reticle.classList.contains("hidden")) {
+            const rLeft = parseFloat(reticle.style.left);
+            const rTop = parseFloat(reticle.style.top);
+            if (!isNaN(rLeft) && !isNaN(rTop) && rLeft > 0 && rTop > 0) {
+                xPct = rLeft;
+                yPct = rTop;
+            }
+        }
+    }
+
+    if (xPct === null || yPct === null) {
+        // Priority 2: Inspector input fields
         const hsX = Number($("hotspotX")?.value);
         const hsY = Number($("hotspotY")?.value);
         const hsW = Number($("hotspotW")?.value || 20);
         const hsH = Number($("hotspotH")?.value || 20);
 
-        if (!isNaN(hsX) && !isNaN(hsY) && step.hotspot?.type === "custom") {
+        if (!isNaN(hsX) && !isNaN(hsY) && hsX >= 0 && hsY >= 0) {
             xPct = hsX + (hsW / 2);
             yPct = hsY + (hsH / 2);
         } else if (step.hotspot && typeof step.hotspot.xPct === "number") {
             xPct = step.hotspot.xPct + ((step.hotspot.wPct || 20) / 2);
             yPct = step.hotspot.yPct + ((step.hotspot.hPct || 20) / 2);
         } else if (step.element?.screen) {
-            // Priority 2: DOM element.screen (red dashed focus box)
+            // Priority 3: DOM element.screen (red dashed focus box)
             const sc = step.element.screen;
             const sw = Number(sc.viewportWidth || 1920);
             const sh = Number(sc.viewportHeight || 1080);
             xPct = ((Number(sc.x || 0) + (Number(sc.width || 0) / 2)) / Math.max(1, sw)) * 100;
             yPct = ((Number(sc.y || 0) + (Number(sc.height || 0) / 2)) / Math.max(1, sh)) * 100;
         } else {
-            // Priority 3: Fallback default hotspot
+            // Priority 4: Fallback default hotspot
             const hs = calculateDefaultHotspot(step);
             xPct = hs.xPct + (hs.wPct / 2);
             yPct = hs.yPct + (hs.hPct / 2);
