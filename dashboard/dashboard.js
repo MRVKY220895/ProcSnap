@@ -2388,6 +2388,34 @@ function renderPlaybackTab() {
 
 function renderExportTab() {
     // Simply holds UI buttons trigger bindings
+    setOnclick("exportInteractiveBtn", async () => {
+        if (!workflow) return;
+        showToast("Generating Interactive Guided Walkthrough...");
+        try {
+            const html = await generateInteractiveWalkthroughHtml();
+            downloadFile(`${safeName(workflow.name)}-interactive.html`, html, "text/html");
+            showToast("Interactive Walkthrough exported!");
+        } catch (e) {
+            showToast("Failed to export walkthrough: " + e.message);
+            console.error(e);
+        }
+    });
+
+    setOnclick("exportDocxBtn", async () => {
+        if (!workflow) return;
+        showToast("Generating Microsoft Word (.docx) document...");
+        try {
+            const res = await fetch(`${API_BASE}/sessions/${encodeURIComponent(workflow.id)}/export/docx`);
+            if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+            const blob = await res.blob();
+            downloadBlob(`${safeName(workflow.name)}.docx`, blob);
+            showToast("Word document exported!");
+        } catch (e) {
+            showToast("Failed to export Word document: " + e.message);
+            console.error(e);
+        }
+    });
+
     setOnclick("exportHtmlBtn", async () => {
         showToast("Generating offline HTML package...");
         const html = await generateOfflineHtml();
@@ -2693,6 +2721,836 @@ async function generateOfflineHtml() {
 </html>`;
 }
 
+// Generate Interactive Walkthrough (.html) package with click-to-proceed simulation
+async function generateInteractiveWalkthroughHtml() {
+    const visibleSteps = (workflow.steps || []).filter(s => !s.hidden);
+    const title = esc(workflow.name || "ProcSnap Interactive Walkthrough");
+    const appName = esc(workflow.application || "Application");
+    
+    // Prepare interactive steps payload
+    const interactiveSteps = [];
+    for (const s of visibleSteps) {
+        let base64 = "";
+        let naturalW = 1280;
+        let naturalH = 800;
+        
+        if (s.screenshotUrl) {
+            try {
+                base64 = await getBakedBase64Image(s);
+            } catch (e) {
+                console.warn("Could not bake image for interactive export:", e);
+                base64 = API_BASE + s.screenshotUrl;
+            }
+        }
+
+        // Calculate hotspot bounding box in percentages (0-100%)
+        let hotspot = { xPct: 40, yPct: 40, wPct: 20, hPct: 20, type: "fallback" };
+        const annotations = Array.isArray(s.annotations) ? s.annotations : [];
+        const spot = annotations.find(a => a.type === "spotlight" || a.type === "rect" || a.type === "circle");
+        
+        if (spot && spot.w > 0 && spot.h > 0) {
+            // Hotspot from annotation (approx canvas size 1280x800)
+            hotspot = {
+                xPct: Math.max(0, Math.min(95, (spot.x / naturalW) * 100)),
+                yPct: Math.max(0, Math.min(95, (spot.y / naturalH) * 100)),
+                wPct: Math.max(4, Math.min(80, (spot.w / naturalW) * 100)),
+                hPct: Math.max(4, Math.min(80, (spot.h / naturalH) * 100)),
+                type: "annotation"
+            };
+        } else if (s.element && s.element.screen) {
+            const sc = s.element.screen;
+            const vw = sc.viewportWidth || naturalW;
+            const vh = sc.viewportHeight || naturalH;
+            if (sc.width > 0 && sc.height > 0 && vw > 0 && vh > 0) {
+                hotspot = {
+                    xPct: Math.max(0, Math.min(95, (sc.x / vw) * 100)),
+                    yPct: Math.max(0, Math.min(95, (sc.y / vh) * 100)),
+                    wPct: Math.max(4, Math.min(80, (sc.width / vw) * 100)),
+                    hPct: Math.max(4, Math.min(80, (sc.height / vh) * 100)),
+                    type: "element"
+                };
+            }
+        }
+
+        interactiveSteps.push({
+            sequence: s.sequence,
+            title: s.title || getDefaultTitle(s),
+            description: s.description || getDefaultDescription(s),
+            note: s.note || "",
+            expected: s.expected || "",
+            action: s.action || "click",
+            value: s.value || "",
+            image: base64,
+            hotspot: hotspot
+        });
+    }
+
+    const stepsJson = JSON.stringify(interactiveSteps).replace(/</g, '\\u003c');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} — Interactive Walkthrough</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Top Header Bar */
+        header {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+        }
+        .header-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .app-badge {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 999px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .wf-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .progress-indicator {
+            font-size: 13px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .progress-track {
+            width: 140px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #10b981);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .btn-icon {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #e2e8f0;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-icon:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Main Workspace Stage */
+        main {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+
+        .viewport-wrapper {
+            position: relative;
+            max-width: 100%;
+            max-height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .interactive-screen {
+            position: relative;
+            display: inline-block;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: default;
+        }
+
+        .interactive-screen img {
+            display: block;
+            max-width: 88vw;
+            max-height: 72vh;
+            width: auto;
+            height: auto;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        /* Interactive Target Hotspot */
+        .hotspot-box {
+            position: absolute;
+            border: 3px solid #6366f1;
+            background: rgba(99, 102, 241, 0.25);
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 50;
+            animation: hotspotGlow 1.8s infinite ease-in-out;
+            transition: all 0.15s ease;
+        }
+        .hotspot-box:hover {
+            background: rgba(99, 102, 241, 0.4);
+            border-color: #818cf8;
+            transform: scale(1.02);
+        }
+
+        .hotspot-pointer-tag {
+            position: absolute;
+            top: -34px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #6366f1;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            pointer-events: none;
+            animation: bounceDown 1.2s infinite ease-in-out;
+        }
+        .hotspot-pointer-tag::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px 5px 0;
+            border-style: solid;
+            border-color: #6366f1 transparent;
+        }
+
+        @keyframes hotspotGlow {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7), 0 0 16px rgba(99, 102, 241, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 14px rgba(99, 102, 241, 0), 0 0 28px rgba(99, 102, 241, 0.8);
+            }
+        }
+
+        @keyframes bounceDown {
+            0%, 100% { transform: translate(-50%, 0); }
+            50% { transform: translate(-50%, -6px); }
+        }
+
+        /* Floating Step Instruction Card */
+        .instruction-card {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            border-radius: 14px;
+            padding: 16px 24px;
+            width: 90%;
+            max-width: 640px;
+            z-index: 90;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translate(-50%, 16px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        .card-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .step-pill {
+            background: #3b82f6;
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+        .hint-badge {
+            font-size: 12px;
+            color: #a5b4fc;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+        .step-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        .step-desc {
+            font-size: 13.5px;
+            color: #cbd5e1;
+            line-height: 1.4;
+        }
+        .step-note-box {
+            background: rgba(124, 58, 237, 0.15);
+            border-left: 3px solid #8b5cf6;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #ddd6fe;
+        }
+
+        /* Ripple effect on click */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: rippleAnim 0.6s ease-out;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .ripple.success {
+            background: rgba(16, 185, 129, 0.5);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
+        }
+        .ripple.miss {
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        @keyframes rippleAnim {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        /* Shake animation on miss */
+        .shake-screen {
+            animation: shake 0.4s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        /* Bottom Controls Footer */
+        footer {
+            background: rgba(15, 23, 42, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+        }
+        .footer-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Celebration Screen */
+        .celebration-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 24px;
+            text-align: center;
+        }
+        .celebration-card {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 40px 48px;
+            border-radius: 20px;
+            max-width: 520px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .celebration-icon {
+            font-size: 56px;
+        }
+        .celebration-title {
+            font-size: 26px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+        .celebration-subtitle {
+            font-size: 14px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 100%;
+            margin: 12px 0;
+        }
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px;
+        }
+        .stat-val {
+            font-size: 20px;
+            font-weight: 800;
+            color: #6366f1;
+        }
+        .stat-lbl {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        .btn-restart {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+            transition: all 0.2s;
+        }
+        .btn-restart:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 30px rgba(99, 102, 241, 0.6);
+        }
+        #confettiCanvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="confettiCanvas"></canvas>
+
+    <!-- Top Header -->
+    <header>
+        <div class="header-title-group">
+            <span class="app-badge">Interactive SOP</span>
+            <span class="wf-title">${title}</span>
+        </div>
+        <div class="header-controls">
+            <div class="progress-indicator">
+                <span id="stepCounterText">Step 1 of 1</span>
+            </div>
+            <div class="progress-track">
+                <div id="progressBarFill" class="progress-fill"></div>
+            </div>
+            <button id="soundToggleBtn" class="btn-icon" title="Toggle Sound Feedback">
+                🔊 Sound ON
+            </button>
+            <button id="fullscreenBtn" class="btn-icon" title="Toggle Fullscreen">
+                ⛶ Fullscreen
+            </button>
+        </div>
+    </header>
+
+    <!-- Interactive Workspace Stage -->
+    <main id="mainStage">
+        <div class="viewport-wrapper" id="viewportWrapper">
+            <div class="interactive-screen" id="interactiveScreen">
+                <img id="stepImage" src="" alt="Interactive step">
+                <div id="hotspotBox" class="hotspot-box">
+                    <div class="hotspot-pointer-tag">👉 CLICK HERE</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Instruction Card -->
+        <div class="instruction-card" id="instructionCard">
+            <div class="card-header-row">
+                <span class="step-pill" id="stepPill">Step 1</span>
+                <span class="hint-badge">💡 Click the glowing area to proceed</span>
+            </div>
+            <div class="step-title" id="stepTitleText">Loading...</div>
+            <div class="step-desc" id="stepDescText">Please follow the highlighted step action.</div>
+            <div class="step-note-box" id="stepNoteBox" style="display: none;"></div>
+        </div>
+    </main>
+
+    <!-- Bottom Controls Footer -->
+    <footer>
+        <div class="footer-nav">
+            <button id="prevBtn" class="btn-icon">◀ Back</button>
+            <button id="nextBtn" class="btn-icon">Skip Step ▶</button>
+        </div>
+        <div style="font-size: 12px; color: #64748b;">
+            Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">Space</kbd> or <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">→</kbd> to advance
+        </div>
+    </footer>
+
+    <!-- Completion Celebration Modal -->
+    <div id="celebrationOverlay" class="celebration-overlay" style="display: none;">
+        <div class="celebration-card">
+            <div class="celebration-icon">🎉</div>
+            <h2 class="celebration-title">Walkthrough Completed!</h2>
+            <p class="celebration-subtitle">You have successfully completed all steps in <strong>${title}</strong>.</p>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-val" id="statSteps">0</div>
+                    <div class="stat-lbl">Steps</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" id="statAccuracy">100%</div>
+                    <div class="stat-lbl">Accuracy</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" id="statTime">0s</div>
+                    <div class="stat-lbl">Time Taken</div>
+                </div>
+            </div>
+            <button id="restartBtn" class="btn-restart">🔄 Restart Walkthrough</button>
+        </div>
+    </div>
+
+    <script>
+        const steps = ${stepsJson};
+        let currentIdx = 0;
+        let soundEnabled = true;
+        let totalClicks = 0;
+        let correctClicks = 0;
+        let startTime = Date.now();
+
+        // Web Audio Synthesizer (Zero Dependencies)
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) audioCtx = new AudioContext();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playChime() {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+
+                // Two-tone chord (F5 and A5)
+                [698.46, 880.00].forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(freq, now + (i * 0.06));
+                    gain.gain.setValueAtTime(0.15, now + (i * 0.06));
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.06) + 0.35);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + (i * 0.06));
+                    osc.stop(now + (i * 0.06) + 0.4);
+                });
+            } catch(e) {}
+        }
+
+        function playMissTone() {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(220, now);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.22);
+            } catch(e) {}
+        }
+
+        function playCelebrationFanfare() {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "triangle";
+                    osc.frequency.setValueAtTime(freq, now + (i * 0.12));
+                    gain.gain.setValueAtTime(0.2, now + (i * 0.12));
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.12) + 0.5);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + (i * 0.12));
+                    osc.stop(now + (i * 0.12) + 0.55);
+                });
+            } catch(e) {}
+        }
+
+        // Render current step
+        function renderStep() {
+            if (currentIdx >= steps.length) {
+                showCompletion();
+                return;
+            }
+
+            const step = steps[currentIdx];
+            const pct = Math.round(((currentIdx + 1) / steps.length) * 100);
+
+            document.getElementById("stepCounterText").textContent = "Step " + (currentIdx + 1) + " of " + steps.length + " (" + pct + "%)";
+            document.getElementById("progressBarFill").style.width = pct + "%";
+            document.getElementById("stepPill").textContent = "Step " + (currentIdx + 1);
+            document.getElementById("stepTitleText").textContent = step.title || ("Step " + (currentIdx + 1));
+            document.getElementById("stepDescText").textContent = step.description || "Click the highlighted region to continue.";
+
+            const noteBox = document.getElementById("stepNoteBox");
+            if (step.note) {
+                noteBox.style.display = "block";
+                noteBox.innerHTML = "<strong>Note:</strong> " + step.note;
+            } else if (step.expected) {
+                noteBox.style.display = "block";
+                noteBox.innerHTML = "<strong>Expected:</strong> " + step.expected;
+            } else {
+                noteBox.style.display = "none";
+            }
+
+            // Set image
+            const img = document.getElementById("stepImage");
+            img.src = step.image;
+
+            // Position Hotspot
+            const hs = step.hotspot || { xPct: 40, yPct: 40, wPct: 20, hPct: 20 };
+            const box = document.getElementById("hotspotBox");
+            box.style.left = hs.xPct + "%";
+            box.style.top = hs.yPct + "%";
+            box.style.width = hs.wPct + "%";
+            box.style.height = hs.hPct + "%";
+
+            // Update nav buttons
+            document.getElementById("prevBtn").disabled = currentIdx === 0;
+            document.getElementById("nextBtn").textContent = (currentIdx === steps.length - 1) ? "Finish ▶" : "Skip Step ▶";
+        }
+
+        // Create visual ripple
+        function createRipple(e, isSuccess) {
+            const screen = document.getElementById("interactiveScreen");
+            const rect = screen.getBoundingClientRect();
+            const ripple = document.createElement("div");
+            ripple.className = "ripple " + (isSuccess ? "success" : "miss");
+            const size = 30;
+            ripple.style.width = size + "px";
+            ripple.style.height = size + "px";
+            ripple.style.left = (e.clientX - rect.left - size/2) + "px";
+            ripple.style.top = (e.clientY - rect.top - size/2) + "px";
+            screen.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        }
+
+        // Handle correct hotspot click
+        document.getElementById("hotspotBox").addEventListener("click", (e) => {
+            e.stopPropagation();
+            totalClicks++;
+            correctClicks++;
+            createRipple(e, true);
+            playChime();
+            setTimeout(() => {
+                currentIdx++;
+                renderStep();
+            }, 300);
+        });
+
+        // Handle click outside hotspot (Miss)
+        document.getElementById("interactiveScreen").addEventListener("click", (e) => {
+            totalClicks++;
+            createRipple(e, false);
+            playMissTone();
+            const screen = document.getElementById("interactiveScreen");
+            screen.classList.remove("shake-screen");
+            void screen.offsetWidth;
+            screen.classList.add("shake-screen");
+        });
+
+        // Nav Buttons
+        document.getElementById("prevBtn").addEventListener("click", () => {
+            if (currentIdx > 0) {
+                currentIdx--;
+                renderStep();
+            }
+        });
+
+        document.getElementById("nextBtn").addEventListener("click", () => {
+            currentIdx++;
+            renderStep();
+        });
+
+        document.getElementById("soundToggleBtn").addEventListener("click", () => {
+            soundEnabled = !soundEnabled;
+            document.getElementById("soundToggleBtn").textContent = soundEnabled ? "🔊 Sound ON" : "🔇 Sound OFF";
+        });
+
+        document.getElementById("fullscreenBtn").addEventListener("click", () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowRight" || e.key === " ") {
+                currentIdx++;
+                renderStep();
+            } else if (e.key === "ArrowLeft" && currentIdx > 0) {
+                currentIdx--;
+                renderStep();
+            }
+        });
+
+        // Confetti physics animation
+        function launchConfetti() {
+            const canvas = document.getElementById("confettiCanvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ["#6366f1", "#8b5cf6", "#ec4899", "#10b981", "#f59e0b", "#3b82f6"];
+            for (let i = 0; i < 150; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 16,
+                    vy: (Math.random() - 0.8) * 16,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    rot: Math.random() * 360,
+                    rotSpeed: (Math.random() - 0.5) * 10
+                });
+            }
+
+            let frame = 0;
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.3; // gravity
+                    p.rot += p.rotSpeed;
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rot * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                });
+                frame++;
+                if (frame < 180) requestAnimationFrame(draw);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            draw();
+        }
+
+        // Show completion celebration
+        function showCompletion() {
+            document.getElementById("celebrationOverlay").style.display = "flex";
+            const elapsed = Math.round((Date.now() - startTime) / 1000);
+            const accuracy = totalClicks > 0 ? Math.round((correctClicks / totalClicks) * 100) : 100;
+            document.getElementById("statSteps").textContent = steps.length;
+            document.getElementById("statAccuracy").textContent = accuracy + "%";
+            document.getElementById("statTime").textContent = elapsed + "s";
+            playCelebrationFanfare();
+            launchConfetti();
+        }
+
+        document.getElementById("restartBtn").addEventListener("click", () => {
+            document.getElementById("celebrationOverlay").style.display = "none";
+            currentIdx = 0;
+            totalClicks = 0;
+            correctClicks = 0;
+            startTime = Date.now();
+            renderStep();
+        });
+
+        // Initialize first step
+        renderStep();
+    </script>
+</body>
+</html>`;
+}
+
 // Generate Markdown with inline baked images
 async function generateMarkdown() {
     const visibleSteps = (workflow.steps || []).filter(s => !s.hidden);
@@ -2772,6 +3630,15 @@ function generateCsv() {
 function downloadFile(name, text, type) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([text], { type }));
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// Binary Blob downloader utility
+function downloadBlob(name, blob) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);

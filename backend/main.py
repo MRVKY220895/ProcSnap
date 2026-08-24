@@ -13,9 +13,16 @@ import edge_tts
 import asyncio
 import os
 import shutil
+import io
+import docx
+from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -2182,4 +2189,152 @@ def capture_desktop_base64(request: DesktopBase64CaptureRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Desktop base64 capture failed: {str(e)}")
+
+
+# =========================================================
+# EXPORT DOCX (Word Document)
+# =========================================================
+
+@app.get("/sessions/{session_id}/export/docx")
+def export_session_docx(session_id: str):
+    """
+    Generates and returns a formatted Microsoft Word (.docx) SOP document
+    containing step descriptions, notes, expected outcomes, and embedded screenshots.
+    """
+    session_data = get_session(session_id)
+    name = session_data.get("name") or "ProcSnap SOP Guide"
+    application = session_data.get("application") or "System"
+    steps = [s for s in session_data.get("steps", []) if not s.get("hidden", False)]
+    
+    doc = docx.Document()
+    
+    # 0.75-inch page margins
+    for section in doc.sections:
+        section.top_margin = Inches(0.75)
+        section.bottom_margin = Inches(0.75)
+        section.left_margin = Inches(0.75)
+        section.right_margin = Inches(0.75)
+        
+    # Document Title Header
+    title_p = doc.add_paragraph()
+    title_p.paragraph_format.space_before = Pt(0)
+    title_p.paragraph_format.space_after = Pt(4)
+    run_title = title_p.add_run(name)
+    run_title.font.name = "Calibri"
+    run_title.font.size = Pt(22)
+    run_title.font.bold = True
+    run_title.font.color.rgb = RGBColor(0x11, 0x18, 0x27)
+    
+    # Metadata Subtitle
+    meta_p = doc.add_paragraph()
+    meta_p.paragraph_format.space_after = Pt(16)
+    gen_date = datetime.now().strftime("%B %d, %Y")
+    run_meta = meta_p.add_run(f"Recorded with {application} • {len(steps)} Steps • Generated on {gen_date}")
+    run_meta.font.name = "Calibri"
+    run_meta.font.size = Pt(10)
+    run_meta.font.color.rgb = RGBColor(0x6B, 0x72, 0x80)
+    
+    # Process Steps
+    for idx, s in enumerate(steps, 1):
+        step_num = s.get("sequence", idx)
+        title_text = s.get("title") or f"Step {step_num}"
+        desc_text = s.get("description") or ""
+        note_text = s.get("note") or ""
+        expected_text = s.get("expected") or ""
+        
+        # Step Header (Heading 2)
+        step_p = doc.add_paragraph()
+        step_p.paragraph_format.space_before = Pt(14)
+        step_p.paragraph_format.space_after = Pt(4)
+        step_p.paragraph_format.keep_with_next = True
+        
+        run_badge = step_p.add_run(f"STEP {step_num}: ")
+        run_badge.font.name = "Calibri"
+        run_badge.font.size = Pt(12)
+        run_badge.font.bold = True
+        run_badge.font.color.rgb = RGBColor(0x4F, 0x46, 0xE5) # Indigo
+        
+        run_stitle = step_p.add_run(title_text)
+        run_stitle.font.name = "Calibri"
+        run_stitle.font.size = Pt(13)
+        run_stitle.font.bold = True
+        run_stitle.font.color.rgb = RGBColor(0x11, 0x18, 0x27)
+        
+        # Description
+        if desc_text:
+            desc_p = doc.add_paragraph()
+            desc_p.paragraph_format.space_after = Pt(6)
+            run_desc = desc_p.add_run(desc_text)
+            run_desc.font.name = "Calibri"
+            run_desc.font.size = Pt(10.5)
+            run_desc.font.color.rgb = RGBColor(0x37, 0x41, 0x51)
+            
+        # Note Callout Box
+        if note_text:
+            note_table = doc.add_table(rows=1, cols=1)
+            note_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+            cell = note_table.cell(0, 0)
+            cell.width = Inches(6.5)
+            shading = parse_xml(r'<w:shd {} w:fill="F5F3FF"/>'.format(nsdecls('w')))
+            cell._tc.get_or_add_tcPr().append(shading)
+            borders = parse_xml(r'<w:tcBorders {}><w:left w:val="single" w:sz="24" w:space="0" w:color="7C3AED"/><w:top w:val="none"/><w:right w:val="none"/><w:bottom w:val="none"/></w:tcBorders>'.format(nsdecls('w')))
+            cell._tc.get_or_add_tcPr().append(borders)
+            
+            p_note = cell.paragraphs[0]
+            p_note.paragraph_format.space_before = Pt(4)
+            p_note.paragraph_format.space_after = Pt(4)
+            r_nl = p_note.add_run("Note: ")
+            r_nl.bold = True
+            r_nl.font.color.rgb = RGBColor(0x7C, 0x3A, 0xED)
+            r_nt = p_note.add_run(note_text)
+            r_nt.font.color.rgb = RGBColor(0x4C, 0x1D, 0x95)
+            
+        # Expected Result Callout Box
+        if expected_text:
+            exp_table = doc.add_table(rows=1, cols=1)
+            exp_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+            cell = exp_table.cell(0, 0)
+            cell.width = Inches(6.5)
+            shading = parse_xml(r'<w:shd {} w:fill="ECFDF5"/>'.format(nsdecls('w')))
+            cell._tc.get_or_add_tcPr().append(shading)
+            borders = parse_xml(r'<w:tcBorders {}><w:left w:val="single" w:sz="24" w:space="0" w:color="10B981"/><w:top w:val="none"/><w:right w:val="none"/><w:bottom w:val="none"/></w:tcBorders>'.format(nsdecls('w')))
+            cell._tc.get_or_add_tcPr().append(borders)
+            
+            p_exp = cell.paragraphs[0]
+            p_exp.paragraph_format.space_before = Pt(4)
+            p_exp.paragraph_format.space_after = Pt(4)
+            r_el = p_exp.add_run("Expected Result: ")
+            r_el.bold = True
+            r_el.font.color.rgb = RGBColor(0x05, 0x96, 0x69)
+            r_et = p_exp.add_run(expected_text)
+            r_et.font.color.rgb = RGBColor(0x06, 0x5F, 0x46)
+            
+        # Embedded Screenshot Image
+        screenshot_path = s.get("screenshotPath")
+        if screenshot_path:
+            img_file = BASE_DIR / screenshot_path
+            if not img_file.exists():
+                img_file = BASE_DIR / "screenshots" / session_id / Path(screenshot_path).name
+            if img_file.exists():
+                img_p = doc.add_paragraph()
+                img_p.paragraph_format.space_before = Pt(6)
+                img_p.paragraph_format.space_after = Pt(16)
+                img_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run_img = img_p.add_run()
+                run_img.add_picture(str(img_file), width=Inches(6.0))
+                
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    clean_filename = re.sub(r'[<>:"/\\|?*]+', '-', name).strip() or "ProcSnap_SOP"
+    headers = {
+        "Content-Disposition": f'attachment; filename="{clean_filename}.docx"',
+        "Access-Control-Expose-Headers": "Content-Disposition"
+    }
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers=headers
+    )
 

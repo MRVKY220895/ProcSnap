@@ -440,11 +440,23 @@
                     <!-- 4. Export Tab -->
                     <section id="tab-export" class="tab-panel hidden">
                         <div class="export-grid">
+                            <div class="export-card featured-card">
+                                <div class="export-card-icon">🎯</div>
+                                <h3>Interactive Walkthrough (.html)</h3>
+                                <p>Export a self-contained interactive "Guide Me" simulation where learners click the highlighted target area to proceed with sound effects, hint animations, and confetti.</p>
+                                <button id="exportInteractiveBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none;">Export Interactive Walkthrough</button>
+                            </div>
+                            <div class="export-card featured-card">
+                                <div class="export-card-icon">📄</div>
+                                <h3>Microsoft Word (.docx)</h3>
+                                <p>Export a formatted Word document with custom step headers, descriptions, callout note boxes, expected results, and embedded high-res screenshots.</p>
+                                <button id="exportDocxBtn" class="btn btn-primary" style="background: #2563eb;">Export Word (.docx)</button>
+                            </div>
                             <div class="export-card">
                                 <div class="export-card-icon">📁</div>
                                 <h3>Self-Contained HTML</h3>
                                 <p>Creates a single, highly readable SOP guide with all screenshots embedded as offline base64. Ideal for printing to PDF or sharing over email.</p>
-                                <button id="exportHtmlBtn" class="btn btn-primary">Export HTML</button>
+                                <button id="exportHtmlBtn" class="btn btn-secondary">Export HTML</button>
                             </div>
                             <div class="export-card">
                                 <div class="export-card-icon">📝</div>

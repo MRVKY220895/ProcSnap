@@ -1720,6 +1720,72 @@ svg {
     margin: 4px 0;
 }
 
+.export-card.featured-card {
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    background: linear-gradient(to bottom, #ffffff, #fbfaff);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+}
+
+.export-card.featured-card:hover {
+    border-color: #6366f1;
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+}
+
+/* Interactive Walkthrough View Styles */
+.interactive-stage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    background: #000;
+}
+
+.interactive-stage img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    user-select: none;
+    pointer-events: none;
+}
+
+.interactive-hotspot {
+    position: absolute;
+    border: 3px solid #6366f1;
+    background: rgba(99, 102, 241, 0.22);
+    border-radius: 8px;
+    cursor: pointer;
+    z-index: 10;
+    transition: transform 0.15s ease, background 0.15s ease;
+    animation: hotspotPulse 2s infinite ease-in-out;
+}
+
+.interactive-hotspot:hover {
+    background: rgba(99, 102, 241, 0.35);
+    transform: scale(1.02);
+}
+
+@keyframes hotspotPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.6), 0 0 12px rgba(99, 102, 241, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgba(99, 102, 241, 0), 0 0 24px rgba(99, 102, 241, 0.6);
+    }
+}
+
+.click-hint-shake {
+    animation: hintShake 0.4s ease-in-out;
+}
+
+@keyframes hintShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+}
+
 .hidden {
     display: none !important;
 }
+
