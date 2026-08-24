@@ -2529,46 +2529,63 @@ function captureStreamFrame(stream) {
             }
         });
 
-        // Steps bottom drawer toggle
-        setOnclick("stepsDrawerToggle", () => {
+        // Steps bottom drawer toggle (Header click & button click)
+        const toggleBottomDrawer = (e) => {
+            if (e) e.stopPropagation();
             const drawer = $("stepsBottomDrawer");
-            if (drawer) drawer.classList.toggle("collapsed");
-        });
-
-        const drawerHeader = $("stepsDrawerHeader");
-        if (drawerHeader) {
-            drawerHeader.onclick = (e) => {
+            if (drawer) {
+                const isCollapsed = drawer.classList.toggle("collapsed");
                 const collapseBtn = $("stepsDrawerCollapse");
-                if (collapseBtn && !collapseBtn.contains(e.target) && e.target !== collapseBtn) return;
-                const drawer = $("stepsBottomDrawer");
-                if (drawer) drawer.classList.toggle("collapsed");
-            };
-        }
+                if (collapseBtn) {
+                    collapseBtn.innerHTML = isCollapsed 
+                        ? `<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>`
+                        : `<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>`;
+                }
+            }
+        };
 
-        setOnclick("stepsDrawerCollapse", () => {
-            const drawer = $("stepsBottomDrawer");
-            if (drawer) drawer.classList.toggle("collapsed");
-        });
+        setOnclick("stepsDrawerToggle", toggleBottomDrawer);
+        setOnclick("stepsDrawerHeader", toggleBottomDrawer);
+        setOnclick("stepsDrawerCollapse", toggleBottomDrawer);
 
-        // Step detail drawer close
-        setOnclick("drawerCloseBtn", () => {
-            const drawer = $("stepDetailDrawer");
-            if (drawer) drawer.classList.remove("open");
-        });
+        // Step detail drawer collapse & expand
+        const stepDrawer = $("stepDetailDrawer");
+        const floatOpenBtn = $("floatingDrawerOpenBtn");
 
-        // Drawer Accordion Collapse / Expand
+        const closeStepDrawer = () => {
+            if (stepDrawer) {
+                stepDrawer.classList.remove("open");
+                if (floatOpenBtn) floatOpenBtn.classList.remove("hidden");
+            }
+        };
+
+        const openStepDrawer = () => {
+            if (stepDrawer) {
+                stepDrawer.classList.add("open");
+                if (floatOpenBtn) floatOpenBtn.classList.add("hidden");
+            }
+        };
+
+        setOnclick("drawerCloseBtn", closeStepDrawer);
+        if (floatOpenBtn) floatOpenBtn.onclick = openStepDrawer;
+
+        // Drawer Accordion Collapse / Expand (Fix Chevron & Toggle)
         document.querySelectorAll(".drawer-accordion-header").forEach(header => {
-            header.onclick = () => {
+            header.onclick = (e) => {
+                e.stopPropagation();
                 const targetId = header.getAttribute("data-target");
                 const content = document.getElementById(targetId);
+                const chevron = header.querySelector(".drawer-acc-chevron");
                 if (content) {
                     const isHidden = content.classList.contains("hidden");
                     if (isHidden) {
                         content.classList.remove("hidden");
                         header.classList.remove("collapsed");
+                        if (chevron) chevron.textContent = "▾";
                     } else {
                         content.classList.add("hidden");
                         header.classList.add("collapsed");
+                        if (chevron) chevron.textContent = "▸";
                     }
                 }
             };
@@ -2952,8 +2969,10 @@ function loadActiveStepDetails() {
 
     const hideBtn = $("hideStepBtn");
     if (hideBtn) {
-        hideBtn.textContent = step.hidden ? "Show Step" : "Hide Step";
-        hideBtn.className = step.hidden ? "btn btn-secondary btn-sm" : "btn btn-danger btn-sm";
+        hideBtn.innerHTML = step.hidden ? `<span>👁️</span> Unhide Step` : `<span>👁️</span> Hide Step`;
+        hideBtn.style.color = step.hidden ? "#10b981" : "#ef4444";
+        hideBtn.style.borderColor = step.hidden ? "rgba(16,185,129,0.4)" : "rgba(239,68,68,0.3)";
+        hideBtn.style.background = step.hidden ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.06)";
     }
 
     // Toggle Canvas Deleted Step Watermark (Requirement 3)

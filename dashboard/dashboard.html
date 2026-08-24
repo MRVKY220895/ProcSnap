@@ -446,18 +446,25 @@
                                         No screenshot was recorded for this step.
                                     </div>
                                 </div>
+                                <!-- Floating Toggle Button to Expand Step Detail Drawer when closed -->
+                                <button id="floatingDrawerOpenBtn" class="floating-drawer-toggle hidden" title="Expand Step Details Panel (D)" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 50; background: var(--bg-surface-elevated, #182234); border: 1.5px solid #6366f1; border-right: none; border-radius: 8px 0 0 8px; color: #fff; padding: 12px 6px; cursor: pointer; box-shadow: -4px 0 16px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; transition: all 0.2s ease;">
+                                    <span style="font-size: 13px; color: #818cf8;">◀</span>
+                                    <span style="writing-mode: vertical-rl; letter-spacing: 1.5px; font-size: 10px; color: #cbd5e1;">DETAILS</span>
+                                </button>
                             </div>
 
                             <div class="step-detail-drawer open" id="stepDetailDrawer">
-                                <div class="guide-card-header" style="padding: 18px 20px 14px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-                                    <div class="drawer-top-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                <div class="guide-card-header" style="padding: 16px 18px 12px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                    <div class="drawer-top-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                         <div style="display: flex; align-items: center; gap: 8px;">
                                             <span id="guideStepBadge" class="step-badge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);">STEP 1</span>
                                             <label class="approve-checkbox-label" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #10b981; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                                                 <input type="checkbox" id="guideStepApproved" style="cursor: pointer;"> APPROVED
                                             </label>
                                         </div>
-                                        <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Drawer" style="width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border-color, rgba(255,255,255,0.12)); background: rgba(0,0,0,0.04); display: grid; place-items: center; cursor: pointer; color: var(--text-muted); font-size: 13px;">✕</button>
+                                        <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Step Details Panel (Hide Sidebar)" style="padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(255,255,255,0.06); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-main, #fff); font-size: 11px; font-weight: 700; transition: all 0.15s ease;">
+                                            <span>⇥</span> Collapse
+                                        </button>
                                     </div>
                                     <h3 id="guideStepTitle" class="guide-step-title" contenteditable="true" title="Click to edit title">Step Title</h3>
                                     <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description">Step description will appear here...</p>

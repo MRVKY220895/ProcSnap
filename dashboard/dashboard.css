@@ -4891,6 +4891,51 @@ textarea {
     color: #0f172a !important;
 }
 
+/* =========================================================
+   📑 FLOATING DRAWER TOGGLE & ACCORDION ANIMATIONS
+========================================================= */
+
+.floating-drawer-toggle {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.4);
+}
+
+.floating-drawer-toggle:hover {
+    padding-right: 10px !important;
+    background: #6366f1 !important;
+    box-shadow: -6px 0 20px rgba(99, 102, 241, 0.5) !important;
+    transform: translateY(-50%) scale(1.04) !important;
+}
+
+.drawer-accordion-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.drawer-accordion-header:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.drawer-acc-chevron {
+    transition: transform 0.2s ease;
+    display: inline-block;
+    font-size: 13px;
+    color: var(--text-muted, #94a3b8);
+}
+
+[data-theme="light"] .floating-drawer-toggle {
+    background: #ffffff !important;
+    border-color: #6366f1 !important;
+    color: #0f172a !important;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="light"] .floating-drawer-toggle span {
+    color: #475569 !important;
+}
+
+
 
 
 
