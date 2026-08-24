@@ -3873,6 +3873,10 @@ setOnclick("normalizeStepsBtn", async () => {
         const el = $("normalizeResultSummary");
         if (el) el.textContent = `${noiseRemoved} noisy event${noiseRemoved === 1 ? '' : 's'} removed · ${result.original_count} → ${result.cleaned_steps?.length ?? result.original_count} steps · ${groups.length} grouping suggestion${groups.length === 1 ? '' : 's'}`;
 
+let currentGroupSuggestions = [];
+
+        currentGroupSuggestions = groups;
+
         // Render grouping suggestions
         const list = $("groupSuggestionsList");
         if (list) {
@@ -3882,7 +3886,7 @@ setOnclick("normalizeStepsBtn", async () => {
                 </div>`;
             } else {
                 list.innerHTML = groups.map(g => `
-                    <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2); border-radius:12px; padding:16px;">
+                    <div id="groupCard-${g.group_id}" style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2); border-radius:12px; padding:16px; transition:all 0.2s ease;">
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
                             <div>
                                 <div style="font-weight:700; font-size:14px; color:var(--text-main,#fff);">${esc(g.suggested_title)}</div>
@@ -3892,7 +3896,7 @@ setOnclick("normalizeStepsBtn", async () => {
                         </div>
                         <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Steps included: ${(g.step_ids || []).join(', ')}</div>
                         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                            <button onclick="acceptGroupSuggestion('${g.group_id}', ${JSON.stringify(g).replace(/'/g, "&#39;")})" class="btn btn-primary btn-xs">✓ Accept</button>
+                            <button onclick="acceptGroupSuggestion('${g.group_id}')" class="btn btn-primary btn-xs">✓ Accept</button>
                             <button onclick="ignoreGroupSuggestion('${g.group_id}')" class="btn btn-secondary btn-xs">✗ Ignore</button>
                         </div>
                     </div>
@@ -3916,27 +3920,53 @@ function closeGroupSuggestions() {
     if (el) el.style.display = "none";
 }
 
-function acceptGroupSuggestion(groupId, group) {
-    showToast(`✓ Group "${group.suggested_title}" accepted — updating first step title`);
-    // Apply the suggested title to the first step in the group
+async function acceptGroupSuggestion(groupId) {
+    const group = currentGroupSuggestions.find(g => g.group_id === groupId);
+    if (!group) return showToast("Suggestion not found");
+
+    showToast(`✓ Group "${group.suggested_title}" applied!`);
+
+    // Apply the suggested title and description to the first step in the group
     if (group.step_ids && group.step_ids.length > 0) {
         const firstId = group.step_ids[0];
         const step = workflow.steps.find(s => s.id === firstId);
         if (step) {
             step.title = group.suggested_title;
             step.description = group.suggested_description;
-            api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${firstId}/edits`, {
-                method: "PATCH",
-                body: JSON.stringify({ title: group.suggested_title, description: group.suggested_description })
-            }).catch(() => {});
+            try {
+                await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${firstId}/edits`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ title: group.suggested_title, description: group.suggested_description })
+                });
+            } catch (_) {}
         }
     }
+
+    // Remove group card from modal
+    const card = $(`groupCard-${groupId}`);
+    if (card) {
+        card.style.opacity = "0";
+        card.style.transform = "scale(0.95)";
+        setTimeout(() => card.remove(), 200);
+    }
+
+    currentGroupSuggestions = currentGroupSuggestions.filter(g => g.group_id !== groupId);
     renderStepsTab();
+    renderStepThumbnails();
+    if (typeof fetchAndRenderSopHealth === "function") fetchAndRenderSopHealth();
 }
 
 function ignoreGroupSuggestion(groupId) {
-    showToast(`✗ Group suggestion ignored`);
+    const card = $(`groupCard-${groupId}`);
+    if (card) {
+        card.style.opacity = "0";
+        card.style.transform = "scale(0.95)";
+        setTimeout(() => card.remove(), 200);
+    }
+    currentGroupSuggestions = currentGroupSuggestions.filter(g => g.group_id !== groupId);
+    showToast("Group suggestion dismissed");
 }
+
 
 // ============================================================
 // PHASE 3 — AUTO-TITLES BUTTON
