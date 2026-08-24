@@ -736,6 +736,9 @@ chrome.runtime.onMessage.addListener(
             return true;
         }
 
+        // Fallback for unhandled message types
+        sendResponse({ success: false, error: "Unknown message type" });
+        return false;
     }
 );
 

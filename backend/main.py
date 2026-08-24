@@ -38,6 +38,12 @@ MEDIA_DIR = BASE_DIR / "media"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Serve dashboard static files
+@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/dashboard/favicon.ico", include_in_schema=False)
+def get_favicon():
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#6366f1"/><text x="50" y="68" font-size="55" font-family="sans-serif" font-weight="800" fill="white" text-anchor="middle">P</text></svg>'
+    return Response(content=svg, media_type="image/svg+xml")
+
 app.mount(
     "/dashboard",
     StaticFiles(directory=BASE_DIR.parent / "dashboard"),

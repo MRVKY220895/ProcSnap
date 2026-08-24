@@ -90,12 +90,7 @@ chrome.storage.onChanged.addListener(
 ========================================================= */
 
 chrome.runtime.onMessage.addListener(
-    (message) => {
-        console.log(
-            "PROCSNAP CONTENT MESSAGE:",
-            message
-        );
-
+    (message, sender, sendResponse) => {
         if (
             message.type ===
             "RECORDING_STATE_CHANGED"
@@ -104,7 +99,15 @@ chrome.runtime.onMessage.addListener(
                 message.recording === true,
                 message.paused === true
             );
+            if (typeof sendResponse === "function") {
+                sendResponse({ success: true });
+            }
+            return false;
         }
+        if (typeof sendResponse === "function") {
+            sendResponse({ success: true });
+        }
+        return false;
     }
 );
 
