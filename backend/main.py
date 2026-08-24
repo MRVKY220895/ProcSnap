@@ -264,8 +264,18 @@ def initialize_database() -> None:
         except Exception:
             pass
 
+    # Phase 4 — SOP Template & Variables columns
+    for col in ["template_type TEXT DEFAULT 'standard'",
+                "variables TEXT DEFAULT '{}'",
+                "sop_metadata TEXT DEFAULT '{}'"]:
+        try:
+            cursor.execute(f"ALTER TABLE workflows ADD COLUMN {col}")
+        except Exception:
+            pass
+
     connection.commit()
     connection.close()
+
 
 
 
@@ -4706,6 +4716,391 @@ def set_step_intent_marker(session_id: str, step_id: int, body: dict = Body(defa
         return {"success": True, "step_id": step_id, "intent_marker": marker, "why_important": why}
     finally:
         conn.close()
+
+
+# =============================================================================
+# PHASE 4 — SOP TEMPLATES & VARIABLE ENGINE ENDPOINTS
+# =============================================================================
+
+@app.get("/templates/sop-types")
+def get_sop_template_types():
+    """
+    Returns the built-in SOP structural templates (Standard, Work Instruction, Compliance).
+    """
+    try:
+        from .sop_templates import SOP_TEMPLATE_DEFINITIONS
+    except ImportError:
+        from sop_templates import SOP_TEMPLATE_DEFINITIONS
+
+    return list(SOP_TEMPLATE_DEFINITIONS.values())
+
+
+@app.post("/sessions/{session_id}/apply-sop-template")
+def apply_sop_template(session_id: str, body: dict = Body(default={})):
+    """
+    Applies a structured SOP template (standard / work_instruction / compliance)
+    and seeds default variables and section outlines.
+    """
+    template_type = body.get("template_type", "standard").lower()
+    try:
+        from .sop_templates import SOP_TEMPLATE_DEFINITIONS
+    except ImportError:
+        from sop_templates import SOP_TEMPLATE_DEFINITIONS
+
+    if template_type not in SOP_TEMPLATE_DEFINITIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid template type: {template_type}")
+
+    tmpl = SOP_TEMPLATE_DEFINITIONS[template_type]
+    now = utc_now()
+
+    conn = get_connection()
+    try:
+        wf = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        # Merge existing variables with template defaults
+        existing_vars = {}
+        try:
+            if wf["variables"]:
+                existing_vars = json.loads(wf["variables"])
+        except Exception:
+            pass
+
+        merged_vars = dict(tmpl["default_variables"])
+        merged_vars.update(existing_vars)
+
+        # Update workflow
+        conn.execute(
+            """
+            UPDATE workflows
+            SET template_type = ?, variables = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (template_type, json.dumps(merged_vars), now, session_id)
+        )
+        conn.commit()
+
+        return {
+            "success": True,
+            "template_type": template_type,
+            "template": tmpl,
+            "variables": merged_vars
+        }
+    finally:
+        conn.close()
+
+
+@app.get("/sessions/{session_id}/variables")
+def get_workflow_variables(session_id: str):
+    """
+    Returns the custom variable map for an SOP workflow.
+    """
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT variables, template_type FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        vars_dict = {}
+        try:
+            if row["variables"]:
+                vars_dict = json.loads(row["variables"])
+        except Exception:
+            pass
+
+        return {
+            "session_id": session_id,
+            "template_type": row["template_type"] or "standard",
+            "variables": vars_dict
+        }
+    finally:
+        conn.close()
+
+
+@app.post("/sessions/{session_id}/variables")
+def update_workflow_variables(session_id: str, body: dict = Body(default={})):
+    """
+    Updates the variable map for an SOP workflow.
+    """
+    variables = body.get("variables", {})
+    if not isinstance(variables, dict):
+        raise HTTPException(status_code=400, detail="Variables must be a key-value object")
+
+    now = utc_now()
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            UPDATE workflows
+            SET variables = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (json.dumps(variables), now, session_id)
+        )
+        conn.commit()
+        return {"success": True, "variables": variables}
+    finally:
+        conn.close()
+
+
+@app.post("/sessions/{session_id}/variables/apply")
+def apply_variables_to_all_steps(session_id: str):
+    """
+    Replaces all {{VARIABLE_NAME}} tokens in step titles, descriptions, and notes
+    with their defined variable values.
+    """
+    try:
+        from .sop_templates import VariableEngine
+    except ImportError:
+        from sop_templates import VariableEngine
+
+    conn = get_connection()
+    try:
+        wf = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        variables = {}
+        try:
+            if wf["variables"]:
+                variables = json.loads(wf["variables"])
+        except Exception:
+            pass
+
+        if not variables:
+            return {"success": True, "updated_count": 0, "message": "No variables defined for this workflow."}
+
+        steps = conn.execute(
+            """
+            SELECT ws.id, ws.sequence, ws.title,
+                   se.title AS edited_title, se.description AS edited_description, se.note
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            """,
+            (session_id,)
+        ).fetchall()
+
+        now = utc_now()
+        updated_count = 0
+
+        for s in steps:
+            step_id = s["id"]
+            title = s["edited_title"] or s["title"] or ""
+            desc = s["edited_description"] or ""
+            note = s["note"] or ""
+
+            new_title = VariableEngine.replace_variables(title, variables)
+            new_desc = VariableEngine.replace_variables(desc, variables)
+            new_note = VariableEngine.replace_variables(note, variables)
+
+            if new_title != title or new_desc != desc or new_note != note:
+                updated_count += 1
+                conn.execute(
+                    """
+                    INSERT INTO step_edits (step_id, workflow_id, title, description, note, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(step_id) DO UPDATE SET
+                        title = excluded.title,
+                        description = excluded.description,
+                        note = excluded.note,
+                        updated_at = excluded.updated_at
+                    """,
+                    (step_id, session_id, new_title, new_desc, new_note, now)
+                )
+
+        conn.commit()
+        return {
+            "success": True,
+            "updated_count": updated_count,
+            "message": f"Applied variables across {updated_count} steps."
+        }
+    finally:
+        conn.close()
+
+
+# =============================================================================
+# PHASE 5 — DECISION & EXCEPTION VALIDATION ENDPOINT
+# =============================================================================
+
+@app.post("/sessions/{session_id}/validate-branches")
+def validate_decision_branches(session_id: str):
+    """
+    Audits all decision gateways, exception routing, and branch logic.
+    Identifies broken targets, dead ends, and missing fallback paths.
+    """
+    try:
+        from .decision_validator import DecisionValidator
+    except ImportError:
+        from decision_validator import DecisionValidator
+
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT ws.id, ws.sequence, ws.action, ws.title,
+                   se.title AS edited_title, se.branches, se.intent_marker
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            ORDER BY ws.sequence ASC
+            """,
+            (session_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    steps = [dict(r) for r in rows]
+    report = DecisionValidator.validate(steps)
+    return report
+
+
+# =============================================================================
+# PHASE 6 — SOP QUALITY VALIDATOR & HEALTH SCORE ENDPOINTS
+# =============================================================================
+
+@app.get("/sessions/{session_id}/quality-report")
+def get_sop_quality_report(session_id: str):
+    """
+    Generates a full 100-point Health Score and multi-category quality audit
+    (Completeness, Visual Quality, Language Clarity, Logic, Governance).
+    """
+    try:
+        from .quality_validator import SopQualityValidator
+    except ImportError:
+        from quality_validator import SopQualityValidator
+
+    conn = get_connection()
+    try:
+        wf_row = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf_row:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        step_rows = conn.execute(
+            """
+            SELECT ws.id, ws.sequence, ws.action, ws.timestamp, ws.url,
+                   ws.title, ws.value, ws.screenshot_path, ws.screenshot_quality,
+                   ws.recapture_suggested, ws.element_json,
+                   se.title AS edited_title, se.description AS edited_description,
+                   se.branches, se.intent_marker, se.semantic_class, se.hidden
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            ORDER BY ws.sequence ASC
+            """,
+            (session_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    workflow = dict(wf_row)
+    steps = [dict(s) for s in step_rows]
+
+    report = SopQualityValidator.evaluate(workflow, steps)
+    return report
+
+
+@app.post("/sessions/{session_id}/quality-fix")
+def auto_fix_sop_quality_issues(session_id: str):
+    """
+    One-click auto-repair for common quality issues:
+    - Auto-generates titles for steps with generic/missing titles
+    - Auto-generates descriptions based on semantic action class
+    - Seeds default tags if missing
+    """
+    try:
+        from .sop_intelligence import MetadataGenerator, TitleGenerator, DescriptionGenerator
+    except ImportError:
+        from sop_intelligence import MetadataGenerator, TitleGenerator, DescriptionGenerator
+
+    conn = get_connection()
+    try:
+        wf = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        step_rows = conn.execute(
+            """
+            SELECT ws.id, ws.sequence, ws.action, ws.timestamp, ws.url,
+                   ws.title, ws.value, ws.element_json,
+                   se.title AS edited_title, se.description AS edited_description,
+                   se.semantic_class
+            FROM workflow_steps ws
+            LEFT JOIN step_edits se ON se.step_id = ws.id
+            WHERE ws.workflow_id = ?
+            ORDER BY ws.sequence ASC
+            """,
+            (session_id,)
+        ).fetchall()
+
+        steps = []
+        for r in step_rows:
+            d = dict(r)
+            if d.get("element_json"):
+                try:
+                    d["element"] = json.loads(d["element_json"])
+                except Exception:
+                    d["element"] = None
+            else:
+                d["element"] = None
+            steps.append(d)
+
+        now = utc_now()
+        title_gen = TitleGenerator()
+        desc_gen = DescriptionGenerator()
+        fixed_titles = 0
+        fixed_descriptions = 0
+
+        for s in steps:
+            step_id = s["id"]
+            current_title = (s.get("edited_title") or s.get("title") or "").strip()
+            current_desc = (s.get("edited_description") or "").strip()
+
+            new_title = None
+            new_desc = None
+
+            if not current_title or current_title.lower().startswith("perform action") or current_title.lower() == "click":
+                new_title = title_gen.generate(s)
+                fixed_titles += 1
+
+            if not current_desc or len(current_desc) < 8:
+                new_desc = desc_gen.generate(s, s.get("semantic_class"))
+                fixed_descriptions += 1
+
+            if new_title or new_desc:
+                t_val = new_title if new_title else (s.get("edited_title") or s.get("title"))
+                d_val = new_desc if new_desc else s.get("edited_description")
+                conn.execute(
+                    """
+                    INSERT INTO step_edits (step_id, workflow_id, title, description, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(step_id) DO UPDATE SET
+                        title = excluded.title,
+                        description = excluded.description,
+                        updated_at = excluded.updated_at
+                    """,
+                    (step_id, session_id, t_val, d_val, now)
+                )
+
+        # Fix missing tags
+        fixed_tags = False
+        if not wf["tags"]:
+            conn.execute("UPDATE workflows SET tags = 'Standard SOP', updated_at = ? WHERE id = ?", (now, session_id))
+            fixed_tags = True
+
+        conn.commit()
+
+        return {
+            "success": True,
+            "fixed_titles": fixed_titles,
+            "fixed_descriptions": fixed_descriptions,
+            "fixed_tags": fixed_tags,
+            "message": f"Fixed {fixed_titles} titles and {fixed_descriptions} descriptions."
+        }
+    finally:
+        conn.close()
+
 
 
 

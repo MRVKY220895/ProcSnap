@@ -743,6 +743,9 @@
                                             <span>🔲</span> Split
                                         </button>
                                     </div>
+                                    <button id="sopHealthScoreBtn" class="btn btn-secondary btn-sm" title="View SOP Health Score and Quality Audit Report" style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #10b981; font-weight: 700;">🩺 Health: --</button>
+                                    <button id="sopTemplatesBtn" class="btn btn-secondary btn-sm" title="Configure SOP Template Structure &amp; {{Variables}}">📋 Templates &amp; {{Vars}}</button>
+                                    <button id="validateBranchesBtn" class="btn btn-secondary btn-sm" title="Audit Decision Gateways and Exception Paths">🔀 Branch Audit</button>
                                     <button id="bulkApproveAllBtn" class="btn btn-secondary btn-sm" title="Mark all steps as approved">✓ Approve All</button>
                                     <button id="bulkUnhideAllBtn" class="btn btn-secondary btn-sm" title="Restore/unhide all steps">👁 Unhide All</button>
                                     <button id="normalizeStepsBtn" class="btn btn-secondary btn-sm" title="Remove duplicate/noisy steps and classify actions semantically">🧹 Normalize</button>
@@ -2094,8 +2097,155 @@
         </div>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- PHASE 6 — SOP QUALITY HEALTH SCORE MODAL                    -->
+    <!-- ============================================================ -->
+    <div id="sopHealthModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9950; backdrop-filter:blur(6px);" onclick="if(event.target===this)closeSopHealthModal()">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface,#1e293b); border-radius:18px; border:1px solid var(--border-subtle,rgba(255,255,255,0.12)); padding:28px 32px; min-width:640px; max-width:840px; max-height:85vh; overflow-y:auto; box-shadow:0 32px 80px rgba(0,0,0,0.7);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; border-bottom:1px solid var(--border-subtle,rgba(255,255,255,0.08)); padding-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="font-size:24px;">🩺</div>
+                    <div>
+                        <div style="font-size:19px; font-weight:800; color:var(--text-main,#fff);">SOP Quality &amp; Health Audit</div>
+                        <div id="sopHealthSubTitle" style="font-size:12px; color:var(--text-muted,#94a3b8);">Comprehensive 100-point enterprise readiness score</div>
+                    </div>
+                </div>
+                <button onclick="closeSopHealthModal()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px;">✕ Close</button>
+            </div>
+
+            <!-- Health Score Hero Card -->
+            <div style="display:flex; align-items:center; justify-content:space-between; background:linear-gradient(135deg, rgba(99,102,241,0.15), rgba(16,185,129,0.15)); border:1px solid rgba(99,102,241,0.25); border-radius:14px; padding:20px 24px; margin-bottom:20px;">
+                <div style="display:flex; align-items:center; gap:18px;">
+                    <div id="sopHealthGradeBadge" style="width:58px; height:58px; border-radius:50%; background:#10b981; color:#fff; font-size:26px; font-weight:900; display:flex; align-items:center; justify-content:center; box-shadow:0 0 20px rgba(16,185,129,0.4);">A+</div>
+                    <div>
+                        <div style="display:flex; align-items:baseline; gap:8px;">
+                            <span id="sopHealthScoreNum" style="font-size:32px; font-weight:900; color:var(--text-main,#fff);">100%</span>
+                            <span style="font-size:13px; font-weight:700; color:var(--text-muted,#94a3b8);">Overall SOP Health</span>
+                        </div>
+                        <div id="sopHealthStatusText" style="font-size:12.5px; color:#10b981; font-weight:700; margin-top:2px;">Exceptional — Ready for Enterprise Publication</div>
+                    </div>
+                </div>
+                <button id="btnAutoFixQuality" onclick="autoFixSopQuality()" class="btn btn-primary btn-sm" style="background:linear-gradient(135deg, #10b981, #059669); border:none; font-weight:700; padding:8px 16px; border-radius:8px;">
+                    ⚡ 1-Click Auto-Fix
+                </button>
+            </div>
+
+            <!-- 5 Categories Grid -->
+            <div id="sopHealthCategoriesGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;"></div>
+
+            <!-- Issues & Recommendations List -->
+            <div>
+                <div style="font-size:14px; font-weight:700; color:var(--text-main,#fff); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>Findings &amp; Recommendations (<span id="sopHealthIssueCount">0</span>)</span>
+                </div>
+                <div id="sopHealthIssuesList" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
+            <!-- Strengths List -->
+            <div style="margin-top:18px;">
+                <div style="font-size:14px; font-weight:700; color:var(--text-main,#fff); margin-bottom:10px;">Audit Strengths</div>
+                <div id="sopHealthStrengthsList" style="display:flex; flex-direction:column; gap:6px;"></div>
+            </div>
+
+            <div style="margin-top:24px; display:flex; justify-content:flex-end; gap:10px;">
+                <button onclick="closeSopHealthModal()" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PHASE 4 — SOP TEMPLATES & VARIABLES MODAL                   -->
+    <!-- ============================================================ -->
+    <div id="sopTemplatesModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9950; backdrop-filter:blur(6px);" onclick="if(event.target===this)closeSopTemplatesModal()">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface,#1e293b); border-radius:18px; border:1px solid var(--border-subtle,rgba(255,255,255,0.12)); padding:28px 32px; min-width:680px; max-width:880px; max-height:85vh; overflow-y:auto; box-shadow:0 32px 80px rgba(0,0,0,0.7);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; border-bottom:1px solid var(--border-subtle,rgba(255,255,255,0.08)); padding-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="font-size:24px;">📋</div>
+                    <div>
+                        <div style="font-size:19px; font-weight:800; color:var(--text-main,#fff);">SOP Template &amp; Variables Manager</div>
+                        <div style="font-size:12px; color:var(--text-muted,#94a3b8);">Choose structural SOP layout and manage reusable {{Variable}} tokens</div>
+                    </div>
+                </div>
+                <button onclick="closeSopTemplatesModal()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px;">✕ Close</button>
+            </div>
+
+            <!-- Template Archetype Cards -->
+            <div style="margin-bottom:24px;">
+                <div style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted,#94a3b8); margin-bottom:10px;">Select SOP Template Archetype</div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
+                    <div id="tmplCard-standard" onclick="selectSopTemplate('standard')" style="background:rgba(255,255,255,0.04); border:2px solid #6366f1; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s ease;">
+                        <div style="font-size:22px; margin-bottom:6px;">📋</div>
+                        <div style="font-weight:700; font-size:14px; color:var(--text-main,#fff);">Standard SOP</div>
+                        <div style="font-size:11px; color:var(--text-muted,#94a3b8); margin-top:4px; line-height:1.4;">Purpose, scope, roles, step procedures, decisions &amp; revisions.</div>
+                    </div>
+                    <div id="tmplCard-work_instruction" onclick="selectSopTemplate('work_instruction')" style="background:rgba(255,255,255,0.04); border:2px solid transparent; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s ease;">
+                        <div style="font-size:22px; margin-bottom:6px;">⚡</div>
+                        <div style="font-weight:700; font-size:14px; color:var(--text-main,#fff);">Work Instruction</div>
+                        <div style="font-size:11px; color:var(--text-muted,#94a3b8); margin-top:4px; line-height:1.4;">Tactical execution steps, before you begin, &amp; expected results.</div>
+                    </div>
+                    <div id="tmplCard-compliance" onclick="selectSopTemplate('compliance')" style="background:rgba(255,255,255,0.04); border:2px solid transparent; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s ease;">
+                        <div style="font-size:22px; margin-bottom:6px;">🛡️</div>
+                        <div style="font-weight:700; font-size:14px; color:var(--text-main,#fff);">Regulatory / SOX</div>
+                        <div style="font-size:11px; color:var(--text-muted,#94a3b8); margin-top:4px; line-height:1.4;">Control IDs, risk rating, maker/checker segregation &amp; evidence audit.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variables Table -->
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted,#94a3b8);">SOP Variables ({{Token}} Substitution)</div>
+                        <div style="font-size:11px; color:var(--text-muted);">Use {{VARIABLE_NAME}} in any step title, description, or note.</div>
+                    </div>
+                    <button onclick="addVariableRow()" class="btn btn-secondary btn-xs">+ Add Variable</button>
+                </div>
+
+                <div id="sopVariablesTableContainer" style="background:rgba(0,0,0,0.2); border-radius:10px; border:1px solid var(--border-subtle,rgba(255,255,255,0.08)); padding:12px; max-height:220px; overflow-y:auto;">
+                    <div id="sopVariablesList" style="display:flex; flex-direction:column; gap:8px;"></div>
+                </div>
+
+                <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <button onclick="saveSopVariables()" class="btn btn-secondary btn-sm">💾 Save Variables</button>
+                    <button onclick="applyVariablesToSteps()" class="btn btn-primary btn-sm" style="background:linear-gradient(135deg, #6366f1, #8b5cf6); border:none; font-weight:700;">
+                        ⚡ Apply {{Vars}} to All Step Text
+                    </button>
+                </div>
+            </div>
+
+            <div style="margin-top:24px; display:flex; justify-content:flex-end; gap:10px;">
+                <button onclick="closeSopTemplatesModal()" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PHASE 5 — BRANCH & DECISION VALIDATION MODAL                -->
+    <!-- ============================================================ -->
+    <div id="branchAuditModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9950; backdrop-filter:blur(6px);" onclick="if(event.target===this)closeBranchAuditModal()">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface,#1e293b); border-radius:18px; border:1px solid var(--border-subtle,rgba(255,255,255,0.12)); padding:28px 32px; min-width:600px; max-width:780px; max-height:85vh; overflow-y:auto; box-shadow:0 32px 80px rgba(0,0,0,0.7);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; border-bottom:1px solid var(--border-subtle,rgba(255,255,255,0.08)); padding-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="font-size:24px;">🔀</div>
+                    <div>
+                        <div style="font-size:19px; font-weight:800; color:var(--text-main,#fff);">Decision &amp; Exception Path Audit</div>
+                        <div style="font-size:12px; color:var(--text-muted,#94a3b8);">Enforces logic completeness, checks broken links &amp; default fallthroughs</div>
+                    </div>
+                </div>
+                <button onclick="closeBranchAuditModal()" style="background:rgba(255,255,255,0.1); border:none; color:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px;">✕ Close</button>
+            </div>
+
+            <div id="branchAuditBody" style="display:flex; flex-direction:column; gap:14px;"></div>
+
+            <div style="margin-top:24px; display:flex; justify-content:flex-end; gap:10px;">
+                <button onclick="closeBranchAuditModal()" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="dashboard.js"></script>
 </body>
 
 </html>
+
 

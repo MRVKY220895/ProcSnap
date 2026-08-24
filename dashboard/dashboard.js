@@ -1223,6 +1223,7 @@ async function openWorkflow(id) {
         
         renderWfTags();
         updateLibraryStats();
+        fetchAndRenderSopHealth();
         currentStepIndex = 0;
         setTab(activeTab);
     } catch (e) {
@@ -4031,7 +4032,343 @@ function closeSopMetadataModal() {
     if (el) el.style.display = "none";
 }
 
+// ============================================================
+// PHASE 6 — SOP QUALITY & HEALTH SCORE ENGINE
+// ============================================================
+let currentQualityReport = null;
+
+async function fetchAndRenderSopHealth() {
+    if (!workflow?.id) return;
+    try {
+        const report = await api(`/sessions/${encodeURIComponent(workflow.id)}/quality-report`);
+        currentQualityReport = report;
+
+        const healthBtn = $("sopHealthScoreBtn");
+        if (healthBtn) {
+            const score = report.overall_score || 0;
+            const grade = report.grade || "C";
+            healthBtn.textContent = `🩺 Health: ${score}% (${grade})`;
+
+            if (score >= 90) {
+                healthBtn.style.background = "rgba(16,185,129,0.15)";
+                healthBtn.style.borderColor = "rgba(16,185,129,0.4)";
+                healthBtn.style.color = "#10b981";
+            } else if (score >= 75) {
+                healthBtn.style.background = "rgba(99,102,241,0.15)";
+                healthBtn.style.borderColor = "rgba(99,102,241,0.4)";
+                healthBtn.style.color = "#818cf8";
+            } else if (score >= 60) {
+                healthBtn.style.background = "rgba(245,158,11,0.15)";
+                healthBtn.style.borderColor = "rgba(245,158,11,0.4)";
+                healthBtn.style.color = "#fbbf24";
+            } else {
+                healthBtn.style.background = "rgba(239,68,68,0.15)";
+                healthBtn.style.borderColor = "rgba(239,68,68,0.4)";
+                healthBtn.style.color = "#f87171";
+            }
+        }
+    } catch (_) {}
+}
+
+function openSopHealthModal() {
+    if (!currentQualityReport) {
+        fetchAndRenderSopHealth().then(() => renderSopHealthModalContent());
+    } else {
+        renderSopHealthModalContent();
+    }
+    const modal = $("sopHealthModal");
+    if (modal) modal.style.display = "flex";
+}
+
+function closeSopHealthModal() {
+    const modal = $("sopHealthModal");
+    if (modal) modal.style.display = "none";
+}
+
+function renderSopHealthModalContent() {
+    const r = currentQualityReport;
+    if (!r) return;
+
+    if ($("sopHealthGradeBadge")) {
+        const bg = r.overall_score >= 90 ? "#10b981" : (r.overall_score >= 75 ? "#6366f1" : (r.overall_score >= 60 ? "#f59e0b" : "#ef4444"));
+        $("sopHealthGradeBadge").textContent = r.grade || "A";
+        $("sopHealthGradeBadge").style.background = bg;
+        $("sopHealthGradeBadge").style.boxShadow = `0 0 20px ${bg}66`;
+    }
+    if ($("sopHealthScoreNum")) $("sopHealthScoreNum").textContent = `${r.overall_score}%`;
+    if ($("sopHealthStatusText")) {
+        $("sopHealthStatusText").textContent = r.status_text || "Ready for Review";
+        $("sopHealthStatusText").style.color = r.overall_score >= 85 ? "#10b981" : "#818cf8";
+    }
+
+    // Categories Breakdown
+    const catGrid = $("sopHealthCategoriesGrid");
+    if (catGrid && r.categories) {
+        catGrid.innerHTML = Object.entries(r.categories).map(([k, c]) => `
+            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle,rgba(255,255,255,0.08)); border-radius:10px; padding:12px 14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:12px; font-weight:700; color:var(--text-main,#fff);">${esc(c.label)}</span>
+                    <span style="font-size:11px; font-weight:800; color:${c.percentage >= 80 ? '#10b981' : (c.percentage >= 60 ? '#fbbf24' : '#f87171')};">${c.score}/${c.max} (${c.percentage}%)</span>
+                </div>
+                <div style="height:6px; width:100%; background:rgba(255,255,255,0.1); border-radius:999px; overflow:hidden;">
+                    <div style="height:100%; width:${c.percentage}%; background:${c.percentage >= 80 ? '#10b981' : (c.percentage >= 60 ? '#f59e0b' : '#ef4444')}; border-radius:999px;"></div>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    // Issues
+    const issuesList = $("sopHealthIssuesList");
+    const issues = r.issues || [];
+    if ($("sopHealthIssueCount")) $("sopHealthIssueCount").textContent = issues.length;
+    if (issuesList) {
+        if (issues.length === 0) {
+            issuesList.innerHTML = `<div style="padding:14px; text-align:center; color:#10b981; font-weight:700; font-size:13px; background:rgba(16,185,129,0.08); border-radius:8px; border:1px solid rgba(16,185,129,0.2);">
+                🎉 Zero issues detected! Your SOP adheres to all quality, visual, and logic guidelines.
+            </div>`;
+        } else {
+            issuesList.innerHTML = issues.map(iss => {
+                const isErr = iss.severity === "error";
+                const isWarn = iss.severity === "warning";
+                const color = isErr ? "#ef4444" : (isWarn ? "#f59e0b" : "#818cf8");
+                return `
+                    <div style="background:rgba(255,255,255,0.03); border-left:3px solid ${color}; border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                        <div>
+                            <div style="font-size:12.5px; font-weight:600; color:var(--text-main,#fff);">${esc(iss.message)}</div>
+                            <div style="font-size:11px; color:var(--text-muted,#94a3b8); margin-top:2px;">💡 ${esc(iss.suggested_fix || '')}</div>
+                        </div>
+                        <span style="font-size:10px; font-weight:800; text-transform:uppercase; color:${color}; background:${color}1a; padding:2px 8px; border-radius:999px; flex-shrink:0;">${iss.severity}</span>
+                    </div>
+                `;
+            }).join("");
+        }
+    }
+
+    // Strengths
+    const strList = $("sopHealthStrengthsList");
+    const strengths = r.strengths || [];
+    if (strList) {
+        strList.innerHTML = strengths.map(st => `
+            <div style="font-size:12px; color:var(--text-main,#fff); display:flex; align-items:center; gap:8px;">
+                <span style="color:#10b981; font-weight:800;">✓</span> ${esc(st)}
+            </div>
+        `).join("");
+    }
+}
+
+async function autoFixSopQuality() {
+    if (!workflow?.id) return;
+    const btn = $("btnAutoFixQuality");
+    if (btn) { btn.disabled = true; btn.textContent = "⚡ Repairing..."; }
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/quality-fix`, { method: "POST" });
+        showToast(`⚡ Quality Auto-Repair complete! ${res.fixed_titles} titles, ${res.fixed_descriptions} descriptions fixed.`);
+        
+        // Refresh workflow
+        workflow = await api(`/sessions/${encodeURIComponent(workflow.id)}`);
+        renderStepsTab();
+        renderStepThumbnails();
+        await fetchAndRenderSopHealth();
+        renderSopHealthModalContent();
+    } catch (e) {
+        showToast("Auto-fix failed: " + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "⚡ 1-Click Auto-Fix"; }
+    }
+}
+
+setOnclick("sopHealthScoreBtn", () => openSopHealthModal());
+
+// ============================================================
+// PHASE 4 — SOP TEMPLATES & VARIABLES ENGINE
+// ============================================================
+let sopVariablesMap = {};
+let activeTemplateType = "standard";
+
+async function openSopTemplatesModal() {
+    if (!workflow?.id) return showToast("⚠ Open a workflow first");
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/variables`);
+        sopVariablesMap = res.variables || {};
+        activeTemplateType = res.template_type || "standard";
+        highlightActiveTemplateCard(activeTemplateType);
+        renderVariablesTable();
+
+        const modal = $("sopTemplatesModal");
+        if (modal) modal.style.display = "flex";
+    } catch (e) {
+        showToast("Failed to load variables: " + e.message);
+    }
+}
+
+function closeSopTemplatesModal() {
+    const modal = $("sopTemplatesModal");
+    if (modal) modal.style.display = "none";
+}
+
+function highlightActiveTemplateCard(type) {
+    ["standard", "work_instruction", "compliance"].forEach(t => {
+        const el = $(`tmplCard-${t}`);
+        if (el) {
+            el.style.borderColor = (t === type) ? "#6366f1" : "transparent";
+            el.style.background = (t === type) ? "rgba(99,102,241,0.12)" : "rgba(255,255,255,0.04)";
+        }
+    });
+}
+
+async function selectSopTemplate(type) {
+    if (!workflow?.id) return;
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/apply-sop-template`, {
+            method: "POST",
+            body: JSON.stringify({ template_type: type })
+        });
+        activeTemplateType = type;
+        sopVariablesMap = res.variables || {};
+        highlightActiveTemplateCard(type);
+        renderVariablesTable();
+        showToast(`📋 Applied ${res.template.name} template!`);
+    } catch (e) {
+        showToast("Template apply failed: " + e.message);
+    }
+}
+
+function renderVariablesTable() {
+    const list = $("sopVariablesList");
+    if (!list) return;
+
+    const entries = Object.entries(sopVariablesMap);
+    if (entries.length === 0) {
+        list.innerHTML = `<div style="padding:12px; text-align:center; color:var(--text-muted); font-size:12px;">No variables defined yet. Click "+ Add Variable" to create one.</div>`;
+        return;
+    }
+
+    list.innerHTML = entries.map(([key, val]) => `
+        <div class="var-row" style="display:flex; align-items:center; gap:8px;">
+            <div style="background:rgba(99,102,241,0.15); color:#818cf8; font-weight:700; font-family:monospace; padding:4px 8px; border-radius:6px; font-size:12px; flex-shrink:0;">{{${esc(key)}}}</div>
+            <input type="text" class="form-control var-val-input" data-key="${esc(key)}" value="${esc(val)}" placeholder="Value for ${esc(key)}" style="font-size:12px; padding:4px 10px; height:30px; flex:1;">
+            <button onclick="deleteVariableRow('${esc(key)}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; padding:4px;">✕</button>
+        </div>
+    `).join("");
+}
+
+function addVariableRow() {
+    const key = prompt("Enter Variable Name (e.g., CUSTOMER_NAME, SYSTEM_ENV):");
+    if (!key) return;
+    const cleanKey = key.trim().toUpperCase().replace(/[^A-Z0-9_]/g, "_");
+    if (!cleanKey) return;
+    sopVariablesMap[cleanKey] = "";
+    renderVariablesTable();
+}
+
+function deleteVariableRow(key) {
+    delete sopVariablesMap[key];
+    renderVariablesTable();
+}
+
+async function saveSopVariables() {
+    if (!workflow?.id) return;
+    document.querySelectorAll(".var-val-input").forEach(inp => {
+        const k = inp.dataset.key;
+        if (k) sopVariablesMap[k] = inp.value;
+    });
+
+    try {
+        await api(`/sessions/${encodeURIComponent(workflow.id)}/variables`, {
+            method: "POST",
+            body: JSON.stringify({ variables: sopVariablesMap })
+        });
+        showToast("💾 SOP Variables saved successfully!");
+    } catch (e) {
+        showToast("Save variables failed: " + e.message);
+    }
+}
+
+async function applyVariablesToSteps() {
+    if (!workflow?.id) return;
+    await saveSopVariables();
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/variables/apply`, { method: "POST" });
+        showToast(`⚡ ${res.message}`);
+        workflow = await api(`/sessions/${encodeURIComponent(workflow.id)}`);
+        renderStepsTab();
+        renderStepThumbnails();
+    } catch (e) {
+        showToast("Failed to apply variables: " + e.message);
+    }
+}
+
+setOnclick("sopTemplatesBtn", () => openSopTemplatesModal());
+
+// ============================================================
+// PHASE 5 — DECISION & EXCEPTION VALIDATOR ENGINE
+// ============================================================
+async function openBranchAuditModal() {
+    if (!workflow?.id) return showToast("⚠ Open a workflow first");
+    const body = $("branchAuditBody");
+    if (body) body.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted);">Auditing process branching graph...</div>`;
+    const modal = $("branchAuditModal");
+    if (modal) modal.style.display = "flex";
+
+    try {
+        const rep = await api(`/sessions/${encodeURIComponent(workflow.id)}/validate-branches`, { method: "POST" });
+        if (!body) return;
+
+        const isClean = rep.issues.length === 0;
+        body.innerHTML = `
+            <div style="background:linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.12)); border-radius:12px; padding:16px; border:1px solid rgba(99,102,241,0.25); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-size:16px; font-weight:800; color:var(--text-main,#fff);">Branch Integrity: ${rep.score}%</div>
+                    <div style="font-size:12px; color:var(--text-muted,#94a3b8); margin-top:2px;">${rep.decision_count} decision point${rep.decision_count === 1 ? '' : 's'} · ${rep.branch_count} total path routes</div>
+                </div>
+                <span style="font-size:12px; font-weight:800; padding:4px 12px; border-radius:999px; background:${isClean ? '#10b981' : '#f59e0b'}; color:#fff;">
+                    ${isClean ? '✓ ALL CLEAR' : `${rep.issues.length} ISSUE${rep.issues.length === 1 ? '' : 'S'}`}
+                </span>
+            </div>
+
+            <div>
+                <div style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted,#94a3b8); margin-bottom:8px;">Audit Findings</div>
+                ${rep.issues.length === 0 ? `
+                    <div style="padding:14px; text-align:center; color:#10b981; font-weight:700; font-size:13px; background:rgba(16,185,129,0.08); border-radius:8px; border:1px solid rgba(16,185,129,0.2);">
+                        🎉 Decision branches are structurally sound! No dead ends or missing default paths found.
+                    </div>
+                ` : rep.issues.map(iss => `
+                    <div style="background:rgba(255,255,255,0.03); border-left:3px solid ${iss.severity === 'error' ? '#ef4444' : '#f59e0b'}; border-radius:6px; padding:10px 14px; margin-bottom:8px;">
+                        <div style="font-size:12.5px; font-weight:700; color:var(--text-main,#fff);">${esc(iss.message)}</div>
+                        <div style="font-size:11px; color:var(--text-muted,#94a3b8); margin-top:2px;">💡 Recommended Fix: ${esc(iss.suggested_fix)}</div>
+                    </div>
+                `).join("")}
+            </div>
+
+            <div>
+                <div style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted,#94a3b8); margin-bottom:8px;">Supported Exception Types</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    ${(rep.exception_types || []).map(et => `
+                        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle,rgba(255,255,255,0.06)); border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:18px;">${et.icon}</span>
+                            <div>
+                                <div style="font-size:12px; font-weight:700; color:var(--text-main,#fff);">${esc(et.name)}</div>
+                                <div style="font-size:10.5px; color:var(--text-muted);">${esc(et.description)}</div>
+                            </div>
+                        </div>
+                    `).join("")}
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        if (body) body.innerHTML = `<div style="color:#ef4444; padding:12px;">Branch audit failed: ${esc(e.message)}</div>`;
+    }
+}
+
+function closeBranchAuditModal() {
+    const modal = $("branchAuditModal");
+    if (modal) modal.style.display = "none";
+}
+
+setOnclick("validateBranchesBtn", () => openBranchAuditModal());
+
 // Insert manual step logic
+
 
 setOnclick("addNewStepBtn", async () => {
     // Add empty placeholder step to session steps
