@@ -2608,12 +2608,6 @@ function captureStreamFrame(stream) {
 
 
 
-        if ($("tool-color-picker")) {
-            $("tool-color-picker").onclick = () => {
-                const bar = $("canvasPaletteBar");
-                if (bar) bar.classList.toggle("hidden");
-            };
-        }
 
         setOnclick("undoBtn", () => canvasEngine && canvasEngine.undo());
         setOnclick("redoBtn", () => canvasEngine && canvasEngine.redo());

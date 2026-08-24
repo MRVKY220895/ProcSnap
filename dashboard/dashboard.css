@@ -5221,18 +5221,18 @@ textarea {
 
 .palette-panel, .text-style-picker {
     position: absolute;
-    top: 52px;
+    top: 54px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.95);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 14px;
-    padding: 12px 14px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-    z-index: 1000;
-    min-width: 230px;
+    background: rgba(15, 23, 42, 0.98) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 14px !important;
+    padding: 14px 16px !important;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+    z-index: 10000 !important;
+    min-width: 250px;
     user-select: none;
     animation: popoverFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
