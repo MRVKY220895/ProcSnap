@@ -2273,5 +2273,194 @@ svg {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* =========================================================
+   LIGHT THEME (data-theme="light")
+========================================================= */
+[data-theme="light"] .topbar,
+[data-theme="light"] .sidebar,
+[data-theme="light"] .studio,
+[data-theme="light"] .canvas-toolbar,
+[data-theme="light"] .step-detail-drawer,
+[data-theme="light"] .guide-card-header,
+[data-theme="light"] .guide-card-body,
+[data-theme="light"] .steps-bottom-drawer {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .topbar {
+    background: #fff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .brand-name,
+[data-theme="light"] .brand-subtitle,
+[data-theme="light"] h1, [data-theme="light"] h2,
+[data-theme="light"] h3, [data-theme="light"] p,
+[data-theme="light"] label, [data-theme="light"] span,
+[data-theme="light"] .workflow-name-display,
+[data-theme="light"] .detail-meta,
+[data-theme="light"] .step-progress-label,
+[data-theme="light"] .meta-label, [data-theme="light"] .meta-val,
+[data-theme="light"] .sidebar-header {
+    color: #0f172a !important;
+}
+[data-theme="light"] .sidebar {
+    background: #fff !important;
+    border-right: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .workflow-card {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .workflow-card.selected {
+    background: #e0e7ff !important;
+    border-color: #6366f1 !important;
+}
+[data-theme="light"] .canvas-toolbar {
+    background: #fff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .tool-btn {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .tool-btn.active {
+    background: #e0e7ff !important;
+    color: #6366f1 !important;
+}
+[data-theme="light"] .step-detail-drawer,
+[data-theme="light"] .guide-card-header {
+    background: #fff !important;
+    border-left: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .step-jump-input,
+[data-theme="light"] .form-control,
+[data-theme="light"] textarea,
+[data-theme="light"] input[type="text"],
+[data-theme="light"] input[type="number"] {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .screenshot-stage {
+    background: #e2e8f0 !important;
+}
+[data-theme="light"] .app-layout {
+    background: #f1f5f9 !important;
+}
 
+/* =========================================================
+   EXPORT QUICK DROPDOWN
+========================================================= */
+.export-quick-wrap {
+    position: relative;
+    display: inline-flex;
+}
+.export-quick-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 210px;
+    background: #1e293b;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 9000;
+    overflow: hidden;
+    animation: modalFadeIn 0.15s ease;
+}
+.export-quick-item {
+    display: block;
+    width: 100%;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #e2e8f0;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: inherit;
+}
+.export-quick-item:hover {
+    background: rgba(99,102,241,0.15);
+    color: #a5b4fc;
+}
+.export-quick-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.07);
+    margin: 3px 0;
+}
 
+/* =========================================================
+   APPROVAL PROGRESS BAR
+========================================================= */
+.approval-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+.approval-progress-bar-bg {
+    flex: 1;
+    height: 5px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 99px;
+    max-width: 160px;
+    overflow: hidden;
+}
+.approval-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+}
+.approval-progress-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #34d399;
+    white-space: nowrap;
+}
+
+/* =========================================================
+   STEP JUMP INPUT
+========================================================= */
+.step-jump-input::-webkit-inner-spin-button,
+.step-jump-input::-webkit-outer-spin-button { opacity: 1; }
+.step-jump-input:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+/* =========================================================
+   HOVER PREVIEW CARD (Step row large thumbnail)
+========================================================= */
+.step-hover-preview {
+    position: fixed;
+    z-index: 12000;
+    width: 260px;
+    background: #1e293b;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: 6px;
+    pointer-events: none;
+    animation: modalFadeIn 0.15s ease;
+}
+.step-hover-preview img {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    display: block;
+}
+.step-hover-preview-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-top: 5px;
+    padding: 0 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

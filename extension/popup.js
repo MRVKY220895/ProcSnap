@@ -15,8 +15,39 @@ const stepCountBadge = document.getElementById("step-count-badge");
 const popoutButton = document.getElementById("popout-btn");
 
 let pollingInterval = null;
+let cachedBackendUrl = "http://127.0.0.1:8000";
+
+async function getBackendUrl() {
+    try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 600);
+        const res = await fetch(`${cachedBackendUrl}/health`, { signal: controller.signal });
+        clearTimeout(tid);
+        if (res.ok) return cachedBackendUrl;
+    } catch (_) {}
+
+    // Fallback probe candidate ports
+    for (const port of [8000, 8001, 8002, 8003, 8004, 8005]) {
+        const candidate = `http://127.0.0.1:${port}`;
+        try {
+            const controller = new AbortController();
+            const tid = setTimeout(() => controller.abort(), 600);
+            const res = await fetch(`${candidate}/health`, { signal: controller.signal });
+            clearTimeout(tid);
+            if (res.ok) {
+                cachedBackendUrl = candidate;
+                return candidate;
+            }
+        } catch (_) {}
+    }
+    return cachedBackendUrl;
+}
 
 function setApiStatus(online) {
+    const openStudioLink = document.getElementById("openStudioLink");
+    if (openStudioLink) {
+        openStudioLink.href = `${cachedBackendUrl}/dashboard/dashboard.html`;
+    }
     if (online) {
         apiStatusPill.textContent = "API Connected";
         apiStatusPill.className = "api-status online";
@@ -30,7 +61,8 @@ function setApiStatus(online) {
 
 async function checkBackendHealth() {
     try {
-        const res = await fetch("http://127.0.0.1:8000/health");
+        const backend = await getBackendUrl();
+        const res = await fetch(`${backend}/health`);
         if (res.ok) {
             setApiStatus(true);
             return true;
@@ -155,7 +187,7 @@ stopButton.addEventListener("click", () => {
             
             // Open the dashboard to the completed session if returned
             if (response.session && response.session.id) {
-                const url = `http://127.0.0.1:8000/dashboard/dashboard.html?session_id=${response.session.id}`;
+                const url = `${cachedBackendUrl}/dashboard/dashboard.html?session_id=${response.session.id}`;
                 window.open(url, "_blank");
             }
         }

@@ -286,6 +286,95 @@ async function init() {
         };
     }
 
+    // ── Theme Toggle (Light/Dark) ──────────────────────────────────────────────
+    const themeToggleBtn = $("themeToggleBtn");
+    const applyTheme = (theme) => {
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem("ps_theme", theme);
+        if (themeToggleBtn) themeToggleBtn.textContent = theme === "light" ? "🌙" : "☀️";
+        if (themeToggleBtn) themeToggleBtn.title = theme === "light" ? "Switch to Dark Theme" : "Switch to Light Theme";
+    };
+    // Apply saved theme on load
+    applyTheme(localStorage.getItem("ps_theme") || "dark");
+    if (themeToggleBtn) {
+        themeToggleBtn.onclick = () => {
+            const current = document.documentElement.getAttribute("data-theme") || "dark";
+            applyTheme(current === "dark" ? "light" : "dark");
+        };
+    }
+
+    // ── Export Quick Dropdown ─────────────────────────────────────────────────
+    const exportQuickBtn = $("exportQuickBtn");
+    const exportQuickMenu = $("exportQuickMenu");
+    if (exportQuickBtn && exportQuickMenu) {
+        exportQuickBtn.onclick = (e) => {
+            e.stopPropagation();
+            exportQuickMenu.classList.toggle("hidden");
+        };
+        document.addEventListener("click", () => {
+            if (exportQuickMenu) exportQuickMenu.classList.add("hidden");
+        });
+        exportQuickMenu.querySelectorAll(".export-quick-item").forEach(item => {
+            item.onclick = async (e) => {
+                e.stopPropagation();
+                exportQuickMenu.classList.add("hidden");
+                const type = item.dataset.export;
+                if (!workflow) return showToast("No workflow selected.");
+                if (type === "duplicate") {
+                    await duplicateWorkflow();
+                } else if (type === "interactive") {
+                    $("exportInteractiveBtn")?.click();
+                } else if (type === "docx") {
+                    $("exportDocxBtn")?.click();
+                } else if (type === "html") {
+                    $("exportHtmlBtn")?.click();
+                } else if (type === "markdown") {
+                    $("exportMarkdownBtn")?.click();
+                } else if (type === "pdf") {
+                    $("exportPdfBtn")?.click();
+                }
+            };
+        });
+    }
+
+    // ── Step Jump-To Input ────────────────────────────────────────────────────
+    const stepJumpInput = $("stepJumpInput");
+    if (stepJumpInput) {
+        stepJumpInput.onchange = () => {
+            if (!workflow || !workflow.steps) return;
+            const total = workflow.steps.filter(s => !s.hidden).length;
+            let n = parseInt(stepJumpInput.value, 10);
+            if (isNaN(n)) return;
+            n = Math.max(1, Math.min(n, total)) - 1;
+            currentStepIndex = n;
+            renderGuideTab();
+        };
+        stepJumpInput.onkeydown = (e) => {
+            if (e.key === "Enter") stepJumpInput.dispatchEvent(new Event("change"));
+        };
+    }
+
+    // ── Arrow Key Navigation (←/→ between steps) ─────────────────────────────
+    document.addEventListener("keydown", (e) => {
+        // Only when not focused on a text input/textarea/contenteditable
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        const isEditing = ["input", "textarea", "select"].includes(tag) ||
+                          document.activeElement?.isContentEditable;
+        if (isEditing) return;
+        if (!workflow || !workflow.steps) return;
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            e.preventDefault();
+            const visSteps = workflow.steps.filter(s => !s.hidden);
+            if (e.key === "ArrowLeft" && currentStepIndex > 0) {
+                currentStepIndex--;
+                renderGuideTab();
+            } else if (e.key === "ArrowRight" && currentStepIndex < visSteps.length - 1) {
+                currentStepIndex++;
+                renderGuideTab();
+            }
+        }
+    });
+
     // Toggle sidebar listener
     const toggleSidebarBtn = $("toggleSidebarBtn");
     if (toggleSidebarBtn) {
@@ -328,6 +417,37 @@ async function init() {
         selectedWorkflowId = session_id;
         openWorkflow(session_id);
     }
+}
+
+// ── Duplicate Workflow ─────────────────────────────────────────────────────
+async function duplicateWorkflow() {
+    if (!workflow) return;
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/duplicate`, { method: "POST" });
+        showToast(`✅ Duplicated as "${res.name}"!`);
+        await loadWorkflows();
+        if (res.id) openWorkflow(res.id);
+    } catch (e) {
+        showToast("Duplicate failed: " + e.message);
+    }
+}
+
+// ── Update Approval Progress Bar ──────────────────────────────────────────
+function updateApprovalProgress(steps) {
+    const wrap = $("approvalProgressWrap");
+    const fill = $("approvalProgressFill");
+    const label = $("approvalProgressLabel");
+    if (!steps || steps.length === 0) {
+        if (wrap) wrap.classList.add("hidden");
+        return;
+    }
+    const vis = steps.filter(s => !s.hidden);
+    const approved = vis.filter(s => s.approved).length;
+    const pct = vis.length > 0 ? Math.round((approved / vis.length) * 100) : 0;
+    if (wrap) wrap.classList.remove("hidden");
+    if (fill) fill.style.width = pct + "%";
+    if (label) label.textContent = `${approved} / ${vis.length} approved`;
+    if (label) label.style.color = pct === 100 ? "#10b981" : "#34d399";
 }
 
 // Load Workflows List
@@ -2095,6 +2215,38 @@ function loadActiveStepDetails() {
     setText("guideMetaSelector", step.element?.cssSelector || "—");
     setText("guideMetaXpath", step.element?.xpath || "—");
 
+    // Timestamp
+    const tsEl = $("guideMetaTimestamp");
+    if (tsEl) tsEl.textContent = step.timestamp ? fmt(step.timestamp) : "—";
+
+    // Duration since previous step
+    const durEl = $("guideMetaDuration");
+    if (durEl) {
+        if (currentStepIndex > 0 && step.timestamp) {
+            const prevStep = steps[currentStepIndex - 1];
+            if (prevStep?.timestamp) {
+                const diffMs = new Date(step.timestamp) - new Date(prevStep.timestamp);
+                if (!isNaN(diffMs) && diffMs >= 0) {
+                    const secs = Math.round(diffMs / 1000);
+                    durEl.textContent = secs < 60 ? `+${secs}s` : `+${Math.floor(secs/60)}m ${secs%60}s`;
+                } else {
+                    durEl.textContent = "—";
+                }
+            } else {
+                durEl.textContent = "—";
+            }
+        } else {
+            durEl.textContent = "First step";
+        }
+    }
+
+    // Sync step jump input
+    const sji = $("stepJumpInput");
+    if (sji) sji.value = currentStepIndex + 1;
+
+    // Update approval progress bar
+    updateApprovalProgress(steps);
+
     // Open step detail drawer automatically
     const drawer = $("stepDetailDrawer");
     if (drawer) drawer.classList.add("open");
@@ -2267,8 +2419,14 @@ function renderStepThumbnails() {
     }).join("");
 
     document.querySelectorAll(".thumb-card").forEach(card => {
+        const idx = parseInt(card.dataset.index);
+        const s = steps[idx];
+        if (s && s.screenshotUrl) {
+            card.addEventListener("mouseenter", (e) => showHoverPreview(API_BASE + s.screenshotUrl, s.title || getDefaultTitle(s), e));
+            card.addEventListener("mouseleave", hideHoverPreview);
+        }
         card.onclick = () => {
-            currentStepIndex = parseInt(card.dataset.index);
+            currentStepIndex = idx;
             loadActiveStepDetails();
             renderStepThumbnails();
             const newActive = strip.querySelector(".thumb-card.active");
@@ -2331,6 +2489,38 @@ async function toggleActiveStepHidden() {
 
 
 /* =========================================================
+   STEP HOVER PREVIEW HELPER
+========================================================= */
+
+let hoverPreviewEl = null;
+
+function showHoverPreview(url, title, e) {
+    if (!url) return;
+    if (!hoverPreviewEl) {
+        hoverPreviewEl = document.createElement("div");
+        hoverPreviewEl.className = "step-hover-preview";
+        document.body.appendChild(hoverPreviewEl);
+    }
+    hoverPreviewEl.innerHTML = `
+        <img src="${esc(url)}" alt="Preview">
+        <div class="step-hover-preview-label">${esc(title || "Step Preview")}</div>
+    `;
+    const target = e.currentTarget || e.target;
+    const rect = target.getBoundingClientRect();
+    const x = Math.min(window.innerWidth - 280, Math.max(10, rect.left));
+    const y = rect.top - 200 > 10 ? rect.top - 190 : rect.bottom + 10;
+    hoverPreviewEl.style.left = `${x}px`;
+    hoverPreviewEl.style.top = `${y}px`;
+    hoverPreviewEl.style.display = "block";
+}
+
+function hideHoverPreview() {
+    if (hoverPreviewEl) {
+        hoverPreviewEl.style.display = "none";
+    }
+}
+
+/* =========================================================
    STEP LIST EDITOR LOGIC (Tab 2)
 ========================================================= */
 
@@ -2348,7 +2538,7 @@ function renderStepsTab() {
             <div class="editor-step-row-left">
                 <span class="drag-handle">☰</span>
                 <div class="row-badge">${s.sequence}</div>
-                <div class="editor-step-thumb ${s.hidden ? 'is-deleted-thumb' : ''}">
+                <div class="editor-step-thumb ${s.hidden ? 'is-deleted-thumb' : ''}" data-thumb-url="${s.screenshotUrl ? esc(API_BASE + s.screenshotUrl) : ''}" data-thumb-title="${esc(s.title || getDefaultTitle(s))}">
                     ${s.screenshotUrl ? `<img src="${esc(API_BASE + s.screenshotUrl)}" alt="Step ${s.sequence}">` : '<div class="no-thumb">No img</div>'}
                 </div>
                 <div class="row-info">
@@ -2372,6 +2562,16 @@ function renderStepsTab() {
             </div>
         </div>
     `).join("");
+
+    // Bind hover preview on thumbnails
+    container.querySelectorAll(".editor-step-thumb").forEach(thumb => {
+        const url = thumb.dataset.thumbUrl;
+        const title = thumb.dataset.thumbTitle;
+        if (url) {
+            thumb.addEventListener("mouseenter", (e) => showHoverPreview(url, title, e));
+            thumb.addEventListener("mouseleave", hideHoverPreview);
+        }
+    });
 
     // Bind movements
     container.querySelectorAll(".btn-up").forEach(btn => {
@@ -2481,6 +2681,37 @@ async function swapSteps(idx1, idx2) {
     showToast("Steps reordered.");
     renderStepsTab();
 }
+
+// Bulk action: Approve all steps
+setOnclick("bulkApproveAllBtn", async () => {
+    if (!workflow || !workflow.steps || workflow.steps.length === 0) return;
+    workflow.steps.forEach(s => { s.checked = true; s.approved = true; });
+    updateApprovalProgress(workflow.steps);
+    showToast("✓ All steps marked as approved!");
+    renderStepThumbnails();
+});
+
+// Bulk action: Unhide all steps
+setOnclick("bulkUnhideAllBtn", async () => {
+    if (!workflow || !workflow.steps || workflow.steps.length === 0) return;
+    let count = 0;
+    for (const s of workflow.steps) {
+        if (s.hidden) {
+            s.hidden = false;
+            count++;
+            try {
+                await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${s.id}/edits`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ hidden: false })
+                });
+            } catch (_) {}
+        }
+    }
+    showToast(`👁 Restored ${count} hidden step${count === 1 ? "" : "s"}`);
+    renderStepsTab();
+    renderStepThumbnails();
+    loadActiveStepDetails();
+});
 
 // Insert manual step logic
 setOnclick("addNewStepBtn", async () => {

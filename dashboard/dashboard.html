@@ -33,6 +33,7 @@
                     <span id="aiErrorText"></span>
                     <button id="dismissAiErrorBtn" class="dismiss-btn" title="Dismiss error">✕</button>
                 </div>
+                <button id="themeToggleBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; min-width: 32px;" title="Toggle Light/Dark Theme">☀️</button>
                 <button id="systemRequirementsBtn" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" title="View all installed requirements and repair tools">
                     🛠️ Requirements
                 </button>
@@ -74,11 +75,34 @@
                             <span id="detailApplication" class="application-badge">Chrome</span>
                             <h2 id="detailName" class="workflow-name-display" contenteditable="true" title="Click to rename">Untitled Workflow</h2>
                             <div id="detailMeta" class="detail-meta">0 steps • Completed</div>
+                            <!-- Approval Progress Bar -->
+                            <div id="approvalProgressWrap" class="approval-progress-wrap hidden">
+                                <div class="approval-progress-bar-bg">
+                                    <div id="approvalProgressFill" class="approval-progress-fill" style="width:0%"></div>
+                                </div>
+                                <span id="approvalProgressLabel" class="approval-progress-label">0 / 0 approved</span>
+                            </div>
                         </div>
                         <div class="header-actions">
                             <button id="captureDesktopBtn" class="btn btn-secondary" title="Capture full Windows Desktop screen (Excel, SAP, Word, etc.)" style="padding: 6px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
                                 🖥️ Capture Desktop Screen
                             </button>
+                            <!-- Quick Export Dropdown -->
+                            <div class="export-quick-wrap" id="exportQuickWrap">
+                                <button id="exportQuickBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" title="Quick export options">
+                                    ⬇ Export
+                                    <svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+                                </button>
+                                <div id="exportQuickMenu" class="export-quick-menu hidden">
+                                    <button class="export-quick-item" data-export="interactive">🎯 Interactive Walkthrough</button>
+                                    <button class="export-quick-item" data-export="docx">📄 Word (.docx)</button>
+                                    <button class="export-quick-item" data-export="html">📁 Self-Contained HTML</button>
+                                    <button class="export-quick-item" data-export="markdown">📝 Markdown</button>
+                                    <button class="export-quick-item" data-export="pdf">🖨️ Print / PDF</button>
+                                    <div class="export-quick-divider"></div>
+                                    <button class="export-quick-item" data-export="duplicate">📋 Duplicate Workflow</button>
+                                </div>
+                            </div>
                             <button id="deleteBtn" class="btn btn-danger">
                                 <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                                 Delete
@@ -106,6 +130,8 @@
                                         <button id="prevBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 32px; padding: 0 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;">← Prev</button>
                                         <span id="stepProgress" class="step-progress-label" style="font-size: 12px; font-weight: 700; min-width: 80px; text-align: center; white-space: nowrap;">Step 1 of 1</span>
                                         <button id="nextBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 32px; padding: 0 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;">Next →</button>
+                                        <!-- Step Jump-To Input -->
+                                        <input id="stepJumpInput" type="number" min="1" value="1" title="Jump to step number" class="step-jump-input" style="width: 54px; height: 32px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid var(--light-border); border-radius: var(--radius-sm); padding: 0 4px; background: var(--dark-surface); color: var(--text-light);">
                                         <button id="deleteCurrentStepBtn" class="btn btn-danger btn-sm" style="white-space: nowrap; height: 32px; padding: 0 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;" title="Permanently delete current step">
                                             <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                                             Delete Step
@@ -348,6 +374,14 @@
                                             <span class="meta-label">Value:</span>
                                             <span id="guideMetaValue" class="meta-val">—</span>
                                         </div>
+                                        <div class="meta-item">
+                                            <span class="meta-label">⏱ Time:</span>
+                                            <span id="guideMetaTimestamp" class="meta-val">—</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <span class="meta-label">⏩ Since Prev:</span>
+                                            <span id="guideMetaDuration" class="meta-val" style="color: #a5b4fc;">—</span>
+                                        </div>
                                         <div class="meta-item span-2">
                                             <span class="meta-label">CSS Selector:</span>
                                             <code id="guideMetaSelector" class="meta-val-code">—</code>
@@ -393,7 +427,9 @@
                         <div class="editor-workspace">
                             <div class="editor-header-bar">
                                 <p>Drag and drop steps to reorder, insert new steps, delete steps or bulk hide steps from the output.</p>
-                                <div style="display: flex; gap: 8px;">
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <button id="bulkApproveAllBtn" class="btn btn-secondary btn-sm" title="Mark all steps as approved">✓ Approve All</button>
+                                    <button id="bulkUnhideAllBtn" class="btn btn-secondary btn-sm" title="Restore/unhide all steps">👁 Unhide All</button>
                                     <button id="aiPolishBtn" class="btn btn-secondary btn-sm" title="AI Polish descriptions of all steps">🤖 AI Polish SOP</button>
                                     <button id="addNewStepBtn" class="btn btn-primary btn-sm">+ Insert Manual Step</button>
                                 </div>

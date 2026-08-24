@@ -1197,6 +1197,114 @@ def delete_session(session_id: str):
 
 
 # =========================================================
+# DUPLICATE WORKFLOW
+# =========================================================
+
+@app.post("/sessions/{session_id}/duplicate")
+def duplicate_session(session_id: str):
+    connection = get_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM workflows WHERE id = ?", (session_id,))
+        workflow = cursor.fetchone()
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        new_id = str(uuid4())
+        now = utc_now()
+        new_name = f"{workflow['name']} (Copy)"
+
+        # Insert duplicated workflow
+        cursor.execute(
+            """
+            INSERT INTO workflows (id, name, application, status, started_at, ended_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (new_id, new_name, workflow["application"], workflow["status"], workflow["started_at"], workflow["ended_at"], now, now),
+        )
+
+        # Copy screenshots directory if it exists
+        old_screenshot_dir = SCREENSHOTS_DIR / session_id
+        new_screenshot_dir = SCREENSHOTS_DIR / new_id
+        if old_screenshot_dir.exists():
+            new_screenshot_dir.mkdir(parents=True, exist_ok=True)
+            for f in old_screenshot_dir.glob("*"):
+                if f.is_file():
+                    try:
+                        shutil.copy2(f, new_screenshot_dir / f.name)
+                    except Exception:
+                        pass
+
+        # Fetch original steps
+        cursor.execute("SELECT * FROM workflow_steps WHERE workflow_id = ? ORDER BY sequence ASC", (session_id,))
+        original_steps = cursor.fetchall()
+
+        for step in original_steps:
+            old_step_id = step["id"]
+            old_path = step["screenshot_path"]
+            new_path = None
+            if old_path:
+                # Update screenshot path for the new session
+                filename = Path(old_path).name
+                new_path = str(new_screenshot_dir / filename)
+
+            cursor.execute(
+                """
+                INSERT INTO workflow_steps (
+                    workflow_id, sequence, action, timestamp, url, title, value,
+                    selected_text, previous_url, checked, element_json, screenshot_path
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    new_id, step["sequence"], step["action"], step["timestamp"],
+                    step["url"], step["title"], step["value"], step["selected_text"],
+                    step["previous_url"], step["checked"], step["element_json"], new_path
+                ),
+            )
+            new_step_id = cursor.lastrowid
+
+            # Copy step annotations if any
+            cursor.execute("SELECT data FROM step_annotations WHERE step_id = ?", (old_step_id,))
+            anno_row = cursor.fetchone()
+            if anno_row:
+                cursor.execute(
+                    """
+                    INSERT INTO step_annotations (step_id, workflow_id, data, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (new_step_id, new_id, anno_row["data"], now, now),
+                )
+
+            # Copy step edits if any
+            cursor.execute("SELECT * FROM step_edits WHERE step_id = ?", (old_step_id,))
+            edit_row = cursor.fetchone()
+            if edit_row:
+                cursor.execute(
+                    """
+                    INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, voiceover, hidden, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        new_step_id, new_id, edit_row["title"], edit_row["description"],
+                        edit_row["note"], edit_row["expected"],
+                        edit_row["voiceover"] if "voiceover" in edit_row.keys() else None,
+                        edit_row["hidden"], now
+                    ),
+                )
+
+        connection.commit()
+        return {
+            "success": True,
+            "id": new_id,
+            "name": new_name,
+            "message": f"Successfully duplicated workflow as '{new_name}'"
+        }
+    finally:
+        connection.close()
+
+
+# =========================================================
 # ANNOTATIONS CRUD
 # =========================================================
 
