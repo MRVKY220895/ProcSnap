@@ -245,6 +245,36 @@ def initialize_database() -> None:
 
 initialize_database()
 
+def seed_initial_sample_sop():
+    """Seeds 1 sample SOP if the database is brand new so first-time users have an immediate interactive guide."""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        count = cur.execute("SELECT COUNT(*) FROM workflows").fetchone()[0]
+        if count == 0:
+            now = datetime.utcnow().isoformat()
+            sample_id = "sample_welcome_guide"
+            cur.execute("""
+                INSERT INTO workflows (id, name, application, status, started_at, ended_at, created_at, updated_at, tags)
+                VALUES (?, '🚀 Welcome to ProcSnap: Quickstart SOP', 'Chrome Web Browser', 'completed', ?, ?, ?, ?, 'Sample Guide')
+            """, (sample_id, now, now, now, now))
+            
+            sample_dir = SCREENSHOTS_DIR / sample_id
+            sample_dir.mkdir(parents=True, exist_ok=True)
+            
+            cur.execute("""
+                INSERT INTO workflow_steps (workflow_id, sequence, action, timestamp, url, title, value)
+                VALUES (?, 1, 'click', ?, 'https://google.com', 'Click the Search Box', 'ProcSnap')
+            """, (sample_id, now))
+            
+            conn.commit()
+            print("🚀 Seeded initial sample SOP for first-time user.")
+        conn.close()
+    except Exception as e:
+        print("Sample SOP seeding notice:", e)
+
+seed_initial_sample_sop()
+
 def perform_auto_backup():
     try:
         if not DATABASE_PATH.exists():
@@ -4090,5 +4120,49 @@ def save_branding_settings(session_id: str, branding: BrandingSettings):
         "branding": branding.dict(),
         "message": "Enterprise branding settings saved."
     }
+
+
+# =========================================================
+# ↶ UNDO LAST RECORDED STEP (IN-PAGE FLOATING HUD API)
+# =========================================================
+
+@app.delete("/sessions/{session_id}/steps/last")
+def delete_last_step(session_id: str):
+    """
+    Removes the most recent step from an active recording session.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        last_step = cur.execute(
+            "SELECT id, sequence, screenshot_path FROM workflow_steps WHERE workflow_id = ? ORDER BY sequence DESC LIMIT 1",
+            (session_id,)
+        ).fetchone()
+
+        if not last_step:
+            return {"success": False, "message": "No steps to undo.", "remainingSteps": 0}
+
+        step_id = last_step["id"]
+        # Delete associated edits and annotations
+        cur.execute("DELETE FROM step_annotations WHERE step_id = ?", (step_id,))
+        cur.execute("DELETE FROM step_edits WHERE step_id = ?", (step_id,))
+        cur.execute("DELETE FROM workflow_steps WHERE id = ?", (step_id,))
+        conn.commit()
+
+        # Count remaining
+        remaining = cur.execute(
+            "SELECT COUNT(*) FROM workflow_steps WHERE workflow_id = ?",
+            (session_id,)
+        ).fetchone()[0]
+
+        return {
+            "success": True,
+            "deletedStepId": step_id,
+            "remainingSteps": remaining,
+            "message": f"Step {last_step['sequence']} successfully undone."
+        }
+    finally:
+        conn.close()
+
 
 

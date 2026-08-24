@@ -113,16 +113,11 @@ chrome.runtime.onMessage.addListener(
 
 
 /* =========================================================
-   RECORDING INDICATOR
+   🎈 IN-PAGE FLOATING RECORDING HUD (Tango/Scribe Standard)
 ========================================================= */
 
 function createRecordingIndicator() {
-    if (
-        document.getElementById(
-            "procsnap-recording-indicator"
-        )
-    ) {
-        // Just update style if it already exists
+    if (document.getElementById("procsnap-recording-indicator")) {
         chrome.storage.local.get(["stepCount", "paused"], (res) => {
             updateIndicatorStyle(res.stepCount || 0, res.paused === true);
         });
@@ -137,42 +132,115 @@ function createRecordingIndicator() {
         const container = document.createElement("div");
         container.id = "procsnap-recording-indicator";
         container.style.position = "fixed";
-        container.style.bottom = "16px";
-        container.style.left = "50%";
-        container.style.transform = "translateX(-50%)";
+        container.style.bottom = "24px";
+        container.style.left = "24px";
         container.style.zIndex = "2147483647";
         container.style.display = "flex";
         container.style.alignItems = "center";
-        container.style.gap = "6px";
-        container.style.padding = "5px 10px";
-        container.style.borderRadius = "20px";
-        container.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif";
-        container.style.fontSize = "11px";
-        container.style.fontWeight = "600";
-        container.style.boxShadow = "0 2px 8px rgba(0,0,0,0.35)";
-        container.style.border = "1px solid rgba(255,255,255,0.08)";
-        container.style.pointerEvents = "none";
-        container.style.opacity = "0.75";
-        container.style.transition = "opacity 0.2s, background 0.2s";
+        container.style.gap = "8px";
+        container.style.padding = "6px 12px";
+        container.style.borderRadius = "999px";
+        container.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        container.style.fontSize = "12px";
+        container.style.fontWeight = "700";
+        container.style.boxShadow = "0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.15)";
+        container.style.background = "rgba(15, 23, 42, 0.94)";
+        container.style.backdropFilter = "blur(12px)";
+        container.style.webkitBackdropFilter = "blur(12px)";
+        container.style.pointerEvents = "auto";
+        container.style.userSelect = "none";
+        container.style.transition = "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)";
 
-        // Fade out after 3s of no interaction, restore on hover
-        container.addEventListener("mouseenter", () => container.style.opacity = "1");
-        container.addEventListener("mouseleave", () => container.style.opacity = "0.75");
-
+        // Live dot
         const dot = document.createElement("div");
         dot.id = "procsnap-indicator-dot";
-        dot.style.width = "7px";
-        dot.style.height = "7px";
+        dot.style.width = "8px";
+        dot.style.height = "8px";
         dot.style.borderRadius = "50%";
         dot.style.flexShrink = "0";
 
+        // Step count text
         const text = document.createElement("span");
         text.id = "procsnap-indicator-text";
+        text.style.color = "#ffffff";
+        text.style.marginRight = "4px";
+
+        // Divider
+        const divider = document.createElement("div");
+        divider.style.width = "1px";
+        divider.style.height = "16px";
+        divider.style.background = "rgba(255,255,255,0.2)";
+
+        // Button style helper
+        const makeBtn = (label, title, bg, color) => {
+            const b = document.createElement("button");
+            b.innerHTML = label;
+            b.title = title;
+            b.style.border = "none";
+            b.style.background = bg;
+            b.style.color = color;
+            b.style.fontSize = "11px";
+            b.style.fontWeight = "700";
+            b.style.padding = "4px 8px";
+            b.style.borderRadius = "6px";
+            b.style.cursor = "pointer";
+            b.style.display = "inline-flex";
+            b.style.alignItems = "center";
+            b.style.gap = "4px";
+            b.style.transition = "transform 0.1s, opacity 0.15s";
+            b.onmouseenter = () => b.style.opacity = "0.85";
+            b.onmouseleave = () => b.style.opacity = "1";
+            b.onmousedown = () => b.style.transform = "scale(0.94)";
+            b.onmouseup = () => b.style.transform = "scale(1)";
+            return b;
+        };
+
+        // Undo last step button
+        const undoBtn = makeBtn("↶ Undo", "Undo last captured click", "rgba(255,255,255,0.12)", "#f8fafc");
+        undoBtn.id = "procsnap-hud-undo-btn";
+        undoBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            chrome.runtime.sendMessage({ type: "UNDO_LAST_STEP" }, (res) => {
+                if (res && res.success) {
+                    text.textContent = `${res.remainingSteps} step${res.remainingSteps === 1 ? '' : 's'}`;
+                }
+            });
+        };
+
+        // Pause/Resume button
+        const pauseBtn = makeBtn("⏸ Pause", "Pause or resume recording", "rgba(255,255,255,0.12)", "#f8fafc");
+        pauseBtn.id = "procsnap-hud-pause-btn";
+        pauseBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            chrome.storage.local.get(["paused"], (res) => {
+                const nextPaused = !res.paused;
+                chrome.storage.local.set({ paused: nextPaused }, () => {
+                    chrome.runtime.sendMessage({ type: "PAUSE_STATE_CHANGED" });
+                });
+            });
+        };
+
+        // Finish button
+        const finishBtn = makeBtn("✓ Complete", "Finish SOP and open Studio editor", "linear-gradient(135deg, #10b981, #059669)", "#ffffff");
+        finishBtn.id = "procsnap-hud-finish-btn";
+        finishBtn.style.padding = "4px 10px";
+        finishBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            finishBtn.textContent = "Finishing...";
+            chrome.runtime.sendMessage({ type: "FINISH_RECORDING" });
+        };
 
         container.appendChild(dot);
         container.appendChild(text);
-        document.documentElement.appendChild(container);
+        container.appendChild(divider);
+        container.appendChild(undoBtn);
+        container.appendChild(pauseBtn);
+        container.appendChild(finishBtn);
 
+        document.documentElement.appendChild(container);
         updateIndicatorStyle(steps, isPaused);
     });
 }
@@ -181,26 +249,22 @@ function updateIndicatorStyle(steps, isPaused) {
     const container = document.getElementById("procsnap-recording-indicator");
     const dot = document.getElementById("procsnap-indicator-dot");
     const text = document.getElementById("procsnap-indicator-text");
+    const pauseBtn = document.getElementById("procsnap-hud-pause-btn");
 
     if (!container || !dot || !text) return;
 
     if (isPaused) {
-        container.style.background = "#151821";
-        container.style.color = "#9ca3af";
-        dot.style.background = "#eab308"; // yellow
+        dot.style.background = "#eab308";
         dot.style.boxShadow = "none";
-        text.textContent = `Paused — ${steps} step${steps === 1 ? "" : "s"}`;
-        
-        // Remove animation
+        text.textContent = `Paused (${steps})`;
+        if (pauseBtn) pauseBtn.innerHTML = "▶ Resume";
         dot.getAnimations().forEach(a => a.cancel());
     } else {
-        container.style.background = "#0f111a";
-        container.style.color = "#ffffff";
-        dot.style.background = "#ef4444"; // red
-        dot.style.boxShadow = "0 0 0 3px rgba(239, 68, 68, 0.3)";
-        text.textContent = `Capturing — ${steps} step${steps === 1 ? "" : "s"}`;
+        dot.style.background = "#ef4444";
+        dot.style.boxShadow = "0 0 0 3px rgba(239, 68, 68, 0.35)";
+        text.textContent = `${steps} step${steps === 1 ? "" : "s"}`;
+        if (pauseBtn) pauseBtn.innerHTML = "⏸ Pause";
         
-        // Add pulsing animation
         dot.animate([
             { transform: 'scale(1)', opacity: 1 },
             { transform: 'scale(1.3)', opacity: 0.5 },
@@ -213,14 +277,8 @@ function updateIndicatorStyle(steps, isPaused) {
 }
 
 function removeRecordingIndicator() {
-    const indicator =
-        document.getElementById(
-            "procsnap-recording-indicator"
-        );
-
-    if (indicator) {
-        indicator.remove();
-    }
+    const indicator = document.getElementById("procsnap-recording-indicator");
+    if (indicator) indicator.remove();
 }
 
 
@@ -390,6 +448,36 @@ function getXPath(element) {
 function getElementInfo(element) {
     if (!element) return null;
     
+    // Extract nearest human label (for non-technical users)
+    let cleanLabel = null;
+    if (element.id) {
+        const associatedLabel = document.querySelector(`label[for="${element.id}"]`);
+        if (associatedLabel && associatedLabel.innerText) cleanLabel = associatedLabel.innerText.trim();
+    }
+    if (!cleanLabel) {
+        const parentLabel = element.closest("label");
+        if (parentLabel && parentLabel.innerText) cleanLabel = parentLabel.innerText.trim();
+    }
+    if (!cleanLabel && element.getAttribute("aria-label")) {
+        cleanLabel = element.getAttribute("aria-label").trim();
+    }
+    if (!cleanLabel && element.getAttribute("placeholder")) {
+        cleanLabel = element.getAttribute("placeholder").trim();
+    }
+    if (!cleanLabel && element.getAttribute("title")) {
+        cleanLabel = element.getAttribute("title").trim();
+    }
+    if (!cleanLabel && element.innerText && element.innerText.length < 60) {
+        cleanLabel = element.innerText.trim();
+    }
+    if (!cleanLabel && element.value && typeof element.value === "string" && element.value.length < 40) {
+        cleanLabel = element.value.trim();
+    }
+
+    const isPasswordOrSensitive = element.getAttribute("type") === "password" ||
+        element.getAttribute("autocomplete") === "cc-number" ||
+        element.getAttribute("data-private") === "true";
+
     return {
         tagName:
             element.tagName || null,
@@ -408,6 +496,9 @@ function getElementInfo(element) {
                     .trim()
                     .substring(0, 300)
                 : null,
+
+        cleanLabel: cleanLabel || null,
+        isSensitive: isPasswordOrSensitive,
 
         name:
             element.getAttribute("name") || null,

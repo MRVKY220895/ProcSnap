@@ -7359,6 +7359,84 @@ function initScormExport() {
 }
 
 
+// =========================================================
+// 📋 1-CLICK COPY RICH SOP TO CLIPBOARD (Slack, Teams, Docs)
+// =========================================================
+
+function initCopyRichSopToClipboard() {
+    const btn = $("btnCopyRichSopClipboard");
+    if (!btn) return;
+
+    btn.onclick = async () => {
+        if (!workflow || !workflow.steps || workflow.steps.length === 0) {
+            showToast("No active workflow to copy.");
+            return;
+        }
+
+        btn.innerHTML = `<span>⏳</span> Formatting SOP...`;
+        
+        try {
+            const visibleSteps = workflow.steps.filter(s => !s.hidden);
+            let htmlContent = `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 800px; color: #1e293b; line-height: 1.5;">
+                    <h1 style="color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">${workflow.name || "Standard Operating Procedure"}</h1>
+                    <p style="color: #64748b; font-size: 14px;"><strong>App:</strong> ${workflow.application || "Web"} &bull; <strong>Total Steps:</strong> ${visibleSteps.length}</p>
+            `;
+
+            for (let i = 0; i < visibleSteps.length; i++) {
+                const s = visibleSteps[i];
+                const title = s.title || getDefaultTitle(s);
+                const desc = s.description || getDefaultDescription(s);
+                const expected = s.expected ? `<div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 6px 12px; margin: 8px 0; font-size: 13px; color: #166534;"><strong>Expected:</strong> ${s.expected}</div>` : '';
+                const note = s.note ? `<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 6px 12px; margin: 8px 0; font-size: 13px; color: #1e40af;"><strong>Note:</strong> ${s.note}</div>` : '';
+                
+                let imgHtml = '';
+                if (s.screenshotUrl) {
+                    const fullImgUrl = s.screenshotUrl.startsWith("http") ? s.screenshotUrl : `${window.location.origin}${s.screenshotUrl}`;
+                    imgHtml = `<div style="margin: 10px 0;"><img src="${fullImgUrl}" alt="Step ${i+1}" style="max-width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" /></div>`;
+                }
+
+                htmlContent += `
+                    <div style="margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;">
+                        <h3 style="color: #0f172a; margin-bottom: 4px;">Step ${i+1}: ${title}</h3>
+                        <p style="color: #475569; font-size: 14px; margin: 4px 0 8px;">${desc}</p>
+                        ${expected}
+                        ${note}
+                        ${imgHtml}
+                    </div>
+                `;
+            }
+
+            htmlContent += `
+                    <footer style="margin-top: 24px; font-size: 12px; color: #94a3b8; text-align: center;">Generated with ProcSnap</footer>
+                </div>
+            `;
+
+            const blobHtml = new Blob([htmlContent], { type: "text/html" });
+            const plainText = visibleSteps.map((s, idx) => `Step ${idx+1}: ${s.title || getDefaultTitle(s)}\n${s.description || getDefaultDescription(s)}\n`).join("\n\n");
+            const blobText = new Blob([plainText], { type: "text/plain" });
+
+            if (navigator.clipboard && navigator.clipboard.write) {
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        "text/html": blobHtml,
+                        "text/plain": blobText
+                    })
+                ]);
+                showToast("📋 Rich SOP Copied! You can now paste directly into Slack, Gmail, or Google Docs!", 5000);
+            } else {
+                showToast("Clipboard write not supported by this browser.");
+            }
+        } catch (e) {
+            console.error("Clipboard copy error:", e);
+            showToast("Failed to copy SOP to clipboard: " + e.message);
+        } finally {
+            btn.innerHTML = `📋 Copy Entire SOP to Clipboard`;
+        }
+    };
+}
+
+
 // Initialize All Platform Enhancements
 initHotspotReticle();
 initCanvasFileDrop();
@@ -7368,6 +7446,8 @@ initDrawerVoiceoverAndAiDiff();
 initAutoRedactPII();
 initWorkflowGraphModal();
 initSlideshowPracticeAndTeleprompter();
+initScormExport();
+initCopyRichSopToClipboard();
 initScormExport();
 
 

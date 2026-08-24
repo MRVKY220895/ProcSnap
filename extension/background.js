@@ -767,8 +767,58 @@ chrome.runtime.onMessage.addListener(
            PAUSE STATE CHANGED
         ------------------------------------------------ */
         if (message.type === "PAUSE_STATE_CHANGED") {
-            notifyTabs(); // Broad cast pause state change
+            notifyTabs();
             return false;
+        }
+
+        /* -----------------------------------------------
+           UNDO LAST STEP (In-Page Floating HUD)
+        ------------------------------------------------ */
+        if (message.type === "UNDO_LAST_STEP") {
+            (async () => {
+                if (!currentSessionId) {
+                    sendResponse({ success: false, error: "No active session" });
+                    return;
+                }
+                try {
+                    const backendUrl = await getBackendUrl();
+                    const res = await fetch(`${backendUrl}/sessions/${currentSessionId}/steps/last`, {
+                        method: "DELETE"
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        currentStepCount = Math.max(0, data.remainingSteps);
+                        await chrome.storage.local.set({ stepCount: currentStepCount });
+                        updateExtensionStatus();
+                        await notifyTabs();
+                        sendResponse({ success: true, remainingSteps: currentStepCount });
+                    } else {
+                        sendResponse({ success: false, message: data.message });
+                    }
+                } catch (e) {
+                    sendResponse({ success: false, error: e.message });
+                }
+            })();
+            return true;
+        }
+
+        /* -----------------------------------------------
+           FINISH RECORDING & OPEN STUDIO
+        ------------------------------------------------ */
+        if (message.type === "FINISH_RECORDING") {
+            (async () => {
+                const sId = currentSessionId;
+                try {
+                    const session = await stopRecording();
+                    const backendUrl = await getBackendUrl();
+                    const studioUrl = `${backendUrl}/dashboard/dashboard.html${sId ? `?session_id=${sId}` : ''}`;
+                    await chrome.tabs.create({ url: studioUrl });
+                    sendResponse({ success: true, studioUrl });
+                } catch (e) {
+                    sendResponse({ success: false, error: e.message });
+                }
+            })();
+            return true;
         }
 
         /* -----------------------------------------------
