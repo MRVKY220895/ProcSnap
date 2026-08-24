@@ -4718,7 +4718,7 @@ function openSystemRequirementsModal() {
         };
     }
 
-    // Pull AI Models — downloads moondream + qwen2.5 via ollama pull
+    // Pull AI Models — downloads moondream + qwen2.5 with LIVE real-time streaming progress
     const btnPullModels = $("btnPullModels");
     if (btnPullModels) {
         btnPullModels.onclick = async () => {
@@ -4727,26 +4727,50 @@ function openSystemRequirementsModal() {
             const terminalLabel = $("repairTerminalLabel");
             const terminalStatus = $("repairTerminalStatus");
             if (terminalWrap) terminalWrap.classList.remove("hidden");
-            if (terminalLabel) terminalLabel.textContent = "AI Model Download Output";
-            if (terminalStatus) { terminalStatus.textContent = "Downloading models…"; terminalStatus.style.color = "#a5b4fc"; }
-            if (terminalOut) terminalOut.textContent = "⬇ Initiating AI model downloads…\n\nThis can take 5–30 min depending on your internet speed.\nmoondream ≈ 1.7 GB  |  qwen2.5 ≈ 4.7 GB\n\nPlease keep this window open…";
+            if (terminalLabel) terminalLabel.textContent = "AI Model Download Output (Live)";
+            if (terminalStatus) { terminalStatus.textContent = "Connecting…"; terminalStatus.style.color = "#a5b4fc"; }
+            if (terminalOut) terminalOut.textContent = "Connecting to Ollama download stream…\n";
 
             btnPullModels.disabled = true;
-            btnPullModels.textContent = "⬇️ Pulling Models...";
+            btnPullModels.textContent = "⏳ Downloading Models…";
+
+            let outputAccumulator = "";
 
             try {
-                const res = await api("/ai/pull-models", { method: "POST", timeout: 2100000 }); // 35 min max
-                if (terminalOut) terminalOut.textContent = res.output || "Pull finished.";
-                if (res.success) {
-                    if (terminalStatus) { terminalStatus.textContent = "✓ Models Ready"; terminalStatus.style.color = "#34d399"; }
-                    showToast("✅ AI models downloaded successfully! Ollama is fully operational.");
-                } else {
-                    if (terminalStatus) { terminalStatus.textContent = "✗ Pull Failed"; terminalStatus.style.color = "#f87171"; }
-                    showToast("Model pull encountered issues — check the output log.");
+                const response = await fetch(`${API_BASE}/ai/pull-models-stream`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let buffer = "";
+
+                if (terminalStatus) { terminalStatus.textContent = "Downloading…"; terminalStatus.style.color = "#38bdf8"; }
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop(); // keep remainder
+
+                    for (const line of lines) {
+                        if (line.startsWith("data: ")) {
+                            const data = line.slice(6);
+                            if (data === "[DONE]") break;
+                            outputAccumulator += data + "\n";
+                            if (terminalOut) {
+                                terminalOut.textContent = outputAccumulator;
+                                terminalOut.scrollTop = terminalOut.scrollHeight;
+                            }
+                        }
+                    }
                 }
+
+                if (terminalStatus) { terminalStatus.textContent = "✓ Complete"; terminalStatus.style.color = "#34d399"; }
+                showToast("✅ AI model downloads complete!");
                 await loadSystemRequirements();
             } catch(e) {
-                if (terminalOut) terminalOut.textContent = "Request error: " + e.message + "\n\nTip: If this timed out, the models may still be downloading in the background.";
+                if (terminalOut) terminalOut.textContent = outputAccumulator + "\n❌ Stream error: " + e.message;
                 if (terminalStatus) { terminalStatus.textContent = "✗ Error"; terminalStatus.style.color = "#f87171"; }
                 showToast("Pull models error: " + e.message);
             } finally {

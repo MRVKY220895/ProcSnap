@@ -331,20 +331,20 @@
 
                             <!-- Step Detail Side Drawer (slides in from right) -->
                             <div class="step-detail-drawer" id="stepDetailDrawer">
-                                <div class="drawer-handle" id="drawerCloseBtn" title="Close panel">
-                                    <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                                </div>
                                 <div class="guide-card-header">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div class="drawer-top-row">
+                                        <div style="display: flex; align-items: center; gap: 6px;">
                                             <div class="step-badge" id="guideStepBadge">Step 1</div>
                                             <span id="autoSaveIndicator" class="auto-save-indicator">Saved ✓</span>
                                         </div>
-                                        <label class="approve-checkbox-label">
-                                            <input type="checkbox" id="guideStepChecked"> Approved
-                                        </label>
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <label class="approve-checkbox-label" style="margin: 0;">
+                                                <input type="checkbox" id="guideStepChecked"> Approved
+                                            </label>
+                                            <button class="drawer-close-btn" id="drawerCloseBtn" title="Close panel">✕</button>
+                                        </div>
                                     </div>
-                                    <h3 id="guideStepTitle" contenteditable="true" placeholder="Step Title">Step Title</h3>
+                                    <h3 id="guideStepTitle" contenteditable="true" placeholder="Step Title" class="drawer-step-title">Step Title</h3>
                                     <p id="guideStepDesc" contenteditable="true" placeholder="Enter instructions here..." class="step-desc-edit"></p>
                                 </div>
                                 <div class="guide-card-body">

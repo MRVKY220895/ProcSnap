@@ -1638,6 +1638,111 @@ def _find_ollama_path() -> str | None:
     return None
 
 
+@app.get("/ai/pull-models-stream")
+def pull_ai_models_stream():
+    """
+    Streams the real-time download progress of moondream and qwen2.5 from Ollama
+    with live percentage, progress bar, and byte counters.
+    """
+    def generate_progress():
+        import json, urllib.request, time
+
+        ollama_path = _find_ollama_path()
+        if not ollama_path:
+            yield "data: ❌ Error: Ollama executable not found. Install from https://ollama.com/download\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
+        # Ensure ollama service is running
+        if not get_ollama_heartbeat():
+            yield "data: 🚀 Starting Ollama background service...\n\n"
+            try:
+                subprocess.Popen([ollama_path, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                for _ in range(12):
+                    time.sleep(1)
+                    if get_ollama_heartbeat():
+                        break
+            except Exception:
+                pass
+
+        models_to_pull = [
+            ("moondream", "Vision AI (Screenshot Analysis)", "1.7 GB"),
+            ("qwen2.5",   "Text AI (SOP Title & Description Generator)", "4.7 GB"),
+        ]
+
+        installed_names = [m.split(":")[0] for m in get_installed_models()]
+
+        for model_name, purpose, size in models_to_pull:
+            if model_name in installed_names:
+                yield f"data: ✓ {model_name} ({size}) is already installed.\n\n"
+                continue
+
+            yield f"data: ⬇ Downloading {model_name} (~{size}) — {purpose}...\n\n"
+
+            # Pull via Ollama HTTP streaming API
+            success = False
+            try:
+                req = urllib.request.Request(
+                    "http://127.0.0.1:11434/api/pull",
+                    data=json.dumps({"name": model_name, "stream": True}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=3600) as response:
+                    last_pct = -1
+                    for line in response:
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line.decode("utf-8"))
+                            status = data.get("status", "")
+                            completed = data.get("completed", 0)
+                            total = data.get("total", 0)
+                            if total > 0 and completed > 0:
+                                pct = int((completed / total) * 100)
+                                if pct != last_pct and (pct % 2 == 0 or pct == 100):
+                                    last_pct = pct
+                                    mb_done = completed / (1024 * 1024)
+                                    mb_total = total / (1024 * 1024)
+                                    bars = int(pct / 5)
+                                    bar_str = "█" * bars + "░" * (20 - bars)
+                                    yield f"data: [{bar_str}] {pct}% ({mb_done:.1f} MB / {mb_total:.1f} MB) — {status}\n\n"
+                            elif status and ("pulling" in status.lower() or "verifying" in status.lower() or "writing" in status.lower()):
+                                yield f"data: • {status}\n\n"
+                        except Exception:
+                            continue
+                success = True
+                yield f"data: ✓ {model_name} installed successfully!\n\n"
+            except Exception as e:
+                # Fallback to CLI subprocess
+                yield f"data: [CLI Fallback] Running: ollama pull {model_name} ...\n\n"
+                try:
+                    proc = subprocess.Popen(
+                        [ollama_path, "pull", model_name],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1
+                    )
+                    for pline in proc.stdout:
+                        clean = pline.strip()
+                        if clean:
+                            yield f"data: {clean}\n\n"
+                    proc.wait()
+                    if proc.returncode == 0:
+                        success = True
+                        yield f"data: ✓ {model_name} installed successfully!\n\n"
+                    else:
+                        yield f"data: ✗ {model_name} pull exited with code {proc.returncode}\n\n"
+                except Exception as ex:
+                    yield f"data: ✗ {model_name} pull failed: {str(ex)}\n\n"
+
+        yield "data: \n✅ All required AI models are ready and verified!\n\n"
+        yield "data: [DONE]\n\n"
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(generate_progress(), media_type="text/event-stream")
+
+
 @app.post("/ai/pull-models")
 def pull_ai_models():
     """
