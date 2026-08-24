@@ -7960,6 +7960,196 @@ function initWorkflowMergeModal() {
 }
 
 
+// =========================================================
+// 🎬 SLIDESHOW AUTO-PLAY & FULLSCREEN IMMERSION CONTROLLER
+// =========================================================
+
+let autoPlayTimer = null;
+let isAutoPlaying = false;
+
+function initSlideshowAutoPlayAndFullscreen() {
+    const autoPlayBtn = $("btnToggleAutoPlay");
+    const speedSelect = $("autoPlaySpeedSelect");
+    const fullscreenBtn = $("btnToggleFullscreenPlay");
+    const audioPlayer = $("ttsAudioPlayer");
+
+    if (!autoPlayBtn) return;
+
+    const stopAutoPlay = () => {
+        isAutoPlaying = false;
+        if (autoPlayTimer) {
+            clearInterval(autoPlayTimer);
+            autoPlayTimer = null;
+        }
+        if (autoPlayBtn) {
+            autoPlayBtn.innerHTML = `<span>▶</span> Auto-Play`;
+            autoPlayBtn.style.color = "#10b981";
+        }
+    };
+
+    const startAutoPlay = () => {
+        if (!workflow || !workflow.steps || workflow.steps.length === 0) {
+            showToast("No steps available to play.");
+            return;
+        }
+
+        isAutoPlaying = true;
+        autoPlayBtn.innerHTML = `<span>⏸</span> Pause`;
+        autoPlayBtn.style.color = "#f59e0b";
+        const mode = speedSelect?.value || "5000";
+
+        if (mode === "audio") {
+            // Audio-synced progression
+            playActiveStepVoiceover();
+            if (audioPlayer) {
+                audioPlayer.onended = () => {
+                    if (!isAutoPlaying) return;
+                    if (playbackIndex < (workflow.steps || []).filter(s => !s.hidden).length - 1) {
+                        playbackIndex++;
+                        renderPlayback();
+                        setTimeout(() => {
+                            if (isAutoPlaying) playActiveStepVoiceover();
+                        }, 800);
+                    } else {
+                        showToast("🏁 Auto-Play completed entire procedure!");
+                        stopAutoPlay();
+                    }
+                };
+            }
+        } else {
+            const intervalMs = parseInt(mode) || 5000;
+            autoPlayTimer = setInterval(() => {
+                const visibleSteps = (workflow.steps || []).filter(s => !s.hidden);
+                if (playbackIndex < visibleSteps.length - 1) {
+                    playbackIndex++;
+                    renderPlayback();
+                } else {
+                    showToast("🏁 Auto-Play completed entire procedure!");
+                    stopAutoPlay();
+                }
+            }, intervalMs);
+        }
+    };
+
+    autoPlayBtn.onclick = () => {
+        if (isAutoPlaying) {
+            stopAutoPlay();
+        } else {
+            startAutoPlay();
+        }
+    };
+
+    // Fullscreen presentation mode
+    if (fullscreenBtn) {
+        fullscreenBtn.onclick = () => {
+            const container = $("tab-play");
+            if (!container) return;
+
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.error("Fullscreen error:", err);
+                });
+                fullscreenBtn.innerHTML = `⛶ Exit Fullscreen`;
+            } else {
+                document.exitFullscreen().catch(() => {});
+                fullscreenBtn.innerHTML = `⛶ Fullscreen`;
+            }
+        };
+    }
+
+    document.addEventListener("fullscreenchange", () => {
+        if (!document.fullscreenElement && fullscreenBtn) {
+            fullscreenBtn.innerHTML = `⛶ Fullscreen`;
+        }
+    });
+}
+
+
+// =========================================================
+// 🖨️ 1-CLICK PRINT / SAVE AS PDF CONTROLLER
+// =========================================================
+
+function initPrintSopPdf() {
+    const printBtn = $("btnPrintSopPdf");
+    if (!printBtn) return;
+
+    printBtn.onclick = () => {
+        if (!workflow || !workflow.steps || workflow.steps.length === 0) {
+            showToast("No active workflow to print.");
+            return;
+        }
+
+        const visibleSteps = workflow.steps.filter(s => !s.hidden);
+        const win = window.open("", "_blank");
+        if (!win) {
+            showToast("Popup blocked. Please allow popups to print SOP.");
+            return;
+        }
+
+        let stepsHtml = "";
+        visibleSteps.forEach((s, idx) => {
+            const title = s.title || getDefaultTitle(s);
+            const desc = s.description || getDefaultDescription(s);
+            const expected = s.expected ? `<div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 6px 12px; margin: 8px 0; font-size: 12px; color: #166534;"><strong>Expected:</strong> ${esc(s.expected)}</div>` : "";
+            const note = s.note ? `<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 6px 12px; margin: 8px 0; font-size: 12px; color: #1e40af;"><strong>Note:</strong> ${esc(s.note)}</div>` : "";
+            
+            let imgHtml = "";
+            if (s.screenshotUrl) {
+                const fullImgUrl = s.screenshotUrl.startsWith("http") ? s.screenshotUrl : `${window.location.origin}${s.screenshotUrl}`;
+                imgHtml = `<div style="margin: 10px 0; page-break-inside: avoid;"><img src="${fullImgUrl}" alt="Step ${idx+1}" style="max-width: 100%; max-height: 480px; border-radius: 6px; border: 1px solid #cbd5e1;" /></div>`;
+            }
+
+            stepsHtml += `
+                <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; page-break-inside: avoid;">
+                    <h3 style="color: #0f172a; margin: 0 0 6px 0; font-size: 16px;">Step ${idx+1}: ${esc(title)}</h3>
+                    <p style="color: #475569; font-size: 13px; line-height: 1.45; margin: 0 0 8px 0;">${esc(desc)}</p>
+                    ${expected}
+                    ${note}
+                    ${imgHtml}
+                </div>
+            `;
+        });
+
+        const docHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${esc(workflow.name || "SOP Procedure")} - Print / PDF</title>
+                <style>
+                    @page { size: A4; margin: 15mm; }
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0f172a; margin: 0; padding: 20px; }
+                    @media print {
+                        body { padding: 0; }
+                        button { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #6366f1; padding-bottom: 12px; margin-bottom: 20px;">
+                    <div>
+                        <h1 style="margin: 0; font-size: 22px; color: #1e1b4b;">${esc(workflow.name || "Standard Operating Procedure")}</h1>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">App: ${esc(workflow.application || "Web")} &bull; Steps: ${visibleSteps.length} &bull; Generated: ${new Date().toLocaleDateString()}</div>
+                    </div>
+                    <button onclick="window.print()" style="background: #6366f1; color: #fff; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 700; cursor: pointer;">🖨️ Print / Save as PDF</button>
+                </div>
+                ${stepsHtml}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() { window.print(); }, 400);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        win.document.open();
+        win.document.write(docHtml);
+        win.document.close();
+        showToast("🖨️ Print & PDF preview opened!");
+    };
+}
+
+
 // Initialize All Platform Enhancements
 initHotspotReticle();
 initCanvasFileDrop();
@@ -7973,5 +8163,7 @@ initScormExport();
 initCopyRichSopToClipboard();
 initWorkflowMergeModal();
 initStepListFilterAndBulkActions();
+initSlideshowAutoPlayAndFullscreen();
+initPrintSopPdf();
 
 

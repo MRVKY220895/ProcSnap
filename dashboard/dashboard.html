@@ -687,15 +687,29 @@
 
                             <!-- Center: Current Main Active Slide -->
                             <div class="playback-card">
-                                <div class="playback-header" style="display: flex; align-items: center; justify-content: space-between;">
+                                <div class="playback-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <div class="playback-badge" id="playStepBadge">1</div>
                                         <h2 id="playStepTitle" style="margin: 0;">Step Title</h2>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                        <div style="display: inline-flex; align-items: center; background: var(--bg-surface, rgba(255,255,255,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); border-radius: 8px; padding: 2px 6px; gap: 4px;">
+                                            <button id="btnToggleAutoPlay" class="btn btn-secondary btn-xs" style="font-weight: 700; border: none; background: transparent; color: #10b981; display: inline-flex; align-items: center; gap: 4px;" title="Auto-advance slides automatically">
+                                                <span>▶</span> Auto-Play
+                                            </button>
+                                            <select id="autoPlaySpeedSelect" class="form-control" style="width: auto; padding: 1px 4px; font-size: 11px; height: 24px; font-weight: 600; border: none; background: transparent;" title="Auto-Play Speed">
+                                                <option value="3000">3 sec</option>
+                                                <option value="5000" selected>5 sec</option>
+                                                <option value="8000">8 sec</option>
+                                                <option value="audio">🎙️ Voice-Synced</option>
+                                            </select>
+                                        </div>
+                                        <button id="btnToggleFullscreenPlay" class="btn btn-secondary btn-sm" style="font-weight: 700; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;" title="Full screen slideshow presentation">
+                                            ⛶ Fullscreen
+                                        </button>
                                         <button id="btnTogglePracticeMode" class="btn btn-secondary btn-sm" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; height: 30px;" title="Require learners to click the actual target hotspot on each slide before advancing">
                                             <span id="practiceDot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
-                                            <span id="practiceLabel">Practice Mode: OFF</span>
+                                            <span id="practiceLabel">Practice: OFF</span>
                                         </button>
                                         <button id="btnToggleTeleprompter" class="btn btn-secondary btn-sm" style="font-weight: 700; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;" title="Open presenter teleprompter notes & stopwatch HUD">
                                             📜 Teleprompter
@@ -804,6 +818,19 @@
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
                                     <button id="btnCopyRichSopClipboard" class="btn btn-primary btn-sm" style="flex: 1; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; padding: 8px 14px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);">
                                         📋 Copy Entire SOP to Clipboard
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="export-card featured-card" style="border: 2px solid #ef4444; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(244, 63, 94, 0.12));">
+                                <div class="export-card-icon">🖨️</div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <h3 style="margin: 0;">Print / Save as PDF</h3>
+                                    <span class="badge" style="background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">PDF</span>
+                                </div>
+                                <p>Render a beautiful, print-ready document formatted with high-contrast steps, notes, and full-bleed screenshots. Opens browser print dialog directly for instant PDF saving.</p>
+                                <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
+                                    <button id="btnPrintSopPdf" class="btn btn-primary btn-sm" style="flex: 1; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; font-weight: 700; padding: 8px 14px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);">
+                                        🖨️ Print / Save as PDF
                                     </button>
                                 </div>
                             </div>
