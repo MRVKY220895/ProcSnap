@@ -105,14 +105,15 @@ svg {
 }
 
 .btn-secondary {
-    background-color: #ffffff;
-    border-color: var(--light-border);
-    color: var(--text-main);
+    background-color: var(--bg-surface-elevated);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
 }
 
 .btn-secondary:hover {
-    background-color: var(--light-bg);
-    border-color: var(--text-muted);
+    background-color: var(--bg-surface-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
 }
 
 .btn-danger {
@@ -2515,6 +2516,18 @@ svg {
 /* =========================================================
    STEP JUMP INPUT
 ========================================================= */
+.step-jump-input {
+    width: 44px;
+    height: 30px;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0 4px;
+    background: var(--input-bg);
+    color: var(--input-text);
+}
 .step-jump-input::-webkit-inner-spin-button,
 .step-jump-input::-webkit-outer-spin-button { opacity: 1; }
 .step-jump-input:focus {
