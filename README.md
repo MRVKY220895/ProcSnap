@@ -1,7 +1,10 @@
-﻿# ProcSnap 📸
+# ProcSnap 📸
 
 > **100% Local, Private Process Recorder & SOP Annotation Studio**  
 > Automatically generate step-by-step Standard Operating Procedures (SOPs), user guides, and interactive training workflows right from your desktop and browser.
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-vickykalamg-orange?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/vickykalamg)
+[![GitHub stars](https://img.shields.io/github/stars/MRVKY220895/ProcSnap?style=flat)](https://github.com/MRVKY220895/ProcSnap)
 
 ---
 
