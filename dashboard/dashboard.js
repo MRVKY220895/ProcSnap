@@ -45,8 +45,9 @@ function showToast(m) {
 // REST API Helper
 async function api(path, opt = {}) {
     const url = API_BASE + path;
+    const timeoutMs = opt.timeout || (path.includes("reinstall") || path.includes("polish") || path.includes("describe") ? 180000 : 15000);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
         const r = await fetch(url, {
             ...opt,
