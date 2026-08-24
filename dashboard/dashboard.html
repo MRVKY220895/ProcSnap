@@ -103,8 +103,13 @@
                                 <span class="wf-tags-icon" title="Categories / Tags">🏷️</span>
                                 <div id="wfTagsContainer" class="wf-tags-container"></div>
                                 <button id="addTagBtn" class="btn-add-tag" title="Add category tag">+ Tag</button>
+                                <div id="detailMeta" class="detail-meta">0 steps • Completed</div>
+                                <!-- Auto Save Status Indicator -->
+                                <div id="autoSaveIndicator" class="auto-save-badge hidden">
+                                    <span class="auto-save-icon">✓</span>
+                                    <span id="autoSaveText">Saved</span>
+                                </div>
                             </div>
-                            <div id="detailMeta" class="detail-meta">0 steps • Completed</div>
                             <!-- Approval Progress Bar -->
                             <div id="approvalProgressWrap" class="approval-progress-wrap hidden">
                                 <div class="approval-progress-bar-bg">
@@ -120,7 +125,6 @@
                             <button id="captureDesktopBtn" class="btn btn-secondary" title="Capture full Windows Desktop screen (Excel, SAP, Word, etc.)" style="padding: 6px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
                                 🖥️ Capture Desktop Screen
                             </button>
-                            <!-- Quick Export Dropdown -->
                             <div class="export-quick-wrap" id="exportQuickWrap">
                                 <button id="exportQuickBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" title="Quick export options">
                                     ⬇ Export
@@ -145,26 +149,21 @@
                         </div>
                     </div>
 
-                    <!-- Tabs Bar -->
                     <nav class="tabs">
                         <button class="tab active" data-tab="guide">Guide &amp; Annotations</button>
                         <button class="tab" data-tab="steps">Step List Editor</button>
-                        <button class="tab" data-tab="play">Slideshow Playback</button>
+                        <button class="tab" data-tab="slideshow">Slideshow Playback</button>
                         <button class="tab" data-tab="export">Export SOP</button>
                     </nav>
 
-                    <!-- Tab panels -->
-                    <!-- 1. Guide Tab (Canvas Editor) -->
                     <section id="tab-guide" class="tab-panel">
                         <div class="guide-layout">
-                            <!-- Right: Canvas and Annotations (MAIN area - full width) -->
                             <div class="canvas-workspace">
-                                <!-- Canvas Toolbar -->
                                 <div class="canvas-toolbar">
                                     <div class="tool-group">
-                                        <button id="prevBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 30px; padding: 0 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;">← Prev</button>
+                                        <button id="prevBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 30px; padding: 0 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;" title="Previous step (Left Arrow)">← Prev</button>
                                         <span id="stepProgress" class="step-progress-label" style="font-size: 11.5px; font-weight: 700; min-width: 70px; text-align: center; white-space: nowrap;">Step 1 of 1</span>
-                                        <button id="nextBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 30px; padding: 0 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;">Next →</button>
+                                        <button id="nextBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; height: 30px; padding: 0 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;" title="Next step (Right Arrow)">Next →</button>
                                         <!-- Step Jump-To Input -->
                                         <input id="stepJumpInput" type="number" min="1" value="1" title="Jump to step number" class="step-jump-input" style="width: 44px; height: 30px; font-size: 11.5px; font-weight: 700; text-align: center; border: 1px solid var(--light-border); border-radius: var(--radius-sm); padding: 0 2px; background: var(--dark-surface); color: var(--text-light);">
                                         <button id="deleteCurrentStepBtn" class="btn btn-danger btn-sm" style="white-space: nowrap; height: 30px; padding: 0 8px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1;" title="Permanently delete current step">
@@ -239,185 +238,150 @@
                                     </div>
                                 </div>
 
-                                <!-- Text Style Picker Dropdown -->
                                 <div class="text-style-picker hidden" id="textStylePicker">
                                     <div class="text-style-header">Choose Callout Style</div>
                                     <div class="text-style-grid">
-                                        <button class="text-style-btn" data-style="callout-purple" data-color="#7c3aed" data-bg="#7c3aed" data-text="#ffffff">
-                                            <span class="style-preview" style="background:#7c3aed;color:#fff;border-radius:4px;">Aa</span>
-                                            <span>Callout</span>
-                                        </button>
-                                        <button class="text-style-btn" data-style="note-yellow" data-color="#d97706" data-bg="#fef3c7" data-text="#92400e">
-                                            <span class="style-preview" style="background:#fef3c7;color:#92400e;border:1.5px solid #d97706;border-radius:4px;">Aa</span>
-                                            <span>Note</span>
-                                        </button>
-                                        <button class="text-style-btn" data-style="badge-red" data-color="#ef4444" data-bg="#ef4444" data-text="#ffffff">
-                                            <span class="style-preview" style="background:#ef4444;color:#fff;border-radius:4px;">Aa</span>
-                                            <span>Alert</span>
-                                        </button>
-                                        <button class="text-style-btn" data-style="minimal-dark" data-color="#1e293b" data-bg="#ffffff" data-text="#0f172a">
-                                            <span class="style-preview" style="background:#fff;color:#0f172a;border:1.5px solid #1e293b;border-radius:4px;">Aa</span>
-                                            <span>Clean</span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Dynamic Palette Bar (Hidden by default, opens on Color Picker click) -->
-                                <div class="canvas-palette-bar hidden" id="canvasPaletteBar">
-                                    <div class="palette-group" id="group-color-presets">
-                                        <label>Colors</label>
-                                        <div class="color-presets">
-                                            <div class="color-dot active" data-color="#ef4444" style="background-color: #ef4444;"></div>
-                                            <div class="color-dot" data-color="#6366f1" style="background-color: #6366f1;"></div>
-                                            <div class="color-dot" data-color="#10b981" style="background-color: #10b981;"></div>
-                                            <div class="color-dot" data-color="#eab308" style="background-color: #eab308;"></div>
-                                            <div class="color-dot" data-color="#3b82f6" style="background-color: #3b82f6;"></div>
-                                            <div class="color-dot" data-color="#ec4899" style="background-color: #ec4899;"></div>
-                                            <div class="color-dot" data-color="#000000" style="background-color: #000000;"></div>
-                                            <div class="color-dot" data-color="#ffffff" style="background-color: #ffffff; border: 1px solid var(--light-border);"></div>
-                                            <input type="color" id="customColorPicker" value="#ef4444" title="Custom color picker" style="width: 22px; height: 22px; padding: 0; border: none; border-radius: 50%; cursor: pointer;">
+                                        <div class="text-style-opt active" data-style="info">
+                                            <div class="style-badge info">Info</div>
+                                            <span>Blue Callout</span>
+                                        </div>
+                                        <div class="text-style-opt" data-style="warning">
+                                            <div class="style-badge warning">Warning</div>
+                                            <span>Amber Alert</span>
+                                        </div>
+                                        <div class="text-style-opt" data-style="tip">
+                                            <div class="style-badge tip">Tip</div>
+                                            <span>Green Hint</span>
+                                        </div>
+                                        <div class="text-style-opt" data-style="note">
+                                            <div class="style-badge note">Note</div>
+                                            <span>Purple Bubble</span>
+                                        </div>
+                                        <div class="text-style-opt" data-style="plain">
+                                            <div class="style-badge plain">Plain</div>
+                                            <span>Text Only</span>
                                         </div>
                                     </div>
-
-                                    <div class="palette-group" id="group-line-width">
-                                        <label>Line Thickness</label>
-                                        <input type="range" id="lineWidthSlider" min="1" max="10" value="3">
-                                        <span id="lineWidthVal" class="val-label">3px</span>
-                                    </div>
-
-                                    <div class="palette-group" id="group-opacity">
-                                        <label>Opacity</label>
-                                        <input type="range" id="opacitySlider" min="10" max="100" value="100">
-                                        <span id="opacityVal" class="val-label">100%</span>
-                                    </div>
-
-                                    <div class="palette-group" id="group-text-size">
-                                        <label>Text Size</label>
-                                        <input type="range" id="textSizeSlider" min="10" max="28" value="12">
-                                        <span id="textSizeVal" class="val-label">12px</span>
-                                    </div>
-
-                                    <div class="palette-group" id="group-font-family">
-                                        <label>Font</label>
-                                        <select id="fontFamilySelect" class="font-select">
-                                            <option value="Inter">Inter</option>
-                                            <option value="Arial">Arial</option>
-                                            <option value="Georgia">Georgia</option>
-                                            <option value="Courier New">Monospace</option>
-                                        </select>
-                                    </div>
                                 </div>
 
-                                <!-- Image / Drawing Canvas Area -->
                                 <div class="screenshot-stage" id="screenshotStage">
-                                    <div class="screenshot-canvas-wrapper" id="canvasWrapper" style="position: relative;">
-                                        <img id="guideImg" src="" alt="SOP Screenshot">
-                                        <canvas id="annotationCanvas"></canvas>
-                                        <!-- Large Centered Blocked Symbol Watermark for Deleted / Hidden Steps (Requirement 3) -->
-                                        <div id="deletedStepWatermark" class="deleted-step-watermark hidden">
-                                            <div class="watermark-content">
-                                                <div class="watermark-icon">🚫</div>
-                                                <div class="watermark-title">STEP DELETED / HIDDEN</div>
-                                                <div class="watermark-sub">This step is excluded from SOP exports and walkthrough simulations.</div>
-                                                <button id="btnRestoreStepCanvas" class="btn btn-restore btn-sm" style="margin-top: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">↺ Restore This Step</button>
-                                            </div>
+                                    <div class="screenshot-canvas-wrapper" id="canvasWrapper">
+                                        <img id="guideScreenshot" alt="Step Screenshot" class="guide-screenshot" />
+                                        <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
+                                        <div id="hotspotMarker" class="hotspot-marker hidden">
+                                            <div class="hotspot-pulse"></div>
+                                            <div class="hotspot-target-box"></div>
+                                            <div class="hotspot-tooltip" id="hotspotTooltip">Click here</div>
                                         </div>
-                                    </div>
-                                    <div id="noScreenshot" class="no-screenshot-message hidden">
-                                        No screenshot was recorded for this step.
+                                        <div id="inlineTextEditor" class="inline-text-editor hidden">
+                                            <input type="text" id="inlineTextInput" placeholder="Type callout text..." />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Step Detail Side Drawer (slides in from right) -->
-                            <div class="step-detail-drawer" id="stepDetailDrawer">
+                            <div class="step-detail-drawer open" id="stepDetailDrawer">
                                 <div class="guide-card-header">
                                     <div class="drawer-top-row">
-                                        <div style="display: flex; align-items: center; gap: 6px;">
-                                            <div class="step-badge" id="guideStepBadge">Step 1</div>
-                                            <span id="autoSaveIndicator" class="auto-save-indicator">Saved ✓</span>
-                                        </div>
-                                        <div style="display: flex; align-items: center; gap: 10px;">
-                                            <label class="approve-checkbox-label" style="margin: 0;">
-                                                <input type="checkbox" id="guideStepChecked"> Approved
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span id="guideStepBadge" class="step-badge">Step 1</span>
+                                            <label class="approve-checkbox-label">
+                                                <input type="checkbox" id="guideStepApproved"> Approved
                                             </label>
-                                            <button class="drawer-close-btn" id="drawerCloseBtn" title="Close panel">✕</button>
                                         </div>
+                                        <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Drawer">✕</button>
                                     </div>
-                                    <h3 id="guideStepTitle" contenteditable="true" placeholder="Step Title" class="drawer-step-title">Step Title</h3>
-                                    <p id="guideStepDesc" contenteditable="true" placeholder="Enter instructions here..." class="step-desc-edit"></p>
+                                    <h3 id="guideStepTitle" class="guide-step-title" contenteditable="true" title="Click to edit title">Step Title</h3>
+                                    <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description">Step description will appear here...</p>
                                 </div>
                                 <div class="guide-card-body">
-                                    <!-- Interactive Hotspot Editor Panel (Requirement 2) -->
-                                    <div class="hotspot-editor-card">
-                                        <div class="hotspot-editor-header">
-                                            <span style="font-weight: 700; font-size: 12px; color: var(--primary);">🎯 Interactive Click Hotspot</span>
-                                            <button id="btnAutoDetectHotspot" class="btn btn-secondary btn-xs" title="Calculate hotspot from clicked DOM element">Auto-Detect</button>
+                                    <div class="drawer-accordion-card">
+                                        <div class="drawer-accordion-header" data-target="drawerAccHotspot">
+                                            <span class="drawer-acc-title">🎯 Interactive Hotspot & Coordinates</span>
+                                            <span class="drawer-acc-chevron">▾</span>
                                         </div>
-                                        <div class="field-group" style="margin-bottom: 8px;">
-                                            <label style="font-size: 11px;">Target Click Prompt</label>
-                                            <input type="text" id="guideHotspotPrompt" placeholder="e.g. Click the Search Box" class="form-control" style="font-size: 12px; padding: 4px 8px;">
-                                        </div>
-                                        <div class="hotspot-coords-grid">
-                                            <div class="coord-field">
-                                                <label>Left (X%)</label>
-                                                <input type="number" id="hotspotX" min="0" max="100" step="1" value="40" class="form-control coord-input">
+                                        <div class="drawer-accordion-content" id="drawerAccHotspot">
+                                            <div class="field-group" style="margin-bottom: 8px;">
+                                                <label style="font-size: 11px;">Target Click Prompt</label>
+                                                <input type="text" id="guideHotspotPrompt" placeholder="e.g. Click the Search Box" class="form-control" style="font-size: 12px; padding: 4px 8px;">
                                             </div>
-                                            <div class="coord-field">
-                                                <label>Top (Y%)</label>
-                                                <input type="number" id="hotspotY" min="0" max="100" step="1" value="40" class="form-control coord-input">
+                                            <div class="hotspot-coords-grid">
+                                                <div class="coord-field">
+                                                    <label>Left (X%)</label>
+                                                    <input type="number" id="hotspotX" min="0" max="100" step="1" value="40" class="form-control coord-input">
+                                                </div>
+                                                <div class="coord-field">
+                                                    <label>Top (Y%)</label>
+                                                    <input type="number" id="hotspotY" min="0" max="100" step="1" value="40" class="form-control coord-input">
+                                                </div>
+                                                <div class="coord-field">
+                                                    <label>Width (%)</label>
+                                                    <input type="number" id="hotspotW" min="2" max="100" step="1" value="20" class="form-control coord-input">
+                                                </div>
+                                                <div class="coord-field">
+                                                    <label>Height (%)</label>
+                                                    <input type="number" id="hotspotH" min="2" max="100" step="1" value="20" class="form-control coord-input">
+                                                </div>
                                             </div>
-                                            <div class="coord-field">
-                                                <label>Width (%)</label>
-                                                <input type="number" id="hotspotW" min="2" max="100" step="1" value="20" class="form-control coord-input">
+                                            <div style="display: flex; gap: 6px; margin-top: 6px;">
+                                                <button id="btnSyncFromSpotlight" class="btn btn-secondary btn-xs" style="flex: 1;">Sync with Spotlight</button>
+                                                <button id="btnResetHotspot" class="btn btn-secondary btn-xs" style="flex: 1;">Center Target</button>
+                                                <button id="btnAutoDetectHotspot" class="btn btn-secondary btn-xs" style="flex: 1;">Auto-Detect</button>
                                             </div>
-                                            <div class="coord-field">
-                                                <label>Height (%)</label>
-                                                <input type="number" id="hotspotH" min="2" max="100" step="1" value="20" class="form-control coord-input">
-                                            </div>
-                                        </div>
-                                        <div style="display: flex; gap: 6px; margin-top: 6px;">
-                                            <button id="btnSyncFromSpotlight" class="btn btn-secondary btn-xs" style="flex: 1;">Sync with Spotlight</button>
-                                            <button id="btnResetHotspot" class="btn btn-secondary btn-xs" style="flex: 1;">Center Target</button>
                                         </div>
                                     </div>
-
-                                    <div class="field-group">
-                                        <label>Expected Result</label>
-                                        <textarea id="guideStepExpected" placeholder="What should happen after this step?"></textarea>
+                                    <div class="drawer-accordion-card">
+                                        <div class="drawer-accordion-header" data-target="drawerAccExpected">
+                                            <span class="drawer-acc-title">💡 Expected Results & Notes</span>
+                                            <span class="drawer-acc-chevron">▾</span>
+                                        </div>
+                                        <div class="drawer-accordion-content" id="drawerAccExpected">
+                                            <div class="field-group" style="margin-bottom: 8px;">
+                                                <label>Expected Result</label>
+                                                <textarea id="guideStepExpected" placeholder="What should happen after this step?"></textarea>
+                                            </div>
+                                            <div class="field-group" style="margin-bottom: 8px;">
+                                                <label>Instructor Notes</label>
+                                                <textarea id="guideStepNote" placeholder="Additional hints, security warnings, tips..."></textarea>
+                                            </div>
+                                            <div class="field-group">
+                                                <label>Voiceover Narration</label>
+                                                <textarea id="guideStepVoiceover" placeholder="Custom text to speak during narration (optional)..."></textarea>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="field-group">
-                                        <label>Instructor Notes</label>
-                                        <textarea id="guideStepNote" placeholder="Additional hints, security warnings, tips..."></textarea>
-                                    </div>
-                                    <div class="field-group">
-                                        <label>Voiceover Narration</label>
-                                        <textarea id="guideStepVoiceover" placeholder="Custom text to speak during voiceover narration (optional)..."></textarea>
-                                    </div>
-                                    <div class="step-meta-info">
-                                        <div class="meta-item">
-                                            <span class="meta-label">Action:</span>
-                                            <span id="guideMetaAction" class="meta-val">—</span>
+                                    <div class="drawer-accordion-card">
+                                        <div class="drawer-accordion-header" data-target="drawerAccMeta">
+                                            <span class="drawer-acc-title">🔍 Element & Action Details</span>
+                                            <span class="drawer-acc-chevron">▾</span>
                                         </div>
-                                        <div class="meta-item">
-                                            <span class="meta-label">Value:</span>
-                                            <span id="guideMetaValue" class="meta-val">—</span>
-                                        </div>
-                                        <div class="meta-item">
-                                            <span class="meta-label">⏱ Time:</span>
-                                            <span id="guideMetaTimestamp" class="meta-val">—</span>
-                                        </div>
-                                        <div class="meta-item">
-                                            <span class="meta-label">⏩ Since Prev:</span>
-                                            <span id="guideMetaDuration" class="meta-val" style="color: #a5b4fc;">—</span>
-                                        </div>
-                                        <div class="meta-item span-2">
-                                            <span class="meta-label">CSS Selector:</span>
-                                            <code id="guideMetaSelector" class="meta-val-code">—</code>
-                                        </div>
-                                        <div class="meta-item span-2">
-                                            <span class="meta-label">XPath:</span>
-                                            <code id="guideMetaXpath" class="meta-val-code">—</code>
+                                        <div class="drawer-accordion-content hidden" id="drawerAccMeta">
+                                            <div class="step-meta-info">
+                                                <div class="meta-item">
+                                                    <span class="meta-label">Action:</span>
+                                                    <span id="guideMetaAction" class="meta-val">—</span>
+                                                </div>
+                                                <div class="meta-item">
+                                                    <span class="meta-label">Value:</span>
+                                                    <span id="guideMetaValue" class="meta-val">—</span>
+                                                </div>
+                                                <div class="meta-item">
+                                                    <span class="meta-label">⏱ Time:</span>
+                                                    <span id="guideMetaTimestamp" class="meta-val">—</span>
+                                                </div>
+                                                <div class="meta-item">
+                                                    <span class="meta-label">⏩ Since Prev:</span>
+                                                    <span id="guideMetaDuration" class="meta-val" style="color: #a5b4fc;">—</span>
+                                                </div>
+                                                <div class="meta-item span-2">
+                                                    <span class="meta-label">CSS Selector:</span>
+                                                    <code id="guideMetaSelector" class="meta-val-code">—</code>
+                                                </div>
+                                                <div class="meta-item span-2">
+                                                    <span class="meta-label">XPath:</span>
+                                                    <code id="guideMetaXpath" class="meta-val-code">—</code>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -432,8 +396,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Steps Drawer (Bottom, collapsible) -->
                         <div class="steps-bottom-drawer" id="stepsBottomDrawer">
                             <div class="steps-drawer-header" id="stepsDrawerHeader">
                                 <div class="steps-drawer-title">

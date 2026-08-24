@@ -723,6 +723,25 @@ async function loadWorkflows() {
     }
 }
 
+function formatRelativeTime(iso) {
+    if (!iso) return "Recently";
+    try {
+        const date = new Date(iso);
+        const now = new Date();
+        const diffSecs = Math.floor((now - date) / 1000);
+        if (diffSecs < 60) return "Just now";
+        const diffMins = Math.floor(diffSecs / 60);
+        if (diffMins < 60) return `${diffMins}m ago`;
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h ago`;
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays < 30) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    } catch (_) {
+        return "Recently";
+    }
+}
+
 // Render Workflows Sidebar List
 function renderWorkflowList() {
     const searchEl = $("searchInput");
@@ -740,7 +759,7 @@ function renderWorkflowList() {
     });
 
     if (filtered.length === 0) {
-        listEl.innerHTML = '<div class="no-results">No workflows found</div>';
+        listEl.innerHTML = '<div class="no-results" style="padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 12.5px;">No workflows found</div>';
         return;
     }
 
@@ -749,14 +768,18 @@ function renderWorkflowList() {
             <span class="wf-tag-badge">${esc(t)}</span>
         `).join("");
 
+        const timeStr = formatRelativeTime(w.created_at || w.updated_at);
+
         return `
             <div class="workflow-card ${w.id === selectedWorkflowId ? 'selected' : ''}" data-id="${esc(w.id)}">
-                <div class="workflow-name">${esc(w.name || "Untitled Workflow")}</div>
-                <div class="workflow-meta">
-                    <span>${w.stepCount || 0} step${w.stepCount === 1 ? "" : "s"}</span>
+                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;">
+                    <div class="workflow-name">${esc(w.name || "Untitled Workflow")}</div>
+                </div>
+                <div class="workflow-meta" style="margin-top: 4px; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+                    <span>${w.stepCount || 0} step${w.stepCount === 1 ? "" : "s"} • <small style="color: var(--text-muted);">${timeStr}</small></span>
                     <span class="status ${esc(w.status || 'completed')}">${esc(w.status || 'completed')}</span>
                 </div>
-                ${tagBadges ? `<div class="workflow-card-tags">${tagBadges}</div>` : ''}
+                ${tagBadges ? `<div class="workflow-card-tags" style="margin-top: 6px;">${tagBadges}</div>` : ''}
             </div>
         `;
     }).join("");
@@ -2104,6 +2127,24 @@ function captureStreamFrame(stream) {
             if (drawer) drawer.classList.remove("open");
         });
 
+        // Drawer Accordion Collapse / Expand
+        document.querySelectorAll(".drawer-accordion-header").forEach(header => {
+            header.onclick = () => {
+                const targetId = header.getAttribute("data-target");
+                const content = document.getElementById(targetId);
+                if (content) {
+                    const isHidden = content.classList.contains("hidden");
+                    if (isHidden) {
+                        content.classList.remove("hidden");
+                        header.classList.remove("collapsed");
+                    } else {
+                        content.classList.add("hidden");
+                        header.classList.add("collapsed");
+                    }
+                }
+            };
+        });
+
         // Navigation
         setOnclick("prevBtn", () => {
             if (currentStepIndex > 0) {
@@ -2600,16 +2641,18 @@ function calculateDefaultHotspot(step) {
 let autoSaveDebounceTimer = null;
 function scheduleAutoSave(delayMs = 600) {
     const indicator = $("autoSaveIndicator");
+    const autoSaveText = $("autoSaveText");
     if (indicator) {
-        indicator.textContent = "Saving...";
-        indicator.className = "auto-save-indicator saving";
+        indicator.classList.remove("hidden");
+        indicator.classList.add("saving");
+        if (autoSaveText) autoSaveText.textContent = "Saving...";
     }
     clearTimeout(autoSaveDebounceTimer);
     autoSaveDebounceTimer = setTimeout(async () => {
         await saveActiveStepEditsSilent();
         if (indicator) {
-            indicator.textContent = "Saved ✓";
-            indicator.className = "auto-save-indicator";
+            indicator.classList.remove("saving");
+            if (autoSaveText) autoSaveText.textContent = "Saved ✓";
         }
     }, delayMs);
 }

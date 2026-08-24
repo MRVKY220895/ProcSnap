@@ -3069,4 +3069,93 @@ svg {
     border-color: #c7d2fe !important;
 }
 
+/* =========================================================
+   AUTO-SAVE & DRAWER ACCORDION SYSTEM (Senior UI/UX)
+========================================================= */
+.auto-save-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    padding: 2px 8px;
+    border-radius: 20px;
+    transition: all 0.25s ease;
+}
+.auto-save-badge.saving {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.25);
+}
+.auto-save-icon {
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.drawer-accordion-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s ease;
+}
+.drawer-accordion-card:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+}
+.drawer-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+.drawer-accordion-header:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+.drawer-acc-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f8fafc;
+}
+.drawer-acc-chevron {
+    font-size: 11px;
+    color: #94a3b8;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.drawer-accordion-header.collapsed .drawer-acc-chevron {
+    transform: rotate(-90deg);
+}
+.drawer-accordion-content {
+    padding: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.drawer-accordion-content.hidden {
+    display: none;
+}
+
+/* Light Theme Accordion Adjustments */
+[data-theme="light"] .drawer-accordion-card {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+}
+[data-theme="light"] .drawer-accordion-header {
+    background: #f8fafc !important;
+}
+[data-theme="light"] .drawer-accordion-header:hover {
+    background: #f1f5f9 !important;
+}
+[data-theme="light"] .drawer-acc-title {
+    color: #0f172a !important;
+}
+[data-theme="light"] .drawer-accordion-content {
+    border-top-color: #e2e8f0 !important;
+}
+
 
