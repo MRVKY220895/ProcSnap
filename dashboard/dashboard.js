@@ -3294,7 +3294,7 @@ function loadActiveStepDetails() {
     if (step.screenshotUrl) {
         if (imgEl) {
             const cleanUrl = step.screenshotUrl.replace(/-demo.*\.gif/i, ".png");
-            imgEl.src = API_BASE + (step.hasActiveDemo ? cleanUrl : step.screenshotUrl);
+            imgEl.src = normalizeImageUrl(step.hasActiveDemo ? cleanUrl : step.screenshotUrl);
             imgEl.classList.remove("hidden");
         }
         if (canvasWrap) canvasWrap.classList.remove("hidden");
@@ -4904,7 +4904,7 @@ function renderPlaybackTab() {
         
         if ($("playImg")) {
             if (s.screenshotUrl) {
-                $("playImg").src = API_BASE + s.screenshotUrl;
+                $("playImg").src = normalizeImageUrl(s.screenshotUrl);
                 $("playImg").classList.remove("hidden");
             } else {
                 $("playImg").src = "";
@@ -4964,7 +4964,7 @@ function renderPlaybackTab() {
             $("pptPrevCard").style.visibility = "visible";
             if ($("pptPrevBadge")) $("pptPrevBadge").textContent = prevStep.sequence;
             if ($("pptPrevTitle")) $("pptPrevTitle").textContent = prevStep.title || getDefaultTitle(prevStep);
-            if ($("pptPrevImg")) $("pptPrevImg").src = prevStep.screenshotUrl ? API_BASE + prevStep.screenshotUrl : "";
+            if ($("pptPrevImg")) $("pptPrevImg").src = prevStep.screenshotUrl ? normalizeImageUrl(prevStep.screenshotUrl) : "";
             $("pptPrevCard").onclick = () => { playIdx--; showPlayStep(); };
         } else if ($("pptPrevCard")) {
             $("pptPrevCard").style.visibility = "hidden";
@@ -4976,7 +4976,7 @@ function renderPlaybackTab() {
             $("pptNextCard").style.visibility = "visible";
             if ($("pptNextBadge")) $("pptNextBadge").textContent = nextStep.sequence;
             if ($("pptNextTitle")) $("pptNextTitle").textContent = nextStep.title || getDefaultTitle(nextStep);
-            if ($("pptNextImg")) $("pptNextImg").src = nextStep.screenshotUrl ? API_BASE + nextStep.screenshotUrl : "";
+            if ($("pptNextImg")) $("pptNextImg").src = nextStep.screenshotUrl ? normalizeImageUrl(nextStep.screenshotUrl) : "";
             $("pptNextCard").onclick = () => { playIdx++; showPlayStep(); };
         } else if ($("pptNextCard")) {
             $("pptNextCard").style.visibility = "hidden";
@@ -4986,7 +4986,7 @@ function renderPlaybackTab() {
         if ($("pptDeckFilmstrip")) {
             $("pptDeckFilmstrip").innerHTML = visibleSteps.map((st, i) => `
                 <div class="thumb-card ${i === playIdx ? 'active' : ''}" data-index="${i}">
-                    ${st.screenshotUrl ? `<img src="${esc(API_BASE + st.screenshotUrl)}" alt="Step ${st.sequence}">` : '<div class="no-screenshot-thumb">No img</div>'}
+                    ${st.screenshotUrl ? `<img src="${esc(normalizeImageUrl(st.screenshotUrl))}" alt="Step ${st.sequence}">` : '<div class="no-screenshot-thumb">No img</div>'}
                     <div class="thumb-badge">${st.sequence}</div>
                 </div>
             `).join("");
@@ -5051,7 +5051,7 @@ function renderPlaybackTab() {
             if (res.success && res.audioUrl) {
                 const audio = $("ttsAudioPlayer");
                 if (audio) {
-                    audio.src = API_BASE + res.audioUrl;
+                    audio.src = normalizeImageUrl(res.audioUrl);
                     audio.play();
                 }
             }
