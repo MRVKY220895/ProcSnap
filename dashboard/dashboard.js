@@ -1530,9 +1530,10 @@ class AnnotationCanvasEngine {
     }
 
     resizeCanvas() {
-        if (!this.img.naturalWidth) return;
+        if (!this.img || !this.img.naturalWidth || !this.canvas) return;
         
         const rect = this.img.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
         
@@ -1541,9 +1542,11 @@ class AnnotationCanvasEngine {
 
     // Convert viewport/client coordinates to Image-Space Coordinates (natural scale)
     clientToImage(clientX, clientY) {
+        if (!this.canvas || !this.img) return { x: 0, y: 0 };
         const rect = this.canvas.getBoundingClientRect();
-        const scaleX = this.img.naturalWidth / rect.width;
-        const scaleY = this.img.naturalHeight / rect.height;
+        if (rect.width === 0 || rect.height === 0) return { x: 0, y: 0 };
+        const scaleX = (this.img.naturalWidth || rect.width) / rect.width;
+        const scaleY = (this.img.naturalHeight || rect.height) / rect.height;
         
         let x = (clientX - rect.left) * scaleX;
         let y = (clientY - rect.top) * scaleY;
@@ -1559,9 +1562,11 @@ class AnnotationCanvasEngine {
 
     // Convert Image-Space coordinates to Canvas (viewport) drawing coordinates
     imageToCanvas(imgX, imgY) {
+        if (!this.canvas || !this.img) return { x: imgX, y: imgY };
         const rect = this.canvas.getBoundingClientRect();
-        const scaleX = rect.width / this.img.naturalWidth;
-        const scaleY = rect.height / this.img.naturalHeight;
+        if (rect.width === 0 || rect.height === 0) return { x: imgX, y: imgY };
+        const scaleX = rect.width / (this.img.naturalWidth || rect.width);
+        const scaleY = rect.height / (this.img.naturalHeight || rect.height);
         
         return {
             x: imgX * scaleX,
