@@ -1,4 +1,4 @@
-const API_BASE = (typeof window !== "undefined" && window.location.protocol.startsWith("http"))
+const API_BASE = (typeof window !== "undefined" && ["8000", "8001", "8002", "8003", "8004", "8005"].includes(window.location.port))
     ? ""
     : "http://127.0.0.1:8000";
 
@@ -212,19 +212,17 @@ async function checkStatus() {
 
 // Initialize Application
 async function init() {
-    // Run status check and library load in parallel for faster startup
     setInterval(checkStatus, 5000);
     try {
-        await Promise.all([
-            checkStatus().catch(e => console.warn("Status check error:", e)),
-            loadWorkflows().catch(e => {
-                console.warn("Workflow load error:", e);
-                const listEl = $("workflowList");
-                if (listEl) listEl.innerHTML = `<div class="no-results">Error loading: ${e.message}</div>`;
-            })
-        ]);
+        await checkStatus();
     } catch(e) {
-        console.warn("Init error:", e);
+        console.warn("Status check error:", e);
+    }
+    
+    try {
+        await loadWorkflows();
+    } catch(e) {
+        console.warn("Workflow load error:", e);
     }
     
     // Dismiss AI Error Banner binding
