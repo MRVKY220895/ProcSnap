@@ -597,6 +597,30 @@
                                                 </div>
                                             </div>
                                         </div>
+
+                                        <!-- Micro-Demo Animated GIF Card -->
+                                        <div style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                                <div style="display: flex; align-items: center; gap: 7px;">
+                                                    <span style="font-size: 15px;">🎬</span>
+                                                    <div>
+                                                        <div style="font-size: 11.5px; font-weight: 700; color: #fff;">Animated Micro-Demo</div>
+                                                        <div style="font-size: 10px; color: var(--text-muted);">Moving arrow cursor &amp; click ripple GIF</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; gap: 6px;">
+                                                <button id="btnGenerateAnimation" class="btn btn-primary btn-sm" style="flex: 1; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; font-size: 11px; padding: 6px 10px; display: flex; align-items: center; justify-content: center; gap: 5px;" title="Generate moving arrow cursor demo GIF for this step">
+                                                    <span>🎬</span> Generate Demo GIF
+                                                </button>
+                                                <button id="btnRemoveAnimation" class="btn btn-danger btn-xs hidden" style="padding: 6px 8px; font-size: 10.5px; font-weight: 700;" title="Remove animated demo GIF and revert to static screenshot">
+                                                    <span>🗑️</span>
+                                                </button>
+                                            </div>
+                                            <div id="activeDemoAdjustNotice" class="hidden" style="font-size: 10px; color: #a5b4fc; background: rgba(99,102,241,0.12); padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.25);">
+                                                ✨ GIF Active: Drag the reticle pin on canvas to adjust trajectory.
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- TAB PANE 2: NOTES & AUDIO -->
@@ -2297,7 +2321,7 @@
         </div>
     </div>
 
-    <script src="dashboard.js?v=20260825_v6"></script>
+    <script src="dashboard.js?v=20260825_v7"></script>
 </body>
 
 </html>
