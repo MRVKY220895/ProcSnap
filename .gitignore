@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -41,3 +41,5 @@ test_*.png
 test_*.html
 test_*.js
 debug.html
+headless_output.html
+missing_refs.txt
