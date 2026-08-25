@@ -554,10 +554,14 @@
                                             <label class="approve-checkbox-label" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #10b981; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                                                 <input type="checkbox" id="guideStepApproved" style="cursor: pointer;"> APPROVED
                                             </label>
+                                        <div style="display: flex; align-items: center; gap: 4px;">
+                                            <button id="btnRefreshGuideStep" class="btn btn-secondary btn-xs" title="Refresh step from server" style="padding: 3px 8px; font-weight: 700;">🔄 Refresh</button>
+                                            <button id="btnToggleHideActiveStep" class="btn btn-secondary btn-xs" title="Hide/Unhide this step" style="padding: 3px 8px; font-weight: 700;">👁️ Hide</button>
+                                            <button id="btnDeleteActiveStep" class="btn btn-danger btn-xs" title="Delete this step" style="padding: 3px 8px; font-weight: 700;">🗑️ Delete</button>
+                                            <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Step Details Panel (Hide Sidebar)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(255,255,255,0.06); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-main, #fff); font-size: 11px; font-weight: 700; transition: all 0.15s ease;">
+                                                <span>⇥</span> Collapse
+                                            </button>
                                         </div>
-                                        <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Step Details Panel (Hide Sidebar)" style="padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(255,255,255,0.06); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-main, #fff); font-size: 11px; font-weight: 700; transition: all 0.15s ease;">
-                                            <span>⇥</span> Collapse
-                                        </button>
                                     </div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
                                         <h3 id="guideStepTitle" class="guide-step-title" contenteditable="true" title="Click to edit title" style="flex: 1; margin: 0;">Step Title</h3>
@@ -767,6 +771,8 @@
                                             <span>🔲</span> Split
                                         </button>
                                     </div>
+                                    <button id="btnRefreshSteps" class="btn btn-secondary btn-sm" title="Refresh session and all steps from server" style="font-weight: 700;">🔄 Refresh</button>
+                                    <button id="btnBulkMicroDemos" class="btn btn-secondary btn-sm" title="Generate interactive micro-demos for all steps" style="background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); font-weight: 700;">🎬 Micro-Demos</button>
                                     <button id="sopHealthScoreBtn" class="btn btn-secondary btn-sm" title="View SOP Health Score and Quality Audit Report" style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #10b981; font-weight: 700;">🩺 Health: --</button>
                                     <button id="privacyScanBtn" class="btn btn-secondary btn-sm" title="Scan for sensitive PII, passwords, and tokens" style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; font-weight: 700;">🛡️ Privacy Scan</button>
                                     <button id="sopTemplatesBtn" class="btn btn-secondary btn-sm" title="Configure SOP Template Structure &amp; {{Variables}}">📋 Templates &amp; {{Vars}}</button>

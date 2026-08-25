@@ -1988,10 +1988,14 @@ class AnnotationCanvasEngine {
         };
     }
 
+    redraw() {
+        this.drawAll();
+    }
+
     drawAll() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // 1. Draw Red Dashed Focus Box around target element
+        // 1. Draw Spotlight & Red Dashed Focus Box around target element
         if (this.focusBoxEnabled !== false && workflow && workflow.steps && workflow.steps[currentStepIndex]) {
             const step = workflow.steps[currentStepIndex];
             const screen = step.element?.screen;
@@ -2007,12 +2011,25 @@ class AnnotationCanvasEngine {
                     const w = screen.width * scaleX;
                     const h = screen.height * scaleY;
                     
-                    // Only draw if target element is inside visible canvas bounds
-                    if (x >= -10 && y >= -10 && x + w <= this.canvas.width + 30 && y + h <= this.canvas.height + 30) {
+                    // Spotlight cutout: dim outer canvas if spotlight enabled
+                    if (this.autoSpotlightEnabled !== false) {
                         this.ctx.save();
-                        this.ctx.strokeStyle = "rgba(239, 68, 68, 0.9)";
+                        this.ctx.fillStyle = "rgba(15, 23, 42, 0.40)";
+                        this.ctx.beginPath();
+                        this.ctx.rect(0, 0, this.canvas.width, this.canvas.height);
+                        this.ctx.rect(x - 4, y - 4, w + 8, h + 8);
+                        this.ctx.fill("evenodd");
+                        this.ctx.restore();
+                    }
+
+                    // Only draw red dashed box if target element is inside visible canvas bounds
+                    if (x >= -20 && y >= -20 && x + w <= this.canvas.width + 40 && y + h <= this.canvas.height + 40) {
+                        this.ctx.save();
+                        this.ctx.strokeStyle = "rgba(239, 68, 68, 0.95)";
                         this.ctx.lineWidth = 3;
-                        this.ctx.setLineDash([6, 4]);
+                        this.ctx.setLineDash([8, 4]);
+                        this.ctx.shadowColor = "rgba(239, 68, 68, 0.5)";
+                        this.ctx.shadowBlur = 6;
                         this.ctx.strokeRect(x, y, w, h);
                         this.ctx.restore();
                     }
@@ -3024,7 +3041,7 @@ function toggleFocusSpotlight() {
     if (canvasEngine) {
         canvasEngine.autoSpotlightEnabled = newState;
         canvasEngine.focusBoxEnabled = newState;
-        if (typeof canvasEngine.redraw === "function") canvasEngine.redraw();
+        canvasEngine.drawAll();
     }
     
     updateFocusToggleUI();
@@ -3036,8 +3053,86 @@ function toggleFocusSpotlight() {
         }).catch(() => {});
     }
 
-    showToast(newState ? "🎯 Element Focus Enabled for this step" : "🎯 Element Focus Disabled for this step", 2500);
+    showToast(newState ? "🎯 Element Focus & Spotlight ON" : "🎯 Element Focus & Spotlight OFF", 2000);
 }
+
+// ── Refresh Session & Steps Handler ────────────────────────────────────────
+async function refreshActiveWorkflowSteps() {
+    if (!workflow?.id) return showToast("No active workflow");
+    showToast("🔄 Refreshing session & steps...");
+    try {
+        workflow = await api(`/sessions/${encodeURIComponent(workflow.id)}`);
+        renderStepsTab();
+        renderStepThumbnails();
+        loadActiveStepDetails();
+        updateApprovalProgress(workflow.steps);
+        showToast("🔄 Steps refreshed from server!");
+    } catch(e) {
+        showToast("Refresh failed: " + e.message);
+    }
+}
+
+// ── Active Step Hide / Unhide ───────────────────────────────────────────────
+async function toggleHideActiveStep() {
+    const steps = workflow?.steps || [];
+    const step = steps[currentStepIndex];
+    if (!step) return;
+    const newHidden = !step.hidden;
+    step.hidden = newHidden;
+    try {
+        await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/edits`, {
+            method: "PATCH",
+            body: JSON.stringify({ hidden: newHidden })
+        });
+        showToast(newHidden ? "👁️ Step marked as Hidden" : "👁️ Step is now Visible");
+        renderStepsTab();
+        renderStepThumbnails();
+        loadActiveStepDetails();
+    } catch(e) {
+        showToast("Failed to update visibility: " + e.message);
+    }
+}
+
+// ── Active Step Delete ─────────────────────────────────────────────────────
+async function deleteActiveStep() {
+    const steps = workflow?.steps || [];
+    const step = steps[currentStepIndex];
+    if (!step) return;
+    if (!confirm(`Are you sure you want to delete Step ${step.sequence} (${step.title || 'Untitled'})?`)) return;
+    
+    workflow.steps = workflow.steps.filter(s => s.id !== step.id);
+    workflow.steps.forEach((s, idx) => s.sequence = idx + 1);
+    
+    currentStepIndex = Math.max(0, Math.min(workflow.steps.length - 1, currentStepIndex));
+    showToast(`🗑️ Step deleted`);
+    renderStepsTab();
+    renderStepThumbnails();
+    loadActiveStepDetails();
+}
+
+// ── Bulk Micro Demos Generator ─────────────────────────────────────────────
+async function generateAndShowMicroDemos(stepIds = null) {
+    if (!workflow?.id) return showToast("No active workflow");
+    showToast("🎬 Generating interactive micro-demos...");
+    try {
+        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/generate-micro-demos`, {
+            method: "POST"
+        });
+        showToast(`🎬 Generated ${res.total_micro_demos} micro-demos successfully!`);
+        openExportPreview("interactive");
+    } catch(e) {
+        showToast("Failed to generate micro-demos: " + e.message);
+    }
+}
+
+// Wire step action listeners
+setOnclick("btnRefreshSteps", refreshActiveWorkflowSteps);
+setOnclick("btnRefreshGuideStep", refreshActiveWorkflowSteps);
+setOnclick("btnToggleHideActiveStep", toggleHideActiveStep);
+setOnclick("btnDeleteActiveStep", deleteActiveStep);
+setOnclick("btnBulkMicroDemos", () => generateAndShowMicroDemos());
+setOnclick("btnBulkMicroDemosSelected", () => generateAndShowMicroDemos(Array.from(selectedStepIds)));
+
 
 // Safely extract and parse annotations array from step object
 function getStepAnnotations(step) {

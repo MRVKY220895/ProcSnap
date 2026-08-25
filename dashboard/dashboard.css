@@ -2567,16 +2567,18 @@ body.theme-light .row-desc {
 }
 .export-quick-menu {
     position: absolute;
-    top: calc(100% + 4px);
+    top: calc(100% + 6px);
     right: 0;
-    min-width: 210px;
-    background: #1e293b;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    z-index: 9000;
+    min-width: 220px;
+    background: rgba(30, 41, 59, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    z-index: 10050;
     overflow: hidden;
-    animation: modalFadeIn 0.15s ease;
+    animation: modalFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .export-quick-item {
     display: block;
