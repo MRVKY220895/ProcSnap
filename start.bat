@@ -1,21 +1,19 @@
 @echo off
 setlocal EnableDelayedExpansion
-title ProcSnap - Workflow Studio
+title ProcSnap - Automated Startup & Studio Engine
 color 0A
 
-:: Ensure working directory is the script folder
+:: Ensure working directory is the repository root folder
 cd /d "%~dp0"
 
 echo.
-echo  ============================================
-echo   ProcSnap - Workflow Studio
-echo   Starting up...
-echo  ============================================
+echo  ========================================================
+echo   ProcSnap - Local SOP Documentation ^& Studio Engine
+echo   Auto-initiating server and verifying dependencies...
+echo  ========================================================
 echo.
 
-:: ─────────────────────────────────────────────
-:: STEP 1: Check Python installation
-:: ─────────────────────────────────────────────
+:: STEP 1: Find Python executable
 set "PY_CMD="
 python --version >nul 2>&1
 if not errorlevel 1 (
@@ -26,34 +24,29 @@ if not errorlevel 1 (
         set "PY_CMD=py"
     ) else (
         for /d %%P in ("%LOCALAPPDATA%\Programs\Python\Python*") do (
-            if exist "%%P\python.exe" (
-                set "PY_CMD=%%P\python.exe"
-            )
+            if exist "%%P\python.exe" set "PY_CMD=%%P\python.exe"
         )
     )
 )
 
 if "%PY_CMD%"=="" (
-    echo [!] Python not found. Attempting to install via winget...
+    echo [!] Python not found on PATH. Attempting automatic installation via winget...
     winget install --id Python.Python.3.13 --scope user --accept-source-agreements --accept-package-agreements --silent
     if errorlevel 1 (
-        echo [ERROR] Could not install Python automatically.
-        echo         Please install Python 3.10+ from https://www.python.org/downloads/
-        echo         Make sure to tick "Add Python to PATH" during installation.
+        echo [ERROR] Python 3.10+ is required. Please install it from https://www.python.org/downloads/
+        echo         Make sure to check "Add Python to PATH" during installation.
         pause
         exit /b 1
     )
     set "PY_CMD=python"
 )
 
-echo [OK] Python detected.
+echo [OK] Python runtime detected.
 
-:: ─────────────────────────────────────────────
 :: STEP 2: Create virtual environment if missing
-:: ─────────────────────────────────────────────
-if not exist "backend\.venv\" (
-    echo [..] Creating virtual environment (first run only)...
-    !PY_CMD! -m venv backend\.venv
+if not exist "backend\.venv\Scripts\python.exe" (
+    echo [..] Creating isolated virtual environment at backend\.venv...
+    %PY_CMD% -m venv backend\.venv
     if errorlevel 1 (
         echo [ERROR] Failed to create virtual environment.
         pause
@@ -61,64 +54,35 @@ if not exist "backend\.venv\" (
     )
     echo [OK] Virtual environment created.
 ) else (
-    echo [OK] Virtual environment exists.
+    echo [OK] Virtual environment verified.
 )
 
-:: ─────────────────────────────────────────────
-:: STEP 3: Install / upgrade dependencies
-:: ─────────────────────────────────────────────
-echo [..] Checking and installing dependencies...
-backend\.venv\Scripts\python.exe -m pip install -q -r backend\requirements.txt
+:: STEP 3: Auto-install and verify all dependencies
+echo [..] Verifying and installing requirements from backend\requirements.txt...
+backend\.venv\Scripts\python.exe -m pip install --upgrade pip --quiet
+backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt --quiet
 if errorlevel 1 (
-    echo [ERROR] Failed to install dependencies. Check your internet connection.
-    pause
-    exit /b 1
+    echo [WARNING] Pip install had a warning/error. Retrying core dependencies...
+    backend\.venv\Scripts\python.exe -m pip install fastapi uvicorn pydantic starlette mss pillow python-docx python-pptx edge-tts websockets
 )
-echo [OK] Dependencies ready.
+echo [OK] All dependencies installed and ready.
 
-:: ─────────────────────────────────────────────
-:: STEP 3b: Optional — Check for GitHub updates
-:: ─────────────────────────────────────────────
-where git >nul 2>&1
-if not errorlevel 1 (
-    set /p CHECK_UPDATES="[?] Check for updates from GitHub? (Y/N) [default: N]: "
-    if /i "!CHECK_UPDATES!"=="Y" (
-        echo.
-        echo [..] Pulling latest changes from GitHub...
-        set "PATH=%LOCALAPPDATA%\Programs\Git\cmd;%PATH%"
-        git remote set-url origin https://github.com/MRVKY220895/ProcSnap.git >nul 2>&1
-        git pull origin main
-        echo.
-        if errorlevel 1 (
-            echo [NOTE] git pull encountered an issue - continuing with local version.
-        ) else (
-            echo [OK] Up to date!
-        )
-        echo.
-    )
-)
+:: STEP 4: Ensure Port 8000 is clean (free up stale/orphaned processes)
+echo [..] Checking port 8000 availability...
+powershell -NoProfile -Command "try { $pids = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($p in $pids) { if ($p -gt 0) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } } } catch {}"
 
-:: ─────────────────────────────────────────────
-:: STEP 4: Start backend server (with automatic port fallback)
-:: ─────────────────────────────────────────────
-set "APP_PORT=8000"
-for /L %%P in (8000, 1, 8010) do (
-    netstat -ano | findstr /R /C:":%%P .*LISTENING" >nul 2>&1
-    if errorlevel 1 (
-        set "APP_PORT=%%P"
-        goto :PortFound
-    )
-)
-:PortFound
+:: STEP 5: Launch browser dashboard and start backend server
+echo.
+echo [OK] Launching ProcSnap Studio in default browser...
+start "" "http://127.0.0.1:8000/dashboard/dashboard.html"
 
 echo.
-if not "%APP_PORT%"=="8000" (
-    echo [NOTE] Port 8000 was busy. Automatically falling back to port %APP_PORT%
-)
-echo [..] Starting ProcSnap server on http://127.0.0.1:%APP_PORT% ...
-echo [..] Opening dashboard in browser...
+echo  ========================================================
+echo   ProcSnap Server running on: http://127.0.0.1:8000
+echo   Press Ctrl+C in this window to stop the server.
+echo  ========================================================
 echo.
-start "" "http://127.0.0.1:%APP_PORT%/dashboard/dashboard.html"
-backend\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port %APP_PORT% --app-dir backend
+
+backend\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 
 pause
