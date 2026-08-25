@@ -490,10 +490,12 @@
                                     <div class="canvas-wrapper screenshot-canvas-wrapper" id="canvasWrapper" style="position: relative; display: inline-block;">
                                         <img id="guideImg" class="guide-img" alt="Step Screenshot" style="display: block; max-width: 100%; max-height: calc(100vh - 220px); width: auto; height: auto; user-select: none; pointer-events: none;">
                                         <canvas id="annotationCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
-                                        <!-- Draggable Target Pin / Reticle Element -->
+                                        <!-- Sleek Tango-Style Draggable Target Pin / Reticle Element -->
                                         <div id="hotspotReticleHandle" class="hotspot-reticle-handle hidden" style="display: none;" title="Drag to adjust click coordinates">
                                             <div class="reticle-pulse-ring"></div>
-                                            <div class="reticle-crosshair">⌖</div>
+                                            <div class="reticle-pin-core">
+                                                <span class="reticle-number" id="reticleNumberBadge">1</span>
+                                            </div>
                                             <span id="reticleCoordsLabel" class="reticle-coords-badge">🎯 50%, 50%</span>
                                         </div>
                                     </div>
@@ -2295,7 +2297,7 @@
         </div>
     </div>
 
-    <script src="dashboard.js?v=20260825_v5"></script>
+    <script src="dashboard.js?v=20260825_v6"></script>
 </body>
 
 </html>

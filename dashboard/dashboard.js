@@ -2053,23 +2053,32 @@ class AnnotationCanvasEngine {
             }
             
             if (s.type === "circle") {
-                // Circle marker
-                const r = Math.max(16, Math.abs(w / 2));
-                const cx = pos.x + r;
-                const cy = pos.y + r;
+                // Sleek Tango-Style Numbered Step Badge
+                const r = (w && Math.abs(w) > 10) ? Math.max(12, Math.min(24, Math.abs(w / 2))) : 13;
+                const cx = pos.x + (w ? w / 2 : 0);
+                const cy = pos.y + (h ? h / 2 : 0);
+                
+                this.ctx.save();
+                this.ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+                this.ctx.shadowBlur = 6;
+                this.ctx.shadowOffsetY = 2;
                 
                 this.ctx.beginPath();
                 this.ctx.arc(cx, cy, r, 0, 2 * Math.PI);
                 this.ctx.fillStyle = s.color || "#ef4444";
                 this.ctx.fill();
+                
+                this.ctx.strokeStyle = "#ffffff";
+                this.ctx.lineWidth = 2;
                 this.ctx.stroke();
+                this.ctx.restore();
                 
                 // Label sequence number
                 this.ctx.fillStyle = "#ffffff";
-                this.ctx.font = "bold 13px Arial";
+                this.ctx.font = `bold ${Math.max(10, Math.round(r * 0.9))}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif`;
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
-                this.ctx.fillText(s.label || "1", cx, cy);
+                this.ctx.fillText(s.label || "1", cx, cy + 0.5);
             }
             else if (s.type === "rect") {
                 this.ctx.strokeRect(pos.x, pos.y, w, h);
@@ -7921,6 +7930,11 @@ function updateHotspotReticlePosition(step) {
 
     reticle.style.left = `${xPct}%`;
     reticle.style.top = `${yPct}%`;
+
+    const numBadge = $("reticleNumberBadge");
+    if (numBadge) {
+        numBadge.textContent = step.sequence || (currentStepIndex + 1);
+    }
 
     const label = $("reticleCoordsLabel");
     if (label) {

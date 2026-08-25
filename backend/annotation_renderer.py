@@ -104,7 +104,7 @@ class AnnotationRenderer:
                     # SHAPE: NUMBERED CIRCLE / BADGE / STEP MARKER
                     # -------------------------------------------------------------
                     elif stype in ["circle", "ellipse", "badge", "numbered_step", "step_number"]:
-                        radius = max(16, sw // 2 if sw > 0 else 22)
+                        radius = max(13, min(24, sw // 2 if sw > 0 else 14))
                         cx = x + radius
                         cy = y + radius
                         bbox = [cx - radius, cy - radius, cx + radius, cy + radius]
