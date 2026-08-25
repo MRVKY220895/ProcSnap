@@ -63,7 +63,7 @@ backend\.venv\Scripts\python.exe -m pip install --upgrade pip --quiet
 backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt --quiet
 if errorlevel 1 (
     echo [WARNING] Pip install had a warning/error. Retrying core dependencies...
-    backend\.venv\Scripts\python.exe -m pip install fastapi uvicorn pydantic starlette mss pillow python-docx python-pptx edge-tts websockets
+    backend\.venv\Scripts\python.exe -m pip install fastapi uvicorn pydantic starlette mss pillow python-docx python-pptx edge-tts websockets python-multipart
 )
 echo [OK] All dependencies installed and ready.
 

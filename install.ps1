@@ -1,4 +1,4 @@
-﻿# ProcSnap Interactive Requirements & Setup Installer
+# ProcSnap Interactive Requirements & Setup Installer
 # Tests all requirements one-by-one, retries failures, installs dependencies, and launches ProcSnap
 
 $Host.UI.RawUI.WindowTitle = "ProcSnap - Enterprise Setup & Health Checker"
@@ -82,9 +82,9 @@ Test-Step "Python Virtual Environment (backend/.venv)" {
 }
 
 # 3. Pip Dependencies Check
-Test-Step "Backend Dependencies (FastAPI, MSS, Pillow, python-docx, python-pptx)" {
+Test-Step "Backend Dependencies (FastAPI, MSS, Pillow, python-docx, python-pptx, python-multipart)" {
     if (Test-Path $VenvPython) {
-        $testMod = & $VenvPython -c "import fastapi, uvicorn, mss, PIL, docx, pptx; print('OK')" 2>&1
+        $testMod = & $VenvPython -c "import fastapi, uvicorn, mss, PIL, docx, pptx, multipart; print('OK')" 2>&1
         return ($testMod -match "OK")
     }
     return $false
@@ -92,7 +92,7 @@ Test-Step "Backend Dependencies (FastAPI, MSS, Pillow, python-docx, python-pptx)
     if (Test-Path $VenvPython) {
         Write-Host "    Installing backend dependencies via pip..." -ForegroundColor Cyan
         & $VenvPython -m pip install --upgrade pip
-        & $VenvPython -m pip install fastapi uvicorn mss pillow python-docx python-pptx pydantic
+        & $VenvPython -m pip install -r (Join-Path $WorkspaceDir "backend\requirements.txt")
     }
 }
 

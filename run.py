@@ -26,7 +26,7 @@ def check_and_install_dependencies():
     print("[2/4] Verifying dependencies from backend/requirements.txt...", flush=True)
     try:
         # Check if core modules can be imported
-        check_cmd = [str(VENV_PYTHON), "-c", "import fastapi, uvicorn, pydantic, mss, PIL, docx, pptx; print('READY')"]
+        check_cmd = [str(VENV_PYTHON), "-c", "import fastapi, uvicorn, pydantic, mss, PIL, docx, pptx, multipart; print('READY')"]
         res = subprocess.run(check_cmd, capture_output=True, text=True)
         if "READY" not in res.stdout:
             raise ImportError("Missing dependencies")
