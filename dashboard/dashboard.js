@@ -3302,8 +3302,10 @@ function loadActiveStepDetails() {
 
     if (step.screenshotUrl) {
         if (imgEl) {
-            const cleanUrl = step.screenshotUrl.replace(/-demo.*\.gif/i, ".png");
-            imgEl.src = normalizeImageUrl(step.hasActiveDemo ? cleanUrl : step.screenshotUrl);
+            const displayUrl = step.hasActiveDemo
+                ? (step.screenshotUrl.includes("-demo") ? step.screenshotUrl : step.screenshotUrl.replace(/\.png$/i, "-demo.gif"))
+                : step.screenshotUrl.replace(/-demo.*\.gif/i, ".png");
+            imgEl.src = `${normalizeImageUrl(displayUrl)}?t=${Date.now()}`;
             imgEl.classList.remove("hidden");
         }
         if (canvasWrap) canvasWrap.classList.remove("hidden");
@@ -7568,6 +7570,13 @@ async function triggerAnimateGeneration(step, customXPct = null, customYPct = nu
         if (res.success && res.gif_url) {
             step.hasActiveDemo = true;
             step.screenshotUrl = res.gif_url;
+            
+            const imgEl = $("guideImg");
+            if (imgEl) {
+                imgEl.src = `${normalizeImageUrl(res.gif_url)}?t=${Date.now()}`;
+                imgEl.classList.remove("hidden");
+            }
+            
             updateDemoButtonState(step);
             if (typeof updateHotspotReticlePosition === "function") {
                 updateHotspotReticlePosition(step);
