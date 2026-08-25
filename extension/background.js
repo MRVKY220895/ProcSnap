@@ -527,7 +527,7 @@ chrome.runtime.onMessage.addListener(
                 }
             });
             sendResponse({ success: true });
-            return true;
+            return false;
         }
 
         /* -----------------------------------------------
