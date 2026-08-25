@@ -2783,6 +2783,13 @@ def generate_step_animation(
             optimize=True
         )
 
+        rel_gif_path = f"screenshots/{session_id}/{gif_filename}"
+        cursor.execute(
+            "UPDATE workflow_steps SET screenshot_path = ? WHERE id = ? AND workflow_id = ?",
+            (rel_gif_path, step["id"], session_id)
+        )
+        connection.commit()
+
         return {
             "success": True,
             "gif_url": f"/screenshots/{session_id}/{gif_filename}",
@@ -2795,13 +2802,13 @@ def generate_step_animation(
 @app.delete("/sessions/{session_id}/steps/{step_id}/animate")
 def delete_step_animation(session_id: str, step_id: int):
     """
-    Deletes the animated micro-demo GIF for the step if it exists.
+    Deletes the animated micro-demo GIF for the step and reverts screenshot_path to static PNG.
     """
     connection = get_connection()
     try:
         cursor = connection.cursor()
         step = cursor.execute(
-            "SELECT sequence FROM workflow_steps WHERE id = ? AND workflow_id = ?",
+            "SELECT id, sequence FROM workflow_steps WHERE id = ? AND workflow_id = ?",
             (step_id, session_id)
         ).fetchone()
         if not step:
@@ -2818,9 +2825,19 @@ def delete_step_animation(session_id: str, step_id: int):
                 except Exception as e:
                     print("Error unlinking gif file:", e)
 
+        # Revert database screenshot_path back to static PNG
+        png_filename = f"step-{seq:03d}.png"
+        rel_png_path = f"screenshots/{session_id}/{png_filename}"
+        cursor.execute(
+            "UPDATE workflow_steps SET screenshot_path = ? WHERE id = ? AND workflow_id = ?",
+            (rel_png_path, step["id"], session_id)
+        )
+        connection.commit()
+
         return {
             "success": True,
             "deleted": deleted,
+            "png_url": f"/screenshots/{session_id}/{png_filename}",
             "message": "Micro-demo animation removed successfully"
         }
     finally:
