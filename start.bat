@@ -59,11 +59,11 @@ if not exist "backend\.venv\Scripts\python.exe" (
 
 :: STEP 3: Auto-install and verify all dependencies
 echo [..] Verifying and installing requirements from backend\requirements.txt...
-backend\.venv\Scripts\python.exe -m pip install --upgrade pip --quiet
-backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt --quiet
+backend\.venv\Scripts\python.exe -m pip install --upgrade pip --quiet --no-cache-dir --disable-pip-version-check
+backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt --quiet --no-cache-dir --disable-pip-version-check
 if errorlevel 1 (
     echo [WARNING] Pip install had a warning/error. Retrying core dependencies...
-    backend\.venv\Scripts\python.exe -m pip install fastapi uvicorn pydantic starlette mss pillow python-docx python-pptx edge-tts websockets python-multipart
+    backend\.venv\Scripts\python.exe -m pip install fastapi uvicorn pydantic starlette mss pillow python-docx python-pptx edge-tts websockets python-multipart --no-cache-dir --disable-pip-version-check
 )
 echo [OK] All dependencies installed and ready.
 

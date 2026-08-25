@@ -33,8 +33,8 @@ def check_and_install_dependencies():
         print("  Dependencies already installed and verified [OK]", flush=True)
     except Exception:
         print("  Installing/updating required packages...", flush=True)
-        subprocess.run([str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "pip", "--quiet"], check=False)
-        subprocess.run([str(VENV_PYTHON), "-m", "pip", "install", "-r", str(REQ_FILE), "--quiet"], check=False)
+        subprocess.run([str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "pip", "--quiet", "--no-cache-dir", "--disable-pip-version-check"], check=False)
+        subprocess.run([str(VENV_PYTHON), "-m", "pip", "install", "-r", str(REQ_FILE), "--quiet", "--no-cache-dir", "--disable-pip-version-check"], check=False)
         print("  Installation complete [OK]", flush=True)
 
 def free_port_8000():
