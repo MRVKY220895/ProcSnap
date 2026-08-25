@@ -91,22 +91,37 @@ chrome.storage.onChanged.addListener(
 
 chrome.runtime.onMessage.addListener(
     (message, sender, sendResponse) => {
-        if (
-            message.type ===
-            "RECORDING_STATE_CHANGED"
-        ) {
+        if (!message || !message.type) {
+            if (typeof sendResponse === "function") sendResponse({ success: false });
+            return false;
+        }
+
+        if (message.type === "RECORDING_STATE_CHANGED") {
             setRecordingState(
                 message.recording === true,
                 message.paused === true
             );
-            if (typeof sendResponse === "function") {
-                sendResponse({ success: true });
-            }
+            if (typeof sendResponse === "function") sendResponse({ success: true });
+            return false;
+        } else if (message.type === "START_GUIDE_ME") {
+            initGuideMe(message.workflow, message.startStepIndex || 0);
+            if (typeof sendResponse === "function") sendResponse({ success: true });
+            return false;
+        } else if (message.type === "GUIDE_ME_NEXT") {
+            advanceGuideMeStep(1);
+            if (typeof sendResponse === "function") sendResponse({ success: true });
+            return false;
+        } else if (message.type === "GUIDE_ME_PREV") {
+            advanceGuideMeStep(-1);
+            if (typeof sendResponse === "function") sendResponse({ success: true });
+            return false;
+        } else if (message.type === "GUIDE_ME_STOP") {
+            teardownGuideMe();
+            if (typeof sendResponse === "function") sendResponse({ success: true });
             return false;
         }
-        if (typeof sendResponse === "function") {
-            sendResponse({ success: true });
-        }
+
+        if (typeof sendResponse === "function") sendResponse({ success: true });
         return false;
     }
 );
@@ -1145,26 +1160,6 @@ let currentTargetEl = null;
 window.addEventListener("message", (event) => {
     if (event.data && event.data.type === "START_GUIDE_ME") {
         initGuideMe(event.data.workflow, 0);
-    }
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === "START_GUIDE_ME") {
-        initGuideMe(message.workflow, message.startStepIndex || 0);
-        if (typeof sendResponse === "function") sendResponse({ success: true });
-        return false;
-    } else if (message.type === "GUIDE_ME_NEXT") {
-        advanceGuideMeStep(1);
-        if (typeof sendResponse === "function") sendResponse({ success: true });
-        return false;
-    } else if (message.type === "GUIDE_ME_PREV") {
-        advanceGuideMeStep(-1);
-        if (typeof sendResponse === "function") sendResponse({ success: true });
-        return false;
-    } else if (message.type === "GUIDE_ME_STOP") {
-        teardownGuideMe();
-        if (typeof sendResponse === "function") sendResponse({ success: true });
-        return false;
     }
 });
 
