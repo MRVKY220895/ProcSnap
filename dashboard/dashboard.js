@@ -1135,8 +1135,8 @@ function renderLibraryHub() {
     }
 
     gridEl.innerHTML = filtered.map(w => {
-        const timeStr = formatRelativeTime(w.created_at || w.updated_at);
-        const coverUrl = `${API_BASE}/sessions/${encodeURIComponent(w.id)}/steps/0/image?t=${Date.now()}`;
+        const timeStr = formatRelativeTime(w.created_at || w.createdAt || w.startedAt || w.updated_at);
+        const coverUrl = w.coverScreenshot ? normalizeImageUrl(w.coverScreenshot) : `${API_BASE}/sessions/${encodeURIComponent(w.id)}/cover?t=${Date.now()}`;
         const tagBadges = (w.tags || "").split(",").map(t => t.trim()).filter(Boolean).map(t => `
             <span class="hub-card-tag">${esc(t)}</span>
         `).join("");

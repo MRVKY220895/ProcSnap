@@ -743,8 +743,9 @@ def get_sessions():
     try:
         rows = connection.execute(
             """
-            SELECT w.id, w.name, w.application, w.status, w.started_at, w.ended_at, w.tags,
-                   COUNT(s.id) AS step_count
+            SELECT w.id, w.name, w.application, w.status, w.started_at, w.ended_at, w.tags, w.created_at,
+                   COUNT(s.id) AS step_count,
+                   (SELECT s2.screenshot_path FROM workflow_steps s2 WHERE s2.workflow_id = w.id ORDER BY s2.sequence ASC LIMIT 1) AS cover_screenshot
             FROM workflows w
             LEFT JOIN workflow_steps s ON w.id = s.workflow_id
             GROUP BY w.id
@@ -755,13 +756,15 @@ def get_sessions():
         result = [
             {
                 "id": row["id"],
-                "name": row["name"],
-                "application": row["application"],
-                "status": row["status"],
+                "name": row["name"] or "Untitled Workflow",
+                "application": row["application"] or "System",
+                "status": row["status"] or "completed",
                 "tags": row["tags"] or "",
                 "startedAt": row["started_at"],
                 "endedAt": row["ended_at"],
+                "createdAt": row["created_at"] or row["started_at"],
                 "stepCount": row["step_count"],
+                "coverScreenshot": row["cover_screenshot"] or "",
             }
             for row in rows
         ]
@@ -773,6 +776,32 @@ def get_sessions():
         "count": len(result),
         "sessions": result,
     }
+
+
+@app.get("/sessions/{session_id}/cover")
+def get_session_cover_image(session_id: str):
+    """
+    Returns the first step's screenshot or cover image for the workflow session.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        step = cur.execute(
+            "SELECT screenshot_path FROM workflow_steps WHERE workflow_id = ? ORDER BY sequence ASC LIMIT 1",
+            (session_id,)
+        ).fetchone()
+        if not step or not step["screenshot_path"]:
+            raise HTTPException(status_code=404, detail="No screenshot found for this session")
+        
+        img_file = BASE_DIR / step["screenshot_path"]
+        if not img_file.exists():
+            img_file = BASE_DIR / "screenshots" / session_id / Path(step["screenshot_path"]).name
+        if not img_file.exists():
+            raise HTTPException(status_code=404, detail="Screenshot file not found on disk")
+        
+        return FileResponse(img_file, media_type="image/png")
+    finally:
+        conn.close()
 
 
 # =========================================================
