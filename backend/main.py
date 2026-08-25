@@ -942,11 +942,7 @@ def add_step(
                 detail="Recording session not found",
             )
 
-        if workflow["status"] != "recording":
-            raise HTTPException(
-                status_code=400,
-                detail="Recording session is not active",
-            )
+        # Allow adding steps in active recording or completed workflows in studio
 
         cursor.execute(
             """
