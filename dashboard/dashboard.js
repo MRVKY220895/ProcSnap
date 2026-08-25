@@ -7867,7 +7867,10 @@ function updateHotspotReticlePosition(step) {
     const wrapper = $("canvasWrapper");
     if (!reticle || !wrapper) return;
 
-    if (!step || !step.screenshotUrl || step.hidden || step.hidePin) {
+    const isHotspotTabActive = document.querySelector(".drawer-seg-btn.active")?.dataset?.view === "hotspot";
+    const isPinVisible = step && !step.hidePin && (step.showPin || isHotspotTabActive);
+
+    if (!step || !step.screenshotUrl || step.hidden || !isPinVisible) {
         reticle.classList.add("hidden");
         reticle.style.display = "none";
         return;
@@ -7884,11 +7887,7 @@ function updateHotspotReticlePosition(step) {
 
     const label = $("reticleCoordsLabel");
     if (label) {
-        if (step.hasActiveDemo) {
-            label.textContent = `🎯 Drag to Adjust GIF (${Math.round(xPct)}%, ${Math.round(yPct)}%)`;
-        } else {
-            label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
-        }
+        label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
     }
 }
 
@@ -7900,7 +7899,7 @@ function initHotspotReticle() {
     // 1. Drag & Drop Listener on Reticle Handle
     reticle.addEventListener("pointerdown", (e) => {
         if (isHotspotLocked) {
-            showToast("🔒 Hotspot is locked. Unlock it in the toolbar to adjust.", 2000);
+            showToast("🔒 Hotspot is locked.", 1500);
             return;
         }
         e.preventDefault();
@@ -7912,107 +7911,32 @@ function initHotspotReticle() {
 
     reticle.addEventListener("pointermove", (e) => {
         if (!isDraggingReticle) return;
-        e.preventDefault();
-        e.stopPropagation();
-
         const rect = wrapper.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return;
+        if (rect.width === 0 || rect.height === 0) return;
 
-        let xPct = ((e.clientX - rect.left) / rect.width) * 100;
-        let yPct = ((e.clientY - rect.top) / rect.height) * 100;
+        const clientX = e.clientX;
+        const clientY = e.clientY;
 
-        xPct = Math.max(1, Math.min(99, xPct));
-        yPct = Math.max(1, Math.min(99, yPct));
+        const xPct = Math.max(1, Math.min(99, ((clientX - rect.left) / rect.width) * 100));
+        const yPct = Math.max(1, Math.min(99, ((clientY - rect.top) / rect.height) * 100));
 
         reticle.style.left = `${xPct}%`;
         reticle.style.top = `${yPct}%`;
 
-        const step = getCurrentStep();
+        setVal("hotspotX", Math.round(xPct));
+        setVal("hotspotY", Math.round(yPct));
+
         const label = $("reticleCoordsLabel");
-        if (label) {
-            if (step?.hasActiveDemo) {
-                label.textContent = `🎯 Drag to Adjust GIF (${Math.round(xPct)}%, ${Math.round(yPct)}%)`;
-            } else {
-                label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
-            }
-        }
-
-        // Update inspector coordinate fields in real time
-        const curW = Number($("hotspotW")?.value || 20);
-        const curH = Number($("hotspotH")?.value || 20);
-        const newLeft = Math.max(0, Math.min(100 - curW, Math.round(xPct - curW / 2)));
-        const newTop = Math.max(0, Math.min(100 - curH, Math.round(yPct - curH / 2)));
-
-        setVal("hotspotX", newLeft);
-        setVal("hotspotY", newTop);
+        if (label) label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
     });
 
-    const finishDrag = async (e) => {
+    const finishReticleDrag = (e) => {
         if (!isDraggingReticle) return;
         isDraggingReticle = false;
         reticle.classList.remove("dragging");
         try { reticle.releasePointerCapture(e.pointerId); } catch (_) {}
 
         const step = getCurrentStep();
-        if (!step) return;
-
-        const leftVal = Number($("hotspotX")?.value || 40);
-        const topVal = Number($("hotspotY")?.value || 40);
-        const wVal = Number($("hotspotW")?.value || 20);
-        const hVal = Number($("hotspotH")?.value || 20);
-
-        step.hotspot = {
-            xPct: leftVal,
-            yPct: topVal,
-            wPct: wVal,
-            hPct: hVal,
-            prompt: $("guideHotspotPrompt")?.value || (step.title || getDefaultTitle(step)),
-            type: "custom"
-        };
-
-        saveActiveStepEditsSilent();
-
-        const curXPct = leftVal + (wVal / 2);
-        const curYPct = topVal + (hVal / 2);
-
-        const isDemo = Boolean(step.hasActiveDemo || (step.screenshotUrl && (step.screenshotUrl.includes("-demo") || step.screenshotUrl.endsWith(".gif"))));
-
-        if (isDemo) {
-            showToast("🔄 Re-generating Micro-Demo at dragged location...", 2500);
-            await triggerAnimateGeneration(step, curXPct, curYPct);
-        } else {
-            showToast(`🎯 Hotspot target updated: (${leftVal}%, ${topVal}%)`, 2000);
-        }
-    };
-
-    reticle.addEventListener("pointerup", finishDrag);
-    reticle.addEventListener("pointercancel", finishDrag);
-
-    // 2. Click-to-Pin Hotspot Finder on Canvas
-    wrapper.addEventListener("click", async (e) => {
-        if (!isHotspotClickMode || isHotspotLocked) return;
-        if (e.target.closest("#hotspotReticleHandle")) return;
-
-        const rect = wrapper.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return;
-
-        let xPct = ((e.clientX - rect.left) / rect.width) * 100;
-        let yPct = ((e.clientY - rect.top) / rect.height) * 100;
-
-        xPct = Math.max(1, Math.min(99, xPct));
-        yPct = Math.max(1, Math.min(99, yPct));
-
-        // Snap Reticle to clicked position
-        reticle.style.left = `${xPct}%`;
-        reticle.style.top = `${yPct}%`;
-
-        const curW = Number($("hotspotW")?.value || 20);
-        const curH = Number($("hotspotH")?.value || 20);
-        const newLeft = Math.max(0, Math.min(100 - curW, Math.round(xPct - curW / 2)));
-        const newTop = Math.max(0, Math.min(100 - curH, Math.round(yPct - curH / 2)));
-
-        setVal("hotspotX", newLeft);
-        setVal("hotspotY", newTop);
 
         const step = getCurrentStep();
         if (step) {
@@ -8390,54 +8314,20 @@ function initDrawerVoiceoverAndAiDiff() {
             btn.style.color = "#ffffff";
 
             const view = btn.dataset.view;
-            const focusCard = $("btnDrawerFocusToggle")?.parentElement;
-            const hotspotCard = $("drawerAccHotspot")?.parentElement;
-            const expectedCard = $("drawerAccExpected")?.parentElement;
-            const branchCard = $("drawerAccBranching")?.parentElement;
-            const metaCard = $("drawerAccMeta")?.parentElement;
+            const paneHotspot = $("drawerPaneHotspot");
+            const paneNotes = $("drawerPaneNotes");
+            const paneBranch = $("drawerPaneBranch");
+            const paneMeta = $("drawerPaneMeta");
 
-            const setVisible = (el, show) => {
-                if (el) el.classList.toggle("hidden", !show);
-            };
+            if (paneHotspot) paneHotspot.classList.toggle("hidden", view !== "hotspot");
+            if (paneNotes) paneNotes.classList.toggle("hidden", view !== "notes");
+            if (paneBranch) paneBranch.classList.toggle("hidden", view !== "branch");
+            if (paneMeta) paneMeta.classList.toggle("hidden", view !== "meta");
 
-            if (view === "all") {
-                setVisible(focusCard, true);
-                setVisible(hotspotCard, true);
-                setVisible(expectedCard, true);
-                setVisible(branchCard, true);
-                setVisible(metaCard, true);
-                $("drawerAccHotspot")?.classList.remove("hidden");
-                $("drawerAccExpected")?.classList.remove("hidden");
-                $("drawerAccBranching")?.classList.remove("hidden");
-                $("drawerAccMeta")?.classList.remove("hidden");
-            } else if (view === "hotspot") {
-                setVisible(focusCard, true);
-                setVisible(hotspotCard, true);
-                setVisible(expectedCard, false);
-                setVisible(branchCard, false);
-                setVisible(metaCard, false);
-                $("drawerAccHotspot")?.classList.remove("hidden");
-            } else if (view === "notes") {
-                setVisible(focusCard, false);
-                setVisible(hotspotCard, false);
-                setVisible(expectedCard, true);
-                setVisible(branchCard, false);
-                setVisible(metaCard, false);
-                $("drawerAccExpected")?.classList.remove("hidden");
-            } else if (view === "branch") {
-                setVisible(focusCard, false);
-                setVisible(hotspotCard, false);
-                setVisible(expectedCard, false);
-                setVisible(branchCard, true);
-                setVisible(metaCard, false);
-                $("drawerAccBranching")?.classList.remove("hidden");
-            } else if (view === "meta") {
-                setVisible(focusCard, false);
-                setVisible(hotspotCard, false);
-                setVisible(expectedCard, false);
-                setVisible(branchCard, false);
-                setVisible(metaCard, true);
-                $("drawerAccMeta")?.classList.remove("hidden");
+            // Update hotspot reticle visibility based on active view
+            const step = getCurrentStep();
+            if (step && typeof updateHotspotReticlePosition === "function") {
+                updateHotspotReticlePosition(step);
             }
         };
     });

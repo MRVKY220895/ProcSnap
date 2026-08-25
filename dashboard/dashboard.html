@@ -354,12 +354,11 @@
                                             <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                                         </button>
                                     </div>
-
-                                    <!-- ISLAND 2: CREATIVE ANNOTATIONS, AI & SMART HOTSPOT DOCK -->
+                                    <!-- ISLAND 2: CREATIVE ANNOTATION & DRAWING TOOLS -->
                                     <div class="dock-island dock-island-tools">
                                         <!-- Pointer & Hand Navigation -->
                                         <div class="dock-btn-group">
-                                            <button class="dock-tool-btn active" id="tool-select" title="Select & Move (V)">
+                                            <button class="dock-tool-btn active" id="tool-select" title="Select &amp; Move (V)">
                                                 <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M13.64 21.97c-.2-.07-.36-.25-.43-.46l-2.43-6.85-4.8 4.8c-.3.3-.77.34-1.12.1a.8.8 0 0 1-.29-.61V3.2c0-.44.36-.8.8-.8.21 0 .42.08.57.23l15 15c.31.31.31.82 0 1.13-.23.23-.58.28-.87.12l-5.18-2.5 2.53 7.14c.07.2-.01.43-.18.57l-3.32 1.34c-.1.05-.28.09-.41.07z"/></svg>
                                             </button>
                                             <button class="dock-tool-btn" id="tool-pan" title="Pan Screenshot (Hand Tool)">
@@ -369,7 +368,7 @@
 
                                         <div class="dock-divider"></div>
 
-                                        <!-- Shape & Annotation Tools -->
+                                        <!-- Core Shape & Callout Annotation Tools -->
                                         <div class="dock-btn-group">
                                             <button class="dock-tool-btn" id="tool-circle" title="Numbered Step Circle (C)">
                                                 <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
@@ -380,66 +379,32 @@
                                             <button class="dock-tool-btn" id="tool-rect" title="Rectangle Overlay (R)">
                                                 <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 3v18h18V3H3zm16 16H5V5h14v14z"/></svg>
                                             </button>
-                                            <button class="dock-tool-btn" id="tool-highlight" title="Pen / Marker (P)">
-                                                <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                                            </button>
-                                            <!-- Text Tool -->
                                             <div class="tool-text-wrapper" id="textToolWrapper">
                                                 <button class="dock-tool-btn" id="tool-text" title="Text Callout (T)">
                                                     <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12.5 4v16h-2V4H4V2h15v2h-6.5z"/></svg>
                                                 </button>
                                                 <button class="tool-text-caret" id="tool-text-caret" title="Choose text style">▾</button>
                                             </div>
-                                            <button class="dock-tool-btn" id="tool-blur" title="Blur / Redact (B)">
+                                            <button class="dock-tool-btn" id="tool-blur" title="Blur / Redact Sensitive PII (B)">
                                                 <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8c1.5 0 2.9.41 4.11 1.13L5.13 16.11A7.95 7.95 0 0 1 4 12c0-4.41 3.59-8 8-8 1.63 0 3.13.49 4.39 1.33l-10 10A7.88 7.88 0 0 1 12 20zm5.87-4.13A7.95 7.95 0 0 1 20 12c0-4.41-3.59-8-8-8-1.5 0-2.9.41-4.11 1.13l11.98 11.98A7.88 7.88 0 0 1 17.87 15.87z"/></svg>
                                             </button>
                                         </div>
 
                                         <div class="dock-divider"></div>
 
-                                        <!-- Color & Crop & Auto-Redact -->
+                                        <!-- Styling & Canvas Clear -->
                                         <div class="dock-btn-group">
-                                            <button class="dock-tool-btn" id="tool-color-picker" title="Color Palette">
+                                            <button class="dock-tool-btn" id="tool-color-picker" title="Color &amp; Stroke Palette">
                                                 <div id="currentColorIndicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #ef4444; border: 1.5px solid var(--text-muted);"></div>
                                             </button>
                                             <button class="dock-tool-btn" id="tool-crop" title="Crop Screenshot (K)">
                                                 <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M17 15h2V7c0-1.1-.9-2-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10c0 1.1.9 2 2 2h10v4h2v-4h4v-2H7z"/></svg>
                                             </button>
-                                            <button class="dock-pill-btn" id="btnAutoRedactPII" title="AI One-Click Auto Redact Sensitive Data">
-                                                <span>🛡️</span> Auto-Redact
-                                            </button>
-                                        </div>
-
-                                        <div class="dock-divider"></div>
-
-                                        <!-- Smart Hotspot & Spotlight & Demo Hub -->
-                                        <div class="dock-btn-group">
-                                            <button class="dock-pill-btn" id="btnToggleFocusSpotlight" title="Toggle Spotlight focus">
-                                                <span id="focusToggleDot" class="dock-status-dot green"></span>
-                                                <span id="focusToggleLabel">Focus</span>
-                                            </button>
-                                            <button class="dock-pill-btn" id="btnTogglePinVisibility" title="Toggle Red Pin Target Reticle">
-                                                <span>🎯</span>
-                                                <span id="pinVisibilityLabel" style="color: #10b981;">Pin ON</span>
-                                            </button>
-                                            <button class="dock-pill-btn" id="btnPickHotspotTool" title="Click anywhere on image to place target (H)">
-                                                <span>📍</span> Place
-                                            </button>
-                                            <button class="dock-tool-btn" id="btnToggleLockHotspot" title="Lock/Unlock Target Hotspot">
-                                                <span id="hotspotLockIcon">🔓</span>
-                                            </button>
-                                            <button class="dock-pill-btn dock-btn-purple" id="btnGenerateAnimation" title="Generate 2s Animated Micro-Demo GIF">
-                                                <span>🎬</span> Micro-Demo
-                                            </button>
-                                            <button class="dock-tool-btn dock-btn-danger hidden" id="btnRemoveAnimation" title="Remove Micro-Demo">
-                                                ✕
-                                            </button>
-                                            <button class="dock-tool-btn" id="clearAnnotationsBtn" title="Clear all annotations on this step">
+                                            <button class="dock-tool-btn dock-btn-danger" id="clearAnnotationsBtn" title="Clear all annotations on this step">
                                                 <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                                             </button>
                                         </div>
                                     </div>
-
                                     <!-- ISLAND 3: HISTORY & VIEWPORT HUB -->
                                     <div class="dock-island dock-island-view">
                                         <button class="dock-tool-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
@@ -460,7 +425,7 @@
 
                                 <!-- Floating Color & Stroke Palette Popover -->
                                 <div class="palette-panel hidden" id="palettePanel">
-                                    <div class="palette-header">🎨 Color & Stroke</div>
+                                    <div class="palette-header">🎨 Color &amp; Stroke</div>
                                     <div class="palette-color-grid">
                                         <button class="color-swatch active" data-color="#ef4444" style="background: #ef4444;" title="Red"></button>
                                         <button class="color-swatch" data-color="#f59e0b" style="background: #f59e0b;" title="Amber"></button>
@@ -488,7 +453,7 @@
 
                                 <!-- Floating Text & Callout Options Popover -->
                                 <div class="text-style-picker hidden" id="textStylePicker">
-                                    <div class="text-style-header">🔤 Text & Callout Options</div>
+                                    <div class="text-style-header">🔤 Text &amp; Callout Options</div>
                                     <div class="text-options-section-label">Callout Style</div>
                                     <div class="text-style-grid">
                                         <div class="text-style-opt active" data-style="info">
@@ -519,72 +484,17 @@
                                         <button class="text-size-btn" data-size="20">Large</button>
                                         <button class="text-size-btn" data-size="26">Title</button>
                                     </div>
-                                    <div class="text-options-section-label" style="margin-top: 10px;">Quick Presets</div>
-                                    <div class="text-presets-grid">
-                                        <button class="text-preset-btn" data-preset="Click here">📍 Click here</button>
-                                        <button class="text-preset-btn" data-preset="Type text">⌨️ Type text</button>
-                                        <button class="text-preset-btn" data-preset="Important">⚠️ Important</button>
-                                        <button class="text-preset-btn" data-preset="Select option">👉 Select</button>
-                                    </div>
                                 </div>
 
-                                <div class="screenshot-stage" id="screenshotStage">
-                                    <div class="screenshot-canvas-wrapper" id="canvasWrapper" style="position: relative;">
-                                        <img id="guideImg" src="" alt="SOP Screenshot">
+                                <div class="canvas-center-wrap">
+                                    <div class="canvas-wrapper" id="canvasWrapper">
                                         <canvas id="annotationCanvas"></canvas>
-                                        <!-- Active GIF Real-Time Drag Notice -->
-                                        <div id="activeDemoAdjustNotice" class="demo-adjust-notice hidden" style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.92); border: 1px solid #6366f1; border-radius: 999px; padding: 5px 14px; font-size: 11.5px; font-weight: 700; color: #fff; z-index: 150; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); pointer-events: none; white-space: nowrap;">
-                                            <span>🎬</span> Drag cursor directly to adjust click location
-                                        </div>
-                                        <!-- Live Interactive Animated Micro-Demo Cursor Layer (Directly Draggable!) -->
-                                        <div id="liveCursorOverlay" class="live-cursor-overlay hidden">
-                                            <div id="draggableCursorHandle" class="draggable-cursor-handle" title="Click & Drag Cursor directly to reposition the micro-demo">
-                                                <div class="cursor-drag-badge" id="cursorDragBadge">
-                                                    <span>🖐️</span>
-                                                    <span id="cursorCoordsText">Drag Cursor (50%, 50%)</span>
-                                                </div>
-                                                <div class="live-click-ripple-ring ripple-ring-1"></div>
-                                                <div class="live-click-ripple-ring ripple-ring-2"></div>
-                                                <div class="live-cursor-arrow-wrapper">
-                                                    <svg class="live-cursor-svg" viewBox="0 0 28 32" width="28" height="32">
-                                                        <defs>
-                                                            <filter id="cursorShadow" x="-20%" y="-20%" width="140%" height="140%">
-                                                                <feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="rgba(0,0,0,0.5)" />
-                                                            </filter>
-                                                        </defs>
-                                                        <path d="M2 2 L2 24 L8 18 L14 29 L18 27 L12 16 L20 16 Z" fill="#ffffff" stroke="#0f172a" stroke-width="2" stroke-linejoin="round" filter="url(#cursorShadow)"/>
-                                                    </svg>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <!-- Interactive Drag-and-Drop Hotspot Target Reticle -->
-                                        <div id="hotspotReticleHandle" class="hotspot-reticle-handle hidden" title="Drag to adjust click location / Micro-demo target">
+                                        <!-- Draggable Target Pin / Reticle Element -->
+                                        <div id="hotspotReticleHandle" class="hotspot-reticle-handle hidden" style="display: none;" title="Drag to adjust click coordinates">
                                             <div class="reticle-pulse-ring"></div>
-                                            <div class="reticle-core">
-                                                <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 17.93V17a1 1 0 0 0-2 0v2.93A8.001 8.001 0 0 1 4.07 13H7a1 1 0 0 0 0-2H4.07A8.001 8.001 0 0 1 11 4.07V7a1 1 0 0 0 2 0V4.07A8.001 8.001 0 0 1 19.93 11H17a1 1 0 0 0 0 2h2.93A8.001 8.001 0 0 1 13 19.93z"/></svg>
-                                                <span class="reticle-label" id="reticleCoordsLabel">🎯 Hotspot</span>
-                                            </div>
+                                            <div class="reticle-crosshair">⌖</div>
+                                            <span id="reticleCoordsLabel" class="reticle-coords-badge">🎯 50%, 50%</span>
                                         </div>
-                                        <!-- Drag-and-Drop Image / GIF Upload Overlay -->
-                                        <div id="canvasDropOverlay" class="canvas-drop-overlay hidden">
-                                            <div class="drop-overlay-content">
-                                                <span style="font-size: 38px;">📥</span>
-                                                <div style="font-size: 15px; font-weight: 700; color: #fff;">Drop Image or GIF Here</div>
-                                                <div style="font-size: 11.5px; color: rgba(255,255,255,0.75);">Replaces screenshot or sets custom animated demo</div>
-                                            </div>
-                                        </div>
-                                        <!-- Large Centered Blocked Symbol Watermark for Deleted / Hidden Steps (Requirement 3) -->
-                                        <div id="deletedStepWatermark" class="deleted-step-watermark hidden">
-                                            <div class="watermark-content">
-                                                <div class="watermark-icon">🚫</div>
-                                                <div class="watermark-title">STEP DELETED / HIDDEN</div>
-                                                <div class="watermark-sub">This step is excluded from SOP exports and walkthrough simulations.</div>
-                                                <button id="btnRestoreStepCanvas" class="btn btn-restore btn-sm" style="margin-top: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">↺ Restore This Step</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div id="noScreenshot" class="no-screenshot-message hidden">
-                                        No screenshot was recorded for this step.
                                     </div>
                                 </div>
                                 <!-- Floating Toggle Button to Expand Step Detail Drawer when closed -->
@@ -594,116 +504,115 @@
                                 </button>
                             </div>
 
+                            <!-- RIGHT SIDEBAR: STEP DETAILS INSPECTOR DRAWER -->
                             <div class="step-detail-drawer open" id="stepDetailDrawer">
-                                <div class="guide-card-header" style="padding: 16px 18px 12px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-                                    <div class="drawer-top-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <div class="guide-card-header" style="padding: 14px 16px 10px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                    <div class="drawer-top-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                                         <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span id="guideStepBadge" class="step-badge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);">STEP 1</span>
-                                            <label class="approve-checkbox-label" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #10b981; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                                            <span id="guideStepBadge" class="step-badge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 11px; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.5px;">STEP 1</span>
+                                            <label class="approve-checkbox-label" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #10b981; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
                                                 <input type="checkbox" id="guideStepApproved" style="cursor: pointer;"> APPROVED
                                             </label>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 4px;">
-                                            <button id="btnRefreshGuideStep" class="btn btn-secondary btn-xs" title="Refresh step from server" style="padding: 3px 8px; font-weight: 700;">🔄 Refresh</button>
-                                            <button id="btnToggleHideActiveStep" class="btn btn-secondary btn-xs" title="Hide/Unhide this step" style="padding: 3px 8px; font-weight: 700;">👁️ Hide</button>
-                                            <button id="btnDeleteActiveStep" class="btn btn-danger btn-xs" title="Delete this step" style="padding: 3px 8px; font-weight: 700;">🗑️ Delete</button>
-                                            <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Step Details Panel (Hide Sidebar)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(255,255,255,0.06); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-main, #fff); font-size: 11px; font-weight: 700; transition: all 0.15s ease;">
-                                                <span>⇥</span> Collapse
+                                            <button id="btnRefreshGuideStep" class="btn btn-secondary btn-xs" title="Refresh step from server" style="padding: 3px 7px; font-size: 11px;">🔄</button>
+                                            <button id="btnToggleHideActiveStep" class="btn btn-secondary btn-xs" title="Hide/Unhide this step" style="padding: 3px 7px; font-size: 11px;">👁️</button>
+                                            <button id="btnDeleteActiveStep" class="btn btn-danger btn-xs" title="Delete this step" style="padding: 3px 7px; font-size: 11px;">🗑️</button>
+                                            <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Step Details Panel (Hide Sidebar)" style="padding: 3px 7px; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(255,255,255,0.06); cursor: pointer; color: var(--text-main, #fff); font-size: 11px; font-weight: 700;">
+                                                ⇥
                                             </button>
                                         </div>
                                     </div>
-                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
-                                        <h3 id="guideStepTitle" class="guide-step-title" contenteditable="true" title="Click to edit title" style="flex: 1; margin: 0;">Step Title</h3>
-                                        <button id="btnCopyGuideTitle" class="btn btn-secondary btn-xs" style="padding: 2px 6px; font-size: 11px; flex-shrink: 0;" title="Copy title to clipboard">📋 Copy</button>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+                                        <h3 id="guideStepTitle" class="guide-step-title" contenteditable="true" title="Click to edit title" style="flex: 1; margin: 0; font-size: 15px; font-weight: 700;">Step Title</h3>
+                                        <button id="btnCopyGuideTitle" class="btn btn-secondary btn-xs" style="padding: 2px 6px; font-size: 10px; flex-shrink: 0;" title="Copy title to clipboard">📋</button>
                                     </div>
-                                    <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description">Step description will appear here...</p>
-                                    <div class="drawer-segmented-tabs" style="display: flex; gap: 4px; background: rgba(0,0,0,0.15); padding: 4px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-                                        <button class="drawer-seg-btn active" data-view="hotspot" style="flex: 1.1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🎯 Hotspot &amp; Focus</button>
-                                        <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">💡 Notes &amp; Audio</button>
-                                        <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔀 Branching</button>
-                                        <button class="drawer-seg-btn" data-view="meta" style="flex: 0.8; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔍 Meta</button>
-                                        <button class="drawer-seg-btn" data-view="all" style="flex: 0.7; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">📋 All</button>
+                                    <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description" style="font-size: 12px; margin: 0 0 8px 0; color: var(--text-muted);">Step description will appear here...</p>
+                                    
+                                    <!-- 4 Direct Professional Segmented Tabs -->
+                                    <div class="drawer-segmented-tabs" style="display: flex; gap: 3px; background: rgba(0,0,0,0.18); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                        <button class="drawer-seg-btn active" data-view="hotspot" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🎯 Hotspot &amp; Focus</button>
+                                        <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">💡 Notes &amp; Audio</button>
+                                        <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔀 Branching</button>
+                                        <button class="drawer-seg-btn" data-view="meta" style="flex: 0.9; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔍 Details</button>
                                     </div>
                                 </div>
-                                <div class="guide-card-body" style="padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
-                                    <!-- Element Focus & Spotlight Toggle Card -->
-                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.12)); border: 1px solid rgba(99, 102, 241, 0.28); border-radius: 12px; margin-bottom: 2px; box-shadow: 0 2px 10px rgba(99, 102, 241, 0.06);">
-                                        <div style="display: flex; align-items: center; gap: 10px;">
-                                            <span style="font-size: 18px;">🎯</span>
-                                            <div>
-                                                <div class="drawer-spotlight-title" style="font-size: 12.5px; font-weight: 800; color: var(--text-main, #fff);">Element Focus &amp; Spotlight</div>
-                                                <div class="drawer-spotlight-sub" style="font-size: 11px; color: var(--text-muted, #94a3b8);">Highlight target action on screenshot</div>
+
+                                <div class="guide-card-body" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto;">
+                                    
+                                    <!-- TAB PANE 1: HOTSPOT & FOCUS -->
+                                    <div id="drawerPaneHotspot" class="drawer-content-pane" style="display: flex; flex-direction: column; gap: 10px;">
+                                        <!-- Element Focus & Spotlight Toggle Card -->
+                                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.12)); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span style="font-size: 16px;">🎯</span>
+                                                <div>
+                                                    <div class="drawer-spotlight-title" style="font-size: 12px; font-weight: 800; color: var(--text-main, #fff);">Element Focus &amp; Spotlight</div>
+                                                    <div class="drawer-spotlight-sub" style="font-size: 10.5px; color: var(--text-muted, #94a3b8);">Darken background &amp; highlight action</div>
+                                                </div>
                                             </div>
+                                            <button id="btnDrawerFocusToggle" class="btn btn-secondary btn-xs" style="font-size: 10.5px; font-weight: 800; padding: 4px 10px; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.1); color: #10b981;">
+                                                <span id="drawerFocusDot" style="width: 6px; height: 6px; border-radius: 50%; background: #10b981;"></span>
+                                                <span id="drawerFocusText">ON</span>
+                                            </button>
                                         </div>
-                                        <button id="btnDrawerFocusToggle" class="btn btn-secondary btn-xs" style="font-size: 11px; font-weight: 800; padding: 5px 12px; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; border: 1px solid rgba(16,185,129,0.4); background: rgba(16,185,129,0.1); color: #10b981;">
-                                            <span id="drawerFocusDot" style="width: 7px; height: 7px; border-radius: 50%; background: #10b981;"></span>
-                                            <span id="drawerFocusText">ON</span>
-                                        </button>
-                                    </div>
-                                    <div class="drawer-accordion-card">
-                                        <div class="drawer-accordion-header" data-target="drawerAccHotspot">
-                                            <span class="drawer-acc-title">🎯 Interactive Hotspot &amp; Coordinates</span>
-                                            <span class="drawer-acc-chevron">▾</span>
-                                        </div>
-                                        <div class="drawer-accordion-content" id="drawerAccHotspot">
+
+                                        <!-- Hotspot Target Card -->
+                                        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
                                             <div class="field-group" style="margin-bottom: 8px;">
-                                                <label style="font-size: 11px;">Target Click Prompt</label>
-                                                <input type="text" id="guideHotspotPrompt" placeholder="e.g. Click the Search Box" class="form-control" style="font-size: 12px; padding: 4px 8px;">
+                                                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Target Click Prompt</label>
+                                                <input type="text" id="guideHotspotPrompt" placeholder="e.g. Click the Search Box" class="form-control" style="font-size: 12px; padding: 5px 8px;">
                                             </div>
-                                            <div class="hotspot-coords-grid">
+                                            <div class="hotspot-coords-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px;">
                                                 <div class="coord-field">
-                                                    <label>Left (X%)</label>
-                                                    <input type="number" id="hotspotX" min="0" max="100" step="1" value="40" class="form-control coord-input">
+                                                    <label style="font-size: 10px; color: var(--text-muted);">Left (X%)</label>
+                                                    <input type="number" id="hotspotX" min="0" max="100" step="1" value="40" class="form-control coord-input" style="font-size: 11px; padding: 4px;">
                                                 </div>
                                                 <div class="coord-field">
-                                                    <label>Top (Y%)</label>
-                                                    <input type="number" id="hotspotY" min="0" max="100" step="1" value="40" class="form-control coord-input">
+                                                    <label style="font-size: 10px; color: var(--text-muted);">Top (Y%)</label>
+                                                    <input type="number" id="hotspotY" min="0" max="100" step="1" value="40" class="form-control coord-input" style="font-size: 11px; padding: 4px;">
                                                 </div>
                                                 <div class="coord-field">
-                                                    <label>Width (%)</label>
-                                                    <input type="number" id="hotspotW" min="2" max="100" step="1" value="20" class="form-control coord-input">
+                                                    <label style="font-size: 10px; color: var(--text-muted);">Width (%)</label>
+                                                    <input type="number" id="hotspotW" min="2" max="100" step="1" value="20" class="form-control coord-input" style="font-size: 11px; padding: 4px;">
                                                 </div>
                                                 <div class="coord-field">
-                                                    <label>Height (%)</label>
-                                                    <input type="number" id="hotspotH" min="2" max="100" step="1" value="20" class="form-control coord-input">
+                                                    <label style="font-size: 10px; color: var(--text-muted);">Height (%)</label>
+                                                    <input type="number" id="hotspotH" min="2" max="100" step="1" value="20" class="form-control coord-input" style="font-size: 11px; padding: 4px;">
                                                 </div>
                                             </div>
                                             <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
-                                                <button id="btnDrawerTogglePin" class="btn btn-secondary btn-sm" style="width: 100%; justify-content: center; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;" title="Show or hide red target hotspot circle on screenshot">
-                                                    <span>🎯 Pin Target Ring:</span>
-                                                    <span id="drawerPinLabel" style="color: #10b981; font-weight: 800;">VISIBLE</span>
-                                                </button>
-                                                <button id="btnPickHotspotClick" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);" title="Click anywhere on the screenshot to place and lock the target">
+                                                <button id="btnPickHotspotClick" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 7px 10px;" title="Click anywhere on the screenshot to place and lock the target">
                                                     <span>📍</span> Click on Image to Place Hotspot
                                                 </button>
-                                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;">
-                                                    <button id="btnSyncFromSpotlight" class="btn btn-secondary btn-xs" style="padding: 5px 2px; font-size: 10.5px; font-weight: 600; justify-content: center; text-align: center; white-space: nowrap;" title="Sync hotspot with spotlight bounding box">🎯 Spotlight</button>
-                                                    <button id="btnResetHotspot" class="btn btn-secondary btn-xs" style="padding: 5px 2px; font-size: 10.5px; font-weight: 600; justify-content: center; text-align: center; white-space: nowrap;" title="Center hotspot in screenshot">⊕ Center</button>
-                                                    <button id="btnAutoDetectHotspot" class="btn btn-secondary btn-xs" style="padding: 5px 2px; font-size: 10.5px; font-weight: 600; justify-content: center; text-align: center; white-space: nowrap;" title="Auto-detect UI element target">⚡ Auto-Detect</button>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                                    <button id="btnDrawerTogglePin" class="btn btn-secondary btn-xs" style="font-weight: 700; justify-content: center; display: inline-flex; align-items: center; gap: 4px; padding: 5px 6px;" title="Toggle red target ring visibility on screenshot">
+                                                        <span>🎯 Ring:</span>
+                                                        <span id="drawerPinLabel" style="color: #94a3b8; font-weight: 800;">HIDDEN</span>
+                                                    </button>
+                                                    <button id="btnSyncFromSpotlight" class="btn btn-secondary btn-xs" style="padding: 5px 6px; font-size: 11px; font-weight: 600; justify-content: center;" title="Sync hotspot with spotlight bounding box">🎯 Spotlight</button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="drawer-accordion-card">
-                                        <div class="drawer-accordion-header" data-target="drawerAccExpected">
-                                            <span class="drawer-acc-title">💡 Expected Results &amp; Notes</span>
-                                            <span class="drawer-acc-chevron">▾</span>
-                                        </div>
-                                        <div class="drawer-accordion-content" id="drawerAccExpected">
+
+                                    <!-- TAB PANE 2: NOTES & AUDIO -->
+                                    <div id="drawerPaneNotes" class="drawer-content-pane hidden" style="display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
                                             <div class="field-group" style="margin-bottom: 8px;">
-                                                <label>Expected Result</label>
-                                                <textarea id="guideStepExpected" placeholder="What should happen after this step?"></textarea>
+                                                <label style="font-size: 11px; font-weight: 700; color: #10b981;">✓ Expected Result</label>
+                                                <textarea id="guideStepExpected" placeholder="What should happen after this step?" style="width: 100%; min-height: 50px; font-size: 12px;"></textarea>
                                             </div>
                                             <div class="field-group" style="margin-bottom: 8px;">
-                                                <label>Instructor Notes</label>
-                                                <textarea id="guideStepNote" placeholder="Additional hints, security warnings, tips..."></textarea>
+                                                <label style="font-size: 11px; font-weight: 700; color: #f59e0b;">💡 Instructor / Operator Notes</label>
+                                                <textarea id="guideStepNote" placeholder="Additional hints, security warnings, tips..." style="width: 100%; min-height: 50px; font-size: 12px;"></textarea>
                                             </div>
                                             <div class="field-group">
-                                                <label>Voiceover Narration</label>
-                                                <textarea id="guideStepVoiceover" placeholder="Custom text to speak during narration (optional)..."></textarea>
+                                                <label style="font-size: 11px; font-weight: 700; color: #818cf8;">🎙️ Voiceover Narration</label>
+                                                <textarea id="guideStepVoiceover" placeholder="Custom text to speak during presentation mode..." style="width: 100%; min-height: 50px; font-size: 12px;"></textarea>
                                                 <div style="display: flex; gap: 6px; margin-top: 6px;">
                                                     <button id="btnPlayStepVoiceover" class="btn btn-secondary btn-xs" style="flex: 1; font-weight: 700; color: #818cf8; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
-                                                        <span>▶️</span> Listen Voiceover
+                                                        <span>▶️</span> Listen
                                                     </button>
                                                     <button id="btnAiDraftVoiceover" class="btn btn-secondary btn-xs" style="flex: 1; font-weight: 700; color: #10b981; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
                                                         <span>✨</span> AI Draft
@@ -712,58 +621,54 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <!-- Decision Branching Accordion Card -->
-                                    <div class="drawer-accordion-card">
-                                        <div class="drawer-accordion-header" data-target="drawerAccBranching">
-                                            <span class="drawer-acc-title">🔀 Decision Branching (Decision Trees)</span>
-                                            <span class="drawer-acc-chevron">▾</span>
-                                        </div>
-                                        <div class="drawer-accordion-content" id="drawerAccBranching">
+
+                                    <!-- TAB PANE 3: DECISION BRANCHING -->
+                                    <div id="drawerPaneBranch" class="drawer-content-pane hidden" style="display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
                                             <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.35;">
                                                  Add conditional choice buttons (e.g., <em>"If Admin → Step 4"</em>, <em>"If Standard → Step 8"</em>) for interactive routing during Playback &amp; Guide Me modes.
                                             </p>
                                             <div id="stepBranchList" class="step-branch-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;"></div>
-                                            <button id="btnAddStepBranch" class="btn btn-secondary btn-xs" style="width: 100%; justify-content: center; font-weight: 600; color: #818cf8; border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.06);">
+                                            <button id="btnAddStepBranch" class="btn btn-secondary btn-xs" style="width: 100%; justify-content: center; font-weight: 700; color: #818cf8; border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.08); padding: 6px 10px;">
                                                 + Add Decision Branch
                                             </button>
                                         </div>
                                     </div>
-                                    <div class="drawer-accordion-card">
-                                        <div class="drawer-accordion-header" data-target="drawerAccMeta">
-                                            <span class="drawer-acc-title">🔍 Element &amp; Action Details</span>
-                                            <span class="drawer-acc-chevron">▾</span>
-                                        </div>
-                                        <div class="drawer-accordion-content hidden" id="drawerAccMeta">
-                                            <div class="step-meta-info">
+
+                                    <!-- TAB PANE 4: ACTION DETAILS -->
+                                    <div id="drawerPaneMeta" class="drawer-content-pane hidden" style="display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
+                                            <div class="step-meta-info" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11.5px;">
                                                 <div class="meta-item">
-                                                    <span class="meta-label">Action:</span>
-                                                    <span id="guideMetaAction" class="meta-val">—</span>
+                                                    <span class="meta-label" style="color: var(--text-muted);">Action:</span>
+                                                    <span id="guideMetaAction" class="meta-val" style="font-weight: 600;">—</span>
                                                 </div>
                                                 <div class="meta-item">
-                                                    <span class="meta-label">Value:</span>
-                                                    <span id="guideMetaValue" class="meta-val">—</span>
+                                                    <span class="meta-label" style="color: var(--text-muted);">Value:</span>
+                                                    <span id="guideMetaValue" class="meta-val" style="font-weight: 600;">—</span>
                                                 </div>
                                                 <div class="meta-item">
-                                                    <span class="meta-label">⏱ Time:</span>
+                                                    <span class="meta-label" style="color: var(--text-muted);">⏱ Time:</span>
                                                     <span id="guideMetaTimestamp" class="meta-val">—</span>
                                                 </div>
                                                 <div class="meta-item">
-                                                    <span class="meta-label">⏩ Since Prev:</span>
+                                                    <span class="meta-label" style="color: var(--text-muted);">⏩ Duration:</span>
                                                     <span id="guideMetaDuration" class="meta-val" style="color: #a5b4fc;">—</span>
                                                 </div>
-                                                <div class="meta-item span-2">
-                                                    <span class="meta-label">CSS Selector:</span>
-                                                    <code id="guideMetaSelector" class="meta-val-code">—</code>
+                                                <div class="meta-item span-2" style="grid-column: span 2;">
+                                                    <span class="meta-label" style="color: var(--text-muted);">CSS Selector:</span>
+                                                    <code id="guideMetaSelector" class="meta-val-code" style="font-size: 10.5px; word-break: break-all;">—</code>
                                                 </div>
-                                                <div class="meta-item span-2">
-                                                    <span class="meta-label">XPath:</span>
-                                                    <code id="guideMetaXpath" class="meta-val-code">—</code>
+                                                <div class="meta-item span-2" style="grid-column: span 2;">
+                                                    <span class="meta-label" style="color: var(--text-muted);">XPath:</span>
+                                                    <code id="guideMetaXpath" class="meta-val-code" style="font-size: 10.5px; word-break: break-all;">—</code>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
+
                                 </div>
-                                <div class="guide-card-footer" style="padding: 14px 18px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--bg-surface-elevated, #182234);">
+                                <div class="guide-card-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--bg-surface-elevated, #182234);">
                                     <button id="saveEditsBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
                                         ✓ Save Details
                                     </button>
