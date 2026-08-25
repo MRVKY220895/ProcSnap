@@ -2117,52 +2117,7 @@ class AnnotationCanvasEngine {
                 this.ctx.setLineDash([]);
             }
             else if (s.type === "spotlight") {
-                const cx = pos.x + w / 2;
-                const cy = pos.y + h / 2;
-                const rx = Math.abs(w / 2) + 20;
-                const ry = Math.abs(h / 2) + 20;
-                const cw = this.canvas.width;
-                const ch = this.canvas.height;
-
-                // Dark overlay with ellipse punch-out using composite
-                this.ctx.save();
-                this.ctx.globalAlpha = 0.45;
-                this.ctx.fillStyle = "#000000";
-                this.ctx.fillRect(0, 0, cw, ch);
-                this.ctx.globalCompositeOperation = "destination-out";
-                this.ctx.beginPath();
-                this.ctx.ellipse(cx, cy, rx + 10, ry + 10, 0, 0, 2 * Math.PI);
-                this.ctx.fill();
-                this.ctx.restore();
-
-                // Glowing border ring
-                this.ctx.save();
-                this.ctx.globalAlpha = 1;
-                this.ctx.strokeStyle = s.color || "#6366f1";
-                this.ctx.lineWidth = 3;
-                this.ctx.shadowColor = s.color || "#6366f1";
-                this.ctx.shadowBlur = 14;
-                this.ctx.beginPath();
-                this.ctx.ellipse(cx, cy, rx + 10, ry + 10, 0, 0, 2 * Math.PI);
-                this.ctx.stroke();
-                this.ctx.restore();
-
-                // Step number badge
-                if (s.label) {
-                    const bx = cx + rx + 10;
-                    const by = cy - ry - 10;
-                    this.ctx.save();
-                    this.ctx.fillStyle = s.color || "#6366f1";
-                    this.ctx.beginPath();
-                    this.ctx.arc(bx, by, 12, 0, 2 * Math.PI);
-                    this.ctx.fill();
-                    this.ctx.fillStyle = "#ffffff";
-                    this.ctx.font = "bold 11px Arial";
-                    this.ctx.textAlign = "center";
-                    this.ctx.textBaseline = "middle";
-                    this.ctx.fillText(s.label, bx, by);
-                    this.ctx.restore();
-                }
+                // Kept clean without elliptical glow circles
             }
             else if (s.type === "arrow") {
                 this.drawArrow(pos.x, pos.y, pos.x + w, pos.y + h, s.lineWidth || 3);

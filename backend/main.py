@@ -2695,7 +2695,7 @@ def generate_step_animation(
 
         frames = []
         total_frames = 14
-        cursor_scale = max(1.2, min(3.5, float(width) / 1280.0))
+        cursor_scale = max(0.85, min(1.4, float(width) / 1920.0))
 
         for f in range(total_frames):
             frame = base_img.copy()
@@ -2709,52 +2709,52 @@ def generate_step_animation(
                 cur_x = start_x + (target_x - start_x) * ease_t
                 cur_y = start_y + (target_y - start_y) * ease_t
 
-                # Draw modern cursor scaled proportionally to resolution
+                # Sleek compact pointer arrow
                 points = [
                     (cur_x, cur_y),
-                    (cur_x, cur_y + 24 * s),
-                    (cur_x + 6 * s, cur_y + 18 * s),
-                    (cur_x + 12 * s, cur_y + 28 * s),
-                    (cur_x + 16 * s, cur_y + 26 * s),
-                    (cur_x + 10 * s, cur_y + 16 * s),
-                    (cur_x + 18 * s, cur_y + 16 * s),
+                    (cur_x, cur_y + 16 * s),
+                    (cur_x + 4 * s, cur_y + 12 * s),
+                    (cur_x + 8 * s, cur_y + 19 * s),
+                    (cur_x + 11 * s, cur_y + 17.5 * s),
+                    (cur_x + 7 * s, cur_y + 11 * s),
+                    (cur_x + 12 * s, cur_y + 11 * s),
                 ]
-                shadow_points = [(px + 3 * s, py + 3 * s) for px, py in points]
-                draw.polygon(shadow_points, fill=(0, 0, 0, 110))
+                shadow_points = [(px + 1.5 * s, py + 1.5 * s) for px, py in points]
+                draw.polygon(shadow_points, fill=(0, 0, 0, 90))
                 draw.polygon(points, fill=(255, 255, 255, 255), outline=(15, 23, 42, 255))
             else:
                 # Click ripple phase
                 rf = f - 9  # 0 to 4
                 cur_x, cur_y = target_x, target_y
                 
-                # Expanding ripple ring
-                radius = (14 + rf * 12) * s
-                alpha = int(230 * (1.0 - (rf / 5.0)))
+                # Expanding subtle ripple ring
+                radius = (10 + rf * 8) * s
+                alpha = int(220 * (1.0 - (rf / 5.0)))
                 
                 draw.ellipse(
                     [cur_x - radius, cur_y - radius, cur_x + radius, cur_y + radius],
                     outline=(239, 68, 68, alpha),
-                    width=max(3, int(3 * s))
+                    width=max(2, int(2 * s))
                 )
-                if radius > 18 * s:
+                if radius > 14 * s:
                     draw.ellipse(
-                        [cur_x - radius + 8 * s, cur_y - radius + 8 * s, cur_x + radius - 8 * s, cur_y + radius - 8 * s],
+                        [cur_x - radius + 5 * s, cur_y - radius + 5 * s, cur_x + radius - 5 * s, cur_y + radius - 5 * s],
                         outline=(168, 85, 247, int(alpha * 0.7)),
-                        width=max(2, int(2 * s))
+                        width=max(1, int(1.5 * s))
                     )
 
-                # Pressed cursor
+                # Pressed compact cursor
                 points = [
                     (cur_x, cur_y),
-                    (cur_x, cur_y + 21 * s),
-                    (cur_x + 5 * s, cur_y + 16 * s),
-                    (cur_x + 10 * s, cur_y + 25 * s),
-                    (cur_x + 14 * s, cur_y + 23 * s),
-                    (cur_x + 8 * s, cur_y + 14 * s),
-                    (cur_x + 16 * s, cur_y + 14 * s),
+                    (cur_x, cur_y + 14 * s),
+                    (cur_x + 3.5 * s, cur_y + 10.5 * s),
+                    (cur_x + 7 * s, cur_y + 16.5 * s),
+                    (cur_x + 9.5 * s, cur_y + 15 * s),
+                    (cur_x + 5.5 * s, cur_y + 9.5 * s),
+                    (cur_x + 10.5 * s, cur_y + 9.5 * s),
                 ]
-                shadow_points = [(px + 2 * s, py + 2 * s) for px, py in points]
-                draw.polygon(shadow_points, fill=(0, 0, 0, 110))
+                shadow_points = [(px + 1.5 * s, py + 1.5 * s) for px, py in points]
+                draw.polygon(shadow_points, fill=(0, 0, 0, 90))
                 draw.polygon(points, fill=(240, 240, 240, 255), outline=(220, 38, 38, 255))
 
             frames.append(frame.convert("RGB"))
