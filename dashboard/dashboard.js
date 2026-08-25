@@ -1380,7 +1380,7 @@ class AnnotationCanvasEngine {
         if (thickSlider) {
             thickSlider.oninput = () => {
                 const val = thickSlider.value;
-                $("lineWidthVal").textContent = `${val}px`;
+                if ($("lineWidthVal")) $("lineWidthVal").textContent = `${val}px`;
                 this.currentLineWidth = parseInt(val);
                 this.applyStyleToActiveShape("lineWidth", this.currentLineWidth);
             };
@@ -1391,7 +1391,7 @@ class AnnotationCanvasEngine {
         if (opSlider) {
             opSlider.oninput = () => {
                 const val = opSlider.value;
-                $("opacityVal").textContent = `${val}%`;
+                if ($("opacityVal")) $("opacityVal").textContent = `${val}%`;
                 this.currentOpacity = parseFloat(val) / 100;
                 this.applyStyleToActiveShape("opacity", this.currentOpacity);
             };
@@ -1402,7 +1402,7 @@ class AnnotationCanvasEngine {
         if (sizeSlider) {
             sizeSlider.oninput = () => {
                 const val = sizeSlider.value;
-                $("textSizeVal").textContent = `${val}px`;
+                if ($("textSizeVal")) $("textSizeVal").textContent = `${val}px`;
                 this.currentTextSize = parseInt(val);
                 this.applyStyleToActiveShape("textSize", this.currentTextSize);
             };
@@ -1450,33 +1450,25 @@ class AnnotationCanvasEngine {
 
         // Sync line width
         const lw = shape.lineWidth || 3;
-        if ($("lineWidthSlider")) {
-            $("lineWidthSlider").value = lw;
-            $("lineWidthVal").textContent = `${lw}px`;
-        }
+        if ($("lineWidthSlider")) $("lineWidthSlider").value = lw;
+        if ($("lineWidthVal")) $("lineWidthVal").textContent = `${lw}px`;
         this.currentLineWidth = lw;
 
         // Sync opacity
         const op = shape.opacity !== undefined ? shape.opacity : 1;
-        if ($("opacitySlider")) {
-            $("opacitySlider").value = Math.round(op * 100);
-            $("opacityVal").textContent = `${Math.round(op * 100)}%`;
-        }
+        if ($("opacitySlider")) $("opacitySlider").value = Math.round(op * 100);
+        if ($("opacityVal")) $("opacityVal").textContent = `${Math.round(op * 100)}%`;
         this.currentOpacity = op;
 
         // Sync text size
         const ts = shape.textSize || 12;
-        if ($("textSizeSlider")) {
-            $("textSizeSlider").value = ts;
-            $("textSizeVal").textContent = `${ts}px`;
-        }
+        if ($("textSizeSlider")) $("textSizeSlider").value = ts;
+        if ($("textSizeVal")) $("textSizeVal").textContent = `${ts}px`;
         this.currentTextSize = ts;
 
         // Sync font family
         const ff = shape.fontFamily || "Inter";
-        if ($("fontFamilySelect")) {
-            $("fontFamilySelect").value = ff;
-        }
+        if ($("fontFamilySelect")) $("fontFamilySelect").value = ff;
         this.currentFontFamily = ff;
     }
 
@@ -2852,149 +2844,163 @@ function captureStreamFrame(stream) {
         });
 
         // Replace Step Screenshot (Phase 11)
-        $("replaceScreenshotInput").onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        if ($("replaceScreenshotInput")) {
+            $("replaceScreenshotInput").onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
 
-            const steps = workflow.steps || [];
-            const step = steps[currentStepIndex];
-            if (!step) return;
+                const steps = workflow.steps || [];
+                const step = steps[currentStepIndex];
+                if (!step) return;
 
-            const reader = new FileReader();
-            reader.onload = async () => {
-                const base64Img = reader.result;
-                try {
-                    const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/screenshot`, {
-                        method: "POST",
-                        body: JSON.stringify({ image: base64Img })
-                    });
-                    if (res.success) {
-                        step.screenshotUrl = res.screenshotUrl;
-                        loadActiveStepDetails();
-                        renderStepThumbnails();
-                        showToast("Screenshot replaced successfully.");
-                    } else {
-                        showToast("Failed to replace screenshot.");
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    const base64Img = reader.result;
+                    try {
+                        const res = await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/screenshot`, {
+                            method: "POST",
+                            body: JSON.stringify({ image: base64Img })
+                        });
+                        if (res.success) {
+                            step.screenshotUrl = res.screenshotUrl;
+                            loadActiveStepDetails();
+                            renderStepThumbnails();
+                            showToast("Screenshot replaced successfully.");
+                        } else {
+                            showToast("Failed to replace screenshot.");
+                        }
+                    } catch (err) {
+                        showToast("Error replacing screenshot: " + err.message);
                     }
-                } catch (err) {
-                    showToast("Error replacing screenshot: " + err.message);
-                }
+                };
+                reader.readAsDataURL(file);
             };
-            reader.readAsDataURL(file);
-        };
+        }
 
         // AI Enhance Step
-        $("aiEnhanceStepBtn").onclick = async () => {
-            const steps = workflow.steps || [];
-            const step = steps[currentStepIndex];
-            if (!step) return;
+        if ($("aiEnhanceStepBtn")) {
+            $("aiEnhanceStepBtn").onclick = async () => {
+                const steps = workflow.steps || [];
+                const step = steps[currentStepIndex];
+                if (!step) return;
 
-            const originalText = $("aiEnhanceStepBtn").textContent;
-            $("aiEnhanceStepBtn").textContent = "✨ Thinking...";
-            $("aiEnhanceStepBtn").disabled = true;
+                const originalText = $("aiEnhanceStepBtn").textContent;
+                $("aiEnhanceStepBtn").textContent = "✨ Thinking...";
+                $("aiEnhanceStepBtn").disabled = true;
 
-            try {
-                const res = await api("/ai/describe-step", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        step_id: step.id,
-                        session_id: workflow.id
-                    })
-                });
+                try {
+                    const res = await api("/ai/describe-step", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            step_id: step.id,
+                            session_id: workflow.id
+                        })
+                    });
 
-                if (res.success || res.title) {
-                    if (res.title) $("guideStepTitle").textContent = res.title;
-                    if (res.description) $("guideStepDesc").textContent = res.description;
-                    if (res.expected && $("guideStepExpected")) $("guideStepExpected").value = res.expected;
-                    
-                    if (res.title) step.title = res.title;
-                    if (res.description) step.description = res.description;
-                    if (res.expected) step.expected = res.expected;
+                    if (res.success || res.title) {
+                        if (res.title && $("guideStepTitle")) $("guideStepTitle").textContent = res.title;
+                        if (res.description && $("guideStepDesc")) $("guideStepDesc").textContent = res.description;
+                        if (res.expected && $("guideStepExpected")) $("guideStepExpected").value = res.expected;
+                        
+                        if (res.title) step.title = res.title;
+                        if (res.description) step.description = res.description;
+                        if (res.expected) step.expected = res.expected;
 
-                    showToast("✨ Step enhanced with AI!");
-                } else {
-                    showToast("AI model returned empty response.");
+                        showToast("✨ Step enhanced with AI!");
+                    } else {
+                        showToast("AI model returned empty response.");
+                    }
+                } catch (e) {
+                    console.error("AI Enhance Error:", e);
+                    showToast("Ollama Offline. Start Ollama and load models first.");
+                } finally {
+                    if ($("aiEnhanceStepBtn")) {
+                        $("aiEnhanceStepBtn").textContent = originalText;
+                        $("aiEnhanceStepBtn").disabled = false;
+                    }
                 }
-            } catch (e) {
-                console.error("AI Enhance Error:", e);
-                showToast("Ollama Offline. Start Ollama and load models first.");
-            } finally {
-                $("aiEnhanceStepBtn").textContent = originalText;
-                $("aiEnhanceStepBtn").disabled = false;
-            }
-        };
+            };
+        }
 
         // AI Polish SOP
-        $("aiPolishBtn").onclick = async () => {
-            if (!workflow) return;
+        if ($("aiPolishBtn")) {
+            $("aiPolishBtn").onclick = async () => {
+                if (!workflow) return;
 
-            const originalText = $("aiPolishBtn").textContent;
-            $("aiPolishBtn").textContent = "🤖 Polishing...";
-            $("aiPolishBtn").disabled = true;
+                const originalText = $("aiPolishBtn").textContent;
+                $("aiPolishBtn").textContent = "🤖 Polishing...";
+                $("aiPolishBtn").disabled = true;
 
-            try {
-                const res = await api("/ai/polish-sop", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        session_id: workflow.id
-                    })
-                });
+                try {
+                    const res = await api("/ai/polish-sop", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            session_id: workflow.id
+                        })
+                    });
 
-                if (res.success) {
-                    showToast("SOP text polished by AI.");
-                    await openWorkflow(workflow.id);
-                } else {
-                    showToast("SOP polish failed.");
+                    if (res.success) {
+                        showToast("SOP text polished by AI.");
+                        await openWorkflow(workflow.id);
+                    } else {
+                        showToast("SOP polish failed.");
+                    }
+                } catch (e) {
+                    console.error("AI Polish Error:", e);
+                    showToast("AI Offline. Please start Ollama first.");
+                } finally {
+                    if ($("aiPolishBtn")) {
+                        $("aiPolishBtn").textContent = originalText;
+                        $("aiPolishBtn").disabled = false;
+                    }
                 }
-            } catch (e) {
-                console.error("AI Polish Error:", e);
-                showToast("AI Offline. Please start Ollama first.");
-            } finally {
-                $("aiPolishBtn").textContent = originalText;
-                $("aiPolishBtn").disabled = false;
-            }
-        };
+            };
+        }
 
         // AI Auto-Redact
-        $("tool-ai-redact").onclick = async () => {
-            const steps = workflow.steps || [];
-            const step = steps[currentStepIndex];
-            if (!step) return;
+        if ($("tool-ai-redact")) {
+            $("tool-ai-redact").onclick = async () => {
+                const steps = workflow.steps || [];
+                const step = steps[currentStepIndex];
+                if (!step) return;
 
-            const originalHtml = $("tool-ai-redact").innerHTML;
-            $("tool-ai-redact").innerHTML = "...";
-            $("tool-ai-redact").disabled = true;
+                const originalHtml = $("tool-ai-redact").innerHTML;
+                $("tool-ai-redact").innerHTML = "...";
+                $("tool-ai-redact").disabled = true;
 
-            try {
-                const res = await api("/ai/detect-redact", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        step_id: step.id,
-                        session_id: workflow.id
-                    })
-                });
+                try {
+                    const res = await api("/ai/detect-redact", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            step_id: step.id,
+                            session_id: workflow.id
+                        })
+                    });
 
-                if (res.success && res.regions && res.regions.length > 0) {
-                    canvasEngine.pushHistory();
-                    const currentAnnotations = step.annotations || [];
-                    const updated = [...currentAnnotations, ...res.regions];
-                    
-                    step.annotations = updated;
-                    canvasEngine.setAnnotations(updated);
-                    await saveStepAnnotations(updated);
-                    
-                    showToast(`AI redacted ${res.regions.length} sensitive area(s).`);
-                } else {
-                    showToast("No confidential fields detected on this page.");
+                    if (res.success && res.regions && res.regions.length > 0) {
+                        canvasEngine?.pushHistory();
+                        const currentAnnotations = step.annotations || [];
+                        const updated = [...currentAnnotations, ...res.regions];
+                        
+                        step.annotations = updated;
+                        canvasEngine?.setAnnotations(updated);
+                        await saveStepAnnotations(updated);
+                        
+                        showToast(`AI redacted ${res.regions.length} sensitive area(s).`);
+                    } else {
+                        showToast("No confidential fields detected on this page.");
+                    }
+                } catch (e) {
+                    console.error("AI Redact Error:", e);
+                    showToast("Ollama Offline. Start Ollama and pull models first.");
+                } finally {
+                    if ($("tool-ai-redact")) {
+                        $("tool-ai-redact").innerHTML = originalHtml;
+                        $("tool-ai-redact").disabled = false;
+                    }
                 }
-            } catch (e) {
-                console.error("AI Redact Error:", e);
-                showToast("Ollama Offline. Start Ollama and pull models first.");
-            } finally {
-                $("tool-ai-redact").innerHTML = originalHtml;
-                $("tool-ai-redact").disabled = false;
-            }
-        };
+            };
+        }
     }
 
     // Focus & Spotlight Toggle Buttons
@@ -6631,9 +6637,6 @@ setOnclick("refreshBtn", async () => {
     showToast("Library refreshed.");
 });
 
-// Start
-init();
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Desktop Screenshot Capture Modal Controller
@@ -10187,22 +10190,29 @@ class BpmnFlowchartEngine {
 const bpmnEngine = new BpmnFlowchartEngine();
 
 
-// Initialize All Platform Enhancements
-initHotspotReticle();
-initCanvasFileDrop();
-initSopTemplateManager();
-initLiveDraggableCursor();
-initDrawerVoiceoverAndAiDiff();
-initAutoRedactPII();
-initWorkflowGraphModal();
-initSlideshowPracticeAndTeleprompter();
-initScormExport();
-initCopyRichSopToClipboard();
-initWorkflowMergeModal();
-initStepListFilterAndBulkActions();
-initSlideshowAutoPlayAndFullscreen();
-initPrintSopPdf();
-initDesktopRecorderModal();
-bpmnEngine.init();
+// Initialize All Platform Enhancements safely
+try { initHotspotReticle(); } catch (e) { console.warn("Hotspot reticle init error:", e); }
+try { initCanvasFileDrop(); } catch (e) { console.warn("Canvas drop init error:", e); }
+try { initSopTemplateManager(); } catch (e) { console.warn("Template manager init error:", e); }
+try { initLiveDraggableCursor(); } catch (e) { console.warn("Live cursor init error:", e); }
+try { initDrawerVoiceoverAndAiDiff(); } catch (e) { console.warn("Drawer diff init error:", e); }
+try { initAutoRedactPII(); } catch (e) { console.warn("Auto redact init error:", e); }
+try { initWorkflowGraphModal(); } catch (e) { console.warn("Graph modal init error:", e); }
+try { initSlideshowPracticeAndTeleprompter(); } catch (e) { console.warn("Slideshow practice init error:", e); }
+try { initScormExport(); } catch (e) { console.warn("SCORM init error:", e); }
+try { initCopyRichSopToClipboard(); } catch (e) { console.warn("Copy SOP init error:", e); }
+try { initWorkflowMergeModal(); } catch (e) { console.warn("Merge modal init error:", e); }
+try { initStepListFilterAndBulkActions(); } catch (e) { console.warn("Step list init error:", e); }
+try { initSlideshowAutoPlayAndFullscreen(); } catch (e) { console.warn("Slideshow init error:", e); }
+try { initPrintSopPdf(); } catch (e) { console.warn("Print PDF init error:", e); }
+try { initDesktopRecorderModal(); } catch (e) { console.warn("Desktop recorder init error:", e); }
+try { bpmnEngine.init(); } catch (e) { console.warn("BPMN engine init error:", e); }
+
+// Boot Application
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => init());
+} else {
+    init();
+}
 
 
