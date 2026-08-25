@@ -7962,13 +7962,11 @@ function initHotspotReticle() {
         if (label) label.textContent = `🎯 ${Math.round(xPct)}%, ${Math.round(yPct)}%`;
     });
 
-    const finishReticleDrag = (e) => {
+    const finishReticleDrag = async (e) => {
         if (!isDraggingReticle) return;
         isDraggingReticle = false;
         reticle.classList.remove("dragging");
         try { reticle.releasePointerCapture(e.pointerId); } catch (_) {}
-
-        const step = getCurrentStep();
 
         const step = getCurrentStep();
         if (step) {
@@ -8003,7 +8001,10 @@ function initHotspotReticle() {
         } else {
             showToast(`🎯 Hotspot placed at (${Math.round(xPct)}%, ${Math.round(yPct)}%)!`, 2500);
         }
-    });
+    };
+
+    reticle.addEventListener("pointerup", finishReticleDrag);
+    reticle.addEventListener("pointercancel", finishReticleDrag);
 
     // 3. Wire Click Mode Trigger Buttons & Lock Toggle
     setOnclick("btnPickHotspotTool", () => toggleHotspotClickMode());
