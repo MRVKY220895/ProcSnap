@@ -1,4 +1,4 @@
-﻿"""
+"""
 ProcSnap Annotation Compositor Engine - Phase 6/Export Suite
 Renders canvas annotation shapes (rectangles, circles, arrows, callout text,
 blur masks, numbered badges, hotspots, and focus crops) directly onto screenshot images.
@@ -92,30 +92,36 @@ class AnnotationRenderer:
                     # SHAPE: RECTANGLE / BOX / HIGHLIGHT
                     # -------------------------------------------------------------
                     if stype in ["rect", "rectangle", "box", "highlight"]:
-                        x2 = x + sw
-                        y2 = y + sh
+                        x2 = x + (sw if sw > 0 else 100)
+                        y2 = y + (sh if sh > 0 else 60)
                         # Draw filled background
-                        if shape.get("fill") or shape.get("fillColor"):
+                        if shape.get("fill") or shape.get("fillColor") or stype == "highlight":
                             draw.rectangle([x, y, x2, y2], fill=fill_rgba)
                         # Draw outline
                         draw.rectangle([x, y, x2, y2], outline=rgba_color, width=line_width)
 
                     # -------------------------------------------------------------
-                    # SHAPE: CIRCLE / ELLIPSE
+                    # SHAPE: NUMBERED CIRCLE / BADGE / STEP MARKER
                     # -------------------------------------------------------------
-                    elif stype in ["circle", "ellipse"]:
-                        radius = max(sw, sh) // 2 or int(shape.get("radius", 20))
-                        bbox = [x - radius, y - radius, x + radius, y + radius]
-                        if shape.get("fill") or shape.get("fillColor"):
-                            draw.ellipse(bbox, fill=fill_rgba)
-                        draw.ellipse(bbox, outline=rgba_color, width=line_width)
+                    elif stype in ["circle", "ellipse", "badge", "numbered_step", "step_number"]:
+                        radius = max(16, sw // 2 if sw > 0 else 22)
+                        cx = x + radius
+                        cy = y + radius
+                        bbox = [cx - radius, cy - radius, cx + radius, cy + radius]
+                        
+                        # Solid colored circle
+                        draw.ellipse(bbox, fill=rgba_color, outline=(255, 255, 255, 240), width=max(2, line_width // 2))
+                        
+                        # Step number or label centered inside
+                        badge_text = str(shape.get("label") or shape.get("text") or shape.get("number") or "1")
+                        draw.text((cx, cy), badge_text, fill=(255, 255, 255, 255), font=font_large, anchor="mm")
 
                     # -------------------------------------------------------------
                     # SHAPE: ARROW
                     # -------------------------------------------------------------
                     elif stype == "arrow":
-                        x2 = shape.get("x2", x + sw)
-                        y2 = shape.get("y2", y + sh)
+                        x2 = shape.get("x2", x + (sw if sw > 0 else 80))
+                        y2 = shape.get("y2", y + (sh if sh > 0 else 80))
                         if isinstance(x2, float) and x2 <= 1.0:
                             x2 = int(x2 * w)
                         if isinstance(y2, float) and y2 <= 1.0:
@@ -126,7 +132,7 @@ class AnnotationRenderer:
 
                         # Draw arrowhead
                         angle = math.atan2(y2 - y, x2 - x)
-                        head_len = max(12, int(line_width * 3.5))
+                        head_len = max(14, int(line_width * 3.5))
                         head_angle = math.pi / 6  # 30 deg
 
                         p1 = (
@@ -140,39 +146,27 @@ class AnnotationRenderer:
                         draw.polygon([p1, (x2, y2), p2], fill=rgba_color)
 
                     # -------------------------------------------------------------
-                    # SHAPE: NUMBERED BADGE / STEP CALLOUT
-                    # -------------------------------------------------------------
-                    elif stype in ["badge", "numbered_step", "step_number"]:
-                        badge_num = str(shape.get("number", "1"))
-                        badge_r = max(14, int(line_width * 4))
-                        bbox = [x - badge_r, y - badge_r, x + badge_r, y + badge_r]
-                        # Red/Blue circular badge with white bold text
-                        badge_bg = cls._hex_to_rgba(color_hex or "#6366f1", 1.0)
-                        draw.ellipse(bbox, fill=badge_bg, outline=(255, 255, 255, 240), width=2)
-                        draw.text((x, y), badge_num, fill=(255, 255, 255, 255), font=font_medium, anchor="mm")
-
-                    # -------------------------------------------------------------
                     # SHAPE: TEXT CALLOUT / LABEL
                     # -------------------------------------------------------------
                     elif stype in ["text", "callout", "note"]:
                         text_str = str(shape.get("text", "")).strip()
                         if text_str:
-                            pad = 6
+                            pad = 8
                             bbox = draw.textbbox((x, y), text_str, font=font_medium)
                             bg_box = [bbox[0] - pad, bbox[1] - pad, bbox[2] + pad, bbox[3] + pad]
                             # Rounded dark backdrop
-                            draw.rectangle(bg_box, fill=(15, 23, 42, 220), outline=rgba_color, width=1)
+                            draw.rectangle(bg_box, fill=(15, 23, 42, 225), outline=rgba_color, width=2)
                             draw.text((x, y), text_str, fill=(255, 255, 255, 255), font=font_medium)
 
                     # -------------------------------------------------------------
                     # SHAPE: BLUR MASK / PRIVACY REDACTION
                     # -------------------------------------------------------------
                     elif stype in ["blur", "redact", "redaction"]:
-                        x2 = min(w, x + sw)
-                        y2 = min(h, y + sh)
+                        x2 = min(w, x + (sw if sw > 0 else 100))
+                        y2 = min(h, y + (sh if sh > 0 else 50))
                         if x2 > x and y2 > y:
                             crop_box = (max(0, x), max(0, y), x2, y2)
-                            blurred_slice = img.crop(crop_box).filter(ImageFilter.GaussianBlur(radius=16))
+                            blurred_slice = img.crop(crop_box).filter(ImageFilter.GaussianBlur(radius=18))
                             img.paste(blurred_slice, crop_box)
 
                 # Composite vector overlay over image

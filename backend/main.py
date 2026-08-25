@@ -2461,6 +2461,57 @@ def crop_step_screenshot(session_id: str, step_id: int, request: CropScreenshotR
         connection.close()
 
 
+@app.get("/sessions/{session_id}/steps/{step_id}/annotated-image")
+def get_step_annotated_image(session_id: str, step_id: int):
+    """
+    Returns the step's screenshot composited with all canvas annotations,
+    spotlight focus, and red bounding boxes directly as a high-res PNG image.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        step = cur.execute(
+            "SELECT * FROM workflow_steps WHERE id = ? AND workflow_id = ?",
+            (step_id, session_id)
+        ).fetchone()
+        if not step or not step["screenshot_path"]:
+            raise HTTPException(status_code=404, detail="Step or screenshot not found")
+        
+        img_file = BASE_DIR / step["screenshot_path"]
+        if not img_file.exists():
+            img_file = BASE_DIR / "screenshots" / session_id / Path(step["screenshot_path"]).name
+        if not img_file.exists():
+            raise HTTPException(status_code=404, detail="Screenshot file not found on disk")
+        
+        # Fetch annotations
+        ann_row = cur.execute(
+            "SELECT data FROM step_annotations WHERE step_id = ?",
+            (step_id,)
+        ).fetchone()
+        annotations = json.loads(ann_row["data"]) if ann_row and ann_row["data"] else []
+        
+        try:
+            from .annotation_renderer import AnnotationRenderer
+        except ImportError:
+            from annotation_renderer import AnnotationRenderer
+        
+        composited = AnnotationRenderer.composite_image(
+            str(img_file),
+            annotations=annotations
+        )
+        
+        buf = io.BytesIO()
+        if composited:
+            composited.save(buf, format="PNG")
+        else:
+            with open(img_file, "rb") as f:
+                buf.write(f.read())
+        buf.seek(0)
+        return Response(content=buf.getvalue(), media_type="image/png")
+    finally:
+        conn.close()
+
+
 # =========================================================
 # ANIMATED STEP MICRO-DEMO GENERATOR (GIF)
 # =========================================================

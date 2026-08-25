@@ -5190,6 +5190,12 @@ async function openExportPreview(type) {
             currentExportDownloadAction = () => $("exportJsonBtn")?.click();
         } else if (type === "docx") {
             const steps = (workflow.steps || []).filter(s => !s.hidden);
+            const bakedImgs = {};
+            for (const st of steps) {
+                if (st.screenshotUrl) {
+                    bakedImgs[st.id] = await getBakedBase64Image(st);
+                }
+            }
             visualWrap.innerHTML = `
                 <div style="max-width: 820px; margin: 0 auto; background: #ffffff; color: #1e293b; padding: 48px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif;">
                     <div style="border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 28px;">
@@ -5203,7 +5209,7 @@ async function openExportPreview(type) {
                                 <span contenteditable="true" style="padding:2px 6px; border-radius:4px; outline:none; border-bottom:1px dashed transparent;" onfocus="this.style.borderBottomColor='#2563eb'" onblur="this.style.borderBottomColor='transparent'; saveInlineExportStepEdit(${st.id}, 'title', this.innerText.trim())">${esc(st.title || getDefaultTitle(st))}</span>
                             </h2>
                             <p contenteditable="true" style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 14px 0; padding:2px 6px; border-radius:4px; outline:none; border-bottom:1px dashed transparent;" onfocus="this.style.borderBottomColor='#2563eb'" onblur="this.style.borderBottomColor='transparent'; saveInlineExportStepEdit(${st.id}, 'description', this.innerText.trim())">${esc(st.description || getDefaultDescription(st))}</p>
-                            ${st.screenshotUrl ? `<img src="${normalizeImageUrl(st.screenshotUrl)}" style="max-width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; display: block;">` : ''}
+                            ${bakedImgs[st.id] ? `<img src="${bakedImgs[st.id]}" style="max-width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; display: block;">` : ''}
                             ${st.note ? `<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #92400e; margin-bottom: 8px;"><strong>Note:</strong> ${esc(st.note)}</div>` : ''}
                             ${st.expected ? `<div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #065f46;"><strong>Expected Result:</strong> ${esc(st.expected)}</div>` : ''}
                         </div>
@@ -5214,6 +5220,12 @@ async function openExportPreview(type) {
             currentExportDownloadAction = () => $("exportDocxBtn")?.click();
         } else if (type === "pptx") {
             const steps = (workflow.steps || []).filter(s => !s.hidden);
+            const bakedImgs = {};
+            for (const st of steps) {
+                if (st.screenshotUrl) {
+                    bakedImgs[st.id] = await getBakedBase64Image(st);
+                }
+            }
             visualWrap.innerHTML = `
                 <div style="max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px;">
                     <div style="aspect-ratio: 16/9; background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; border-radius: 12px; padding: 48px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 30px rgba(0,0,0,0.4);">
@@ -5234,7 +5246,7 @@ async function openExportPreview(type) {
                                 <div style="font-size: 12px; font-weight: 600; color: #64748b;">Step ${st.sequence} of ${steps.length}</div>
                             </div>
                             <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; margin: 12px 0;">
-                                ${st.screenshotUrl ? `<img src="${normalizeImageUrl(st.screenshotUrl)}" style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;">` : '<div style="color: #94a3b8;">No Screenshot</div>'}
+                                ${bakedImgs[st.id] ? `<img src="${bakedImgs[st.id]}" style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;">` : '<div style="color: #94a3b8;">No Screenshot</div>'}
                             </div>
                             <div contenteditable="true" style="background: #f8fafc; padding: 10px 14px; border-radius: 6px; font-size: 13px; color: #334155; border-left: 3px solid #d97706; outline:none;" onblur="saveInlineExportStepEdit(${st.id}, 'description', this.innerText.trim())">
                                 ${esc(st.description || getDefaultDescription(st))}
@@ -5391,7 +5403,7 @@ function renderExportTab() {
 
 // Convert image URL to base64 with baked canvas annotations
 async function getBakedBase64Image(step) {
-    if (!step.screenshotUrl) return "";
+    if (!step || !step.screenshotUrl) return "";
     
     const imgUrl = normalizeImageUrl(step.screenshotUrl);
     const img = new Image();
@@ -5415,9 +5427,9 @@ async function getBakedBase64Image(step) {
     // Draw original image
     ctx.drawImage(img, 0, 0);
 
-    // 1. Draw Element focus box if present in image space
+    // 1. Draw Spotlight & Element Focus Box
     const screen = step.element?.screen;
-    if (screen) {
+    if (screen && step.focusBoxEnabled !== false) {
         const sw = Number(screen.viewportWidth || screen.width);
         const sh = Number(screen.viewportHeight || screen.height);
         if (sw && sh) {
@@ -5429,20 +5441,35 @@ async function getBakedBase64Image(step) {
             const w = screen.width * scaleX;
             const h = screen.height * scaleY;
             
-            ctx.strokeStyle = "rgba(239, 68, 68, 0.85)";
-            ctx.lineWidth = 4;
+            if (step.autoSpotlightEnabled !== false) {
+                ctx.save();
+                ctx.fillStyle = "rgba(15, 23, 42, 0.40)";
+                ctx.beginPath();
+                ctx.rect(0, 0, img.naturalWidth, img.naturalHeight);
+                ctx.rect(x - 4, y - 4, w + 8, h + 8);
+                ctx.fill("evenodd");
+                ctx.restore();
+            }
+
+            ctx.save();
+            ctx.strokeStyle = "rgba(239, 68, 68, 0.95)";
+            ctx.lineWidth = Math.max(3, Math.round(img.naturalHeight * 0.004));
+            ctx.setLineDash([8, 4]);
             ctx.strokeRect(x, y, w, h);
+            ctx.restore();
         }
     }
 
     // 2. Draw active annotations
     const annotations = step.annotations || [];
     annotations.forEach(s => {
-        ctx.lineWidth = 4;
+        ctx.save();
+        ctx.lineWidth = s.lineWidth || 4;
         ctx.strokeStyle = s.color || "#ef4444";
+        ctx.globalAlpha = s.opacity !== undefined ? s.opacity : 1;
         
-        if (s.type === "circle") {
-            const r = Math.max(16, s.w / 2);
+        if (s.type === "circle" || s.type === "badge" || s.type === "numbered_step") {
+            const r = Math.max(16, (s.w || 32) / 2);
             const cx = s.x + r;
             const cy = s.y + r;
             
@@ -5450,20 +5477,22 @@ async function getBakedBase64Image(step) {
             ctx.arc(cx, cy, r, 0, 2 * Math.PI);
             ctx.fillStyle = s.color || "#ef4444";
             ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
             ctx.stroke();
             
             ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 16px Arial";
+            ctx.font = `bold ${Math.max(12, Math.round(r * 0.9))}px Arial, sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(s.label || "1", cx, cy);
+            ctx.fillText(s.label || s.text || s.number || String(step.sequence || "1"), cx, cy);
         }
-        else if (s.type === "rect") {
+        else if (s.type === "rect" || s.type === "rectangle" || s.type === "box") {
             ctx.strokeRect(s.x, s.y, s.w, s.h);
-            ctx.fillStyle = "rgba(239, 68, 68, 0.15)";
+            ctx.fillStyle = s.fillColor || "rgba(239, 68, 68, 0.15)";
             ctx.fillRect(s.x, s.y, s.w, s.h);
         }
-        else if (s.type === "blur") {
+        else if (s.type === "blur" || s.type === "redact") {
             ctx.fillStyle = "#151821";
             ctx.fillRect(s.x, s.y, s.w, s.h);
             ctx.strokeStyle = "#4b5563";
@@ -5475,7 +5504,7 @@ async function getBakedBase64Image(step) {
             ctx.fillText("REDACTED", s.x + s.w/2, s.y + s.h/2 + 4);
         }
         else if (s.type === "arrow") {
-            const headlen = 16;
+            const headlen = Math.max(14, (s.lineWidth || 4) * 3.5);
             const dx = s.w;
             const dy = s.h;
             const angle = Math.atan2(dy, dx);
@@ -5490,21 +5519,23 @@ async function getBakedBase64Image(step) {
             ctx.lineTo(s.x + s.w - headlen * Math.cos(angle - Math.PI / 6), s.y + s.h - headlen * Math.sin(angle - Math.PI / 6));
             ctx.lineTo(s.x + s.w - headlen * Math.cos(angle + Math.PI / 6), s.y + s.h - headlen * Math.sin(angle + Math.PI / 6));
             ctx.closePath();
-            ctx.fillStyle = ctx.strokeStyle;
+            ctx.fillStyle = s.color || "#ef4444";
             ctx.fill();
         }
-        else if (s.type === "text") {
-            ctx.strokeStyle = "#7c3aed";
-            ctx.strokeRect(s.x, s.y, s.w, s.h);
-            ctx.fillStyle = "#7c3aed";
-            ctx.fillRect(s.x, s.y, s.w, s.h);
+        else if (s.type === "text" || s.type === "callout") {
+            ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+            ctx.fillRect(s.x, s.y, s.w || 120, s.h || 36);
+            ctx.strokeStyle = s.color || "#6366f1";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(s.x, s.y, s.w || 120, s.h || 36);
             
             ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 14px sans-serif";
+            ctx.font = `bold ${s.textSize || 14}px sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(s.text || "Note", s.x + s.w/2, s.y + s.h/2);
+            ctx.fillText(s.text || "Note", s.x + (s.w || 120)/2, s.y + (s.h || 36)/2);
         }
+        ctx.restore();
     });
 
     return canvas.toDataURL("image/png");
