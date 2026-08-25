@@ -285,6 +285,54 @@
                         <button class="tab" data-tab="export">Export SOP</button>
                     </nav>
 
+                    <!-- Global Studio Toolbar across All Workflow Modes -->
+                    <div class="global-studio-toolbar" id="globalStudioToolbar" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 16px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08)); flex-wrap: wrap; z-index: 90;">
+                        <!-- Group 1: Session Actions -->
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button id="globalRefreshBtn" class="btn btn-secondary btn-xs" title="Refresh session, steps, and annotations from server" style="font-weight: 700; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>🔄</span> Refresh
+                            </button>
+                            <button id="globalInsertStepBtn" class="btn btn-primary btn-xs" title="Insert a new step" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>➕</span> Insert Step
+                            </button>
+                        </div>
+
+                        <!-- Group 2: AI & SOP Intelligence -->
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <button id="globalAutoTitlesBtn" class="btn btn-secondary btn-xs" title="Auto-generate professional verb-first titles for all steps" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>🪄</span> Auto-Titles
+                            </button>
+                            <button id="globalNormalizeBtn" class="btn btn-secondary btn-xs" title="Remove duplicate/noisy steps and classify actions semantically" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>🧹</span> Normalize
+                            </button>
+                            <button id="globalSopMetaBtn" class="btn btn-secondary btn-xs" title="Generate SOP purpose, scope, roles &amp; prerequisites" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>✨</span> SOP Meta
+                            </button>
+                            <button id="globalAiPolishBtn" class="btn btn-secondary btn-xs" title="AI Polish descriptions of all steps" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>🤖</span> AI Polish
+                            </button>
+                        </div>
+
+                        <!-- Group 3: Quality, Privacy & Governance -->
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <button id="globalHealthBtn" class="btn btn-secondary btn-xs" title="View 100-Point SOP Health Audit Report &amp; 1-Click Auto-Repair" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: #10b981; font-weight: 700; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>🩺</span> Health
+                            </button>
+                            <button id="globalPrivacyBtn" class="btn btn-secondary btn-xs" title="Scan screenshots and text for sensitive PII, passwords, and tokens" style="background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #f87171; font-weight: 700; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>🛡️</span> Privacy
+                            </button>
+                            <button id="globalTemplatesBtn" class="btn btn-secondary btn-xs" title="Configure SOP Template Structure &amp; {{Variables}}" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>📋</span> Templates
+                            </button>
+                            <button id="globalBranchAuditBtn" class="btn btn-secondary btn-xs" title="Audit Decision Gateways and Exception Paths" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>🔀</span> Branches
+                            </button>
+                            <button id="globalMicroDemosBtn" class="btn btn-secondary btn-xs" title="Generate interactive micro-demos for all steps" style="background: rgba(99,102,241,0.12); color: #818cf8; border-color: rgba(99,102,241,0.3); font-weight: 700; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>🎬</span> Micro-Demos
+                            </button>
+                        </div>
+                    </div>
+
                     <section id="tab-guide" class="tab-panel">
                         <div class="guide-layout">
                             <div class="canvas-workspace">
@@ -554,6 +602,7 @@
                                             <label class="approve-checkbox-label" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #10b981; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                                                 <input type="checkbox" id="guideStepApproved" style="cursor: pointer;"> APPROVED
                                             </label>
+                                        </div>
                                         <div style="display: flex; align-items: center; gap: 4px;">
                                             <button id="btnRefreshGuideStep" class="btn btn-secondary btn-xs" title="Refresh step from server" style="padding: 3px 8px; font-weight: 700;">🔄 Refresh</button>
                                             <button id="btnToggleHideActiveStep" class="btn btn-secondary btn-xs" title="Hide/Unhide this step" style="padding: 3px 8px; font-weight: 700;">👁️ Hide</button>
@@ -568,12 +617,12 @@
                                         <button id="btnCopyGuideTitle" class="btn btn-secondary btn-xs" style="padding: 2px 6px; font-size: 11px; flex-shrink: 0;" title="Copy title to clipboard">📋 Copy</button>
                                     </div>
                                     <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description">Step description will appear here...</p>
-                                    <div class="drawer-segmented-tabs" style="display: flex; gap: 4px; background: rgba(0,0,0,0.06); padding: 4px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-                                        <button class="drawer-seg-btn active" data-view="all" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">📋 All</button>
-                                        <button class="drawer-seg-btn" data-view="hotspot" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🎯 Hotspot</button>
-                                        <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">💡 Notes</button>
-                                        <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔀 Branch</button>
-                                        <button class="drawer-seg-btn" data-view="meta" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔍 Meta</button>
+                                    <div class="drawer-segmented-tabs" style="display: flex; gap: 4px; background: rgba(0,0,0,0.15); padding: 4px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                        <button class="drawer-seg-btn active" data-view="hotspot" style="flex: 1.1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🎯 Hotspot &amp; Focus</button>
+                                        <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">💡 Notes &amp; Audio</button>
+                                        <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔀 Branching</button>
+                                        <button class="drawer-seg-btn" data-view="meta" style="flex: 0.8; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔍 Meta</button>
+                                        <button class="drawer-seg-btn" data-view="all" style="flex: 0.7; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 4px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">📋 All</button>
                                     </div>
                                 </div>
                                 <div class="guide-card-body" style="padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">

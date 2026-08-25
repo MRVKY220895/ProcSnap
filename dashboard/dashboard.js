@@ -8406,6 +8406,10 @@ function initDrawerVoiceoverAndAiDiff() {
                 setVisible(expectedCard, true);
                 setVisible(branchCard, true);
                 setVisible(metaCard, true);
+                $("drawerAccHotspot")?.classList.remove("hidden");
+                $("drawerAccExpected")?.classList.remove("hidden");
+                $("drawerAccBranching")?.classList.remove("hidden");
+                $("drawerAccMeta")?.classList.remove("hidden");
             } else if (view === "hotspot") {
                 setVisible(focusCard, true);
                 setVisible(hotspotCard, true);
@@ -8437,6 +8441,20 @@ function initDrawerVoiceoverAndAiDiff() {
             }
         };
     });
+
+    // ── Global Studio Toolbar Button Listeners ─────────────────────────────
+    setOnclick("globalRefreshBtn", refreshActiveWorkflowSteps);
+    setOnclick("globalInsertStepBtn", () => $("addNewStepBtn")?.click());
+    setOnclick("globalAutoTitlesBtn", () => $("autoTitlesBtn")?.click());
+    setOnclick("globalNormalizeBtn", () => $("normalizeStepsBtn")?.click());
+    setOnclick("globalSopMetaBtn", () => $("generateSopMetaBtn")?.click());
+    setOnclick("globalAiPolishBtn", () => $("aiPolishBtn")?.click());
+    setOnclick("globalHealthBtn", () => $("sopHealthScoreBtn")?.click());
+    setOnclick("globalPrivacyBtn", () => $("privacyScanBtn")?.click());
+    setOnclick("globalTemplatesBtn", () => $("sopTemplatesBtn")?.click());
+    setOnclick("globalBranchAuditBtn", () => $("validateBranchesBtn")?.click());
+    setOnclick("globalMicroDemosBtn", () => generateAndShowMicroDemos());
+
     
     if (btnPlay) {
         btnPlay.onclick = () => {
