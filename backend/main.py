@@ -3211,23 +3211,42 @@ def export_session_docx(session_id: str):
             r_et = p_exp.add_run(expected_text)
             r_et.font.color.rgb = RGBColor(0x06, 0x5F, 0x46)
             
-        # Embedded Screenshot Image
+        # Embedded Screenshot Image with Composited Annotations
         screenshot_path = s.get("screenshotPath")
         if screenshot_path:
             img_file = BASE_DIR / screenshot_path
             if not img_file.exists():
                 img_file = BASE_DIR / "screenshots" / session_id / Path(screenshot_path).name
             if img_file.exists():
+                try:
+                    from .annotation_renderer import AnnotationRenderer
+                except ImportError:
+                    from annotation_renderer import AnnotationRenderer
+
+                composited = AnnotationRenderer.composite_image(
+                    str(img_file),
+                    annotations=s.get("annotations", []),
+                    focus_crop=s.get("focus_crop")
+                )
+
                 img_p = doc.add_paragraph()
                 img_p.paragraph_format.space_before = Pt(6)
                 img_p.paragraph_format.space_after = Pt(16)
                 img_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 run_img = img_p.add_run()
-                run_img.add_picture(str(img_file), width=Inches(6.0))
-                
+
+                if composited:
+                    img_buf = io.BytesIO()
+                    composited.save(img_buf, format="PNG")
+                    img_buf.seek(0)
+                    run_img.add_picture(img_buf, width=Inches(6.0))
+                else:
+                    run_img.add_picture(str(img_file), width=Inches(6.0))
+
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
+
     
     clean_filename = re.sub(r'[<>:"/\\|?*]+', '-', name).strip() or "ProcSnap_SOP"
     headers = {
@@ -3322,18 +3341,41 @@ def export_session_pptx(session_id: str):
                 img_file = BASE_DIR / "screenshots" / session_id / Path(screenshot_path).name
             if img_file.exists():
                 try:
-                    slide.shapes.add_picture(
-                        str(img_file),
-                        PptxInches(0.8),
-                        PptxInches(1.8),
-                        width=PptxInches(11.733)
-                    )
+                    from .annotation_renderer import AnnotationRenderer
+                except ImportError:
+                    from annotation_renderer import AnnotationRenderer
+
+                composited = AnnotationRenderer.composite_image(
+                    str(img_file),
+                    annotations=s.get("annotations", []),
+                    focus_crop=s.get("focus_crop")
+                )
+
+                try:
+                    if composited:
+                        img_buf = io.BytesIO()
+                        composited.save(img_buf, format="PNG")
+                        img_buf.seek(0)
+                        slide.shapes.add_picture(
+                            img_buf,
+                            PptxInches(0.8),
+                            PptxInches(1.8),
+                            width=PptxInches(11.733)
+                        )
+                    else:
+                        slide.shapes.add_picture(
+                            str(img_file),
+                            PptxInches(0.8),
+                            PptxInches(1.8),
+                            width=PptxInches(11.733)
+                        )
                 except Exception:
                     pass
 
     buffer = io.BytesIO()
     prs.save(buffer)
     buffer.seek(0)
+
     clean_filename = re.sub(r'[<>:"/\\|?*]+', '-', name).strip() or "ProcSnap_Presentation"
     headers = {
         "Content-Disposition": f'attachment; filename="{clean_filename}.pptx"',
@@ -4509,6 +4551,93 @@ def get_desktop_recorder_status():
     if not desktop_recorder:
         return {"isRecording": False, "error": "Module not available"}
     return desktop_recorder.get_status()
+
+
+@app.post("/sessions/{session_id}/capture-desktop-popup")
+def capture_desktop_popup(session_id: str):
+    """
+    Captures an immediate screenshot of the desktop screen (including OS file explorer,
+    upload dialogs, print windows, etc.) and appends it as a new step in the workflow.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        wf = cursor.execute("SELECT id, status FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf:
+            raise HTTPException(status_code=404, detail="Workflow session not found")
+
+        # Capture desktop screenshot using MSS
+        import mss
+        from PIL import Image
+
+        screenshots_dir = BASE_DIR / "screenshots" / session_id
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"step_{int(time.time() * 1000)}_desktop_popup.png"
+        file_path = screenshots_dir / filename
+
+        with mss.mss() as sct:
+            monitor = sct.monitors[1] if len(sct.monitors) > 1 else sct.monitors[0]
+            sct_img = sct.grab(monitor)
+            img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
+            img.save(file_path, "PNG", optimize=True)
+
+        cursor.execute("SELECT COALESCE(MAX(sequence), 0) + 1 AS next_seq FROM workflow_steps WHERE workflow_id = ?", (session_id,))
+        seq = cursor.fetchone()["next_seq"]
+
+        rel_path = f"screenshots/{session_id}/{filename}"
+        cursor.execute(
+            """
+            INSERT INTO workflow_steps (workflow_id, sequence, action, title, url, screenshot_path, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (session_id, seq, "desktop_popup_capture", "Select File / Interact with Dialog", "desktop://file-explorer", rel_path, datetime.utcnow().isoformat())
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+
+        return {
+            "success": True,
+            "step_id": new_id,
+            "sequence": seq,
+            "screenshot_path": rel_path,
+            "message": f"Captured desktop dialog screenshot as Step {seq}"
+        }
+    finally:
+        conn.close()
+
+
+@app.post("/sessions/{session_id}/generate-micro-demos")
+def generate_micro_demos(session_id: str):
+    """
+    Generates standalone lightweight micro-walkthrough demo snippets for the workflow.
+    Returns step-by-step interactive micro-demo cards.
+    """
+    session_data = get_session(session_id)
+    steps = [s for s in session_data.get("steps", []) if not s.get("hidden", False)]
+
+    micro_demos = []
+    for s in steps:
+        seq = s.get("sequence", 1)
+        title = s.get("title") or f"Step {seq}"
+        desc = s.get("description") or ""
+        screenshot = s.get("screenshotUrl") or ""
+        micro_demos.append({
+            "step_id": s.get("id"),
+            "sequence": seq,
+            "title": title,
+            "description": desc,
+            "screenshot_url": screenshot,
+            "badge": f"Demo #{seq}",
+            "estimated_read_sec": max(3, len(desc.split()) // 3)
+        })
+
+    return {
+        "workflow_id": session_id,
+        "workflow_name": session_data.get("name"),
+        "total_micro_demos": len(micro_demos),
+        "micro_demos": micro_demos
+    }
+
 
 
 

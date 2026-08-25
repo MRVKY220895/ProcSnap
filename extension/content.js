@@ -289,6 +289,16 @@ function removeRecordingIndicator() {
 function getActionableElement(element) {
     if (!element) return null;
 
+    // NEVER capture clicks or interactions on the ProcSnap recording widget or HUD controls
+    if (
+        element.id === "procsnap-recording-indicator" ||
+        element.closest("#procsnap-recording-indicator") ||
+        element.closest(".procsnap-hud-btn") ||
+        element.classList?.contains("procsnap-hud-btn")
+    ) {
+        return null;
+    }
+
     // Check if clicked element or any parent is an anchor, button, input, etc.
     const actionable = element.closest(
         "a[href], button, input, textarea, select, [role='button'], [role='link'], [role='tab'], [role='menuitem'], summary, [contenteditable='true']"

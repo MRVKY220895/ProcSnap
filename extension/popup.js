@@ -355,14 +355,63 @@ captureManualButton.addEventListener("click", () => {
     });
 });
 
-if (popoutButton) {
-    popoutButton.addEventListener("click", () => {
-        chrome.windows.create({
-            url: chrome.runtime.getURL("popup.html?pinned=1"),
-            type: "popup",
-            width: 360,
-            height: 520
-        });
+const btnCaptureDesktopPopup = document.getElementById("btnCaptureDesktopPopup");
+if (btnCaptureDesktopPopup) {
+    btnCaptureDesktopPopup.addEventListener("click", async () => {
+        btnCaptureDesktopPopup.disabled = true;
+        const orig = btnCaptureDesktopPopup.innerHTML;
+        btnCaptureDesktopPopup.innerHTML = "<span>📸</span> Grabbing Dialog...";
+        try {
+            const { sessionId } = await chrome.storage.local.get(["sessionId"]);
+            if (!sessionId) throw new Error("No active session");
+            const res = await fetch(`${cachedBackendUrl}/sessions/${sessionId}/capture-desktop-popup`, { method: "POST" });
+            const data = await res.json();
+            if (data.success) {
+                btnCaptureDesktopPopup.innerHTML = "<span>✓</span> Captured Dialog!";
+                const { stepCount = 0 } = await chrome.storage.local.get(["stepCount"]);
+                await chrome.storage.local.set({ stepCount: stepCount + 1 });
+            } else {
+                throw new Error(data.message || "Failed");
+            }
+        } catch(e) {
+            btnCaptureDesktopPopup.innerHTML = "<span>❌</span> Failed";
+            console.error("Popup capture failed:", e);
+        } finally {
+            setTimeout(() => {
+                btnCaptureDesktopPopup.disabled = false;
+                btnCaptureDesktopPopup.innerHTML = orig;
+            }, 2500);
+        }
+    });
+}
+
+const btnToggleDiagnostic = document.getElementById("btnToggleDiagnostic");
+const diagnosticBody = document.getElementById("diagnosticBody");
+if (btnToggleDiagnostic && diagnosticBody) {
+    btnToggleDiagnostic.addEventListener("click", () => {
+        diagnosticBody.classList.toggle("hidden");
+    });
+}
+
+const btnCopyGptPrompt = document.getElementById("btnCopyGptPrompt");
+if (btnCopyGptPrompt) {
+    btnCopyGptPrompt.addEventListener("click", async () => {
+        const state = await chrome.storage.local.get(null);
+        const gptPrompt = `I am using ProcSnap local SOP documentation engine.
+Backend URL: ${cachedBackendUrl}
+Active Storage State: ${JSON.stringify(state, null, 2)}
+System Status: Checked ports 8000-8005.
+Issue description: [Paste your specific issue or error message here].
+Please diagnose the issue and provide the exact steps or PowerShell command to resolve it.`;
+
+        try {
+            await navigator.clipboard.writeText(gptPrompt);
+            const orig = btnCopyGptPrompt.textContent;
+            btnCopyGptPrompt.textContent = "✓ Copied for GPT!";
+            setTimeout(() => { btnCopyGptPrompt.textContent = orig; }, 2500);
+        } catch(e) {
+            console.error("Clipboard copy failed:", e);
+        }
     });
 }
 

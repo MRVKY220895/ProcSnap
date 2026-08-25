@@ -79,7 +79,27 @@
                 <button id="pause" class="btn btn-secondary">Pause Capture</button>
                 <button id="capture-manual" class="btn btn-secondary">Instant Capture</button>
             </div>
-            <button id="stop" class="btn btn-danger">Complete Capture</button>
+            <button id="btnCaptureDesktopPopup" class="btn btn-secondary" style="width:100%; margin-top:6px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:6px; background:rgba(99,102,241,0.15); border-color:rgba(99,102,241,0.4); color:#818cf8;">
+                📸 Capture Desktop / File Dialog
+            </button>
+            <button id="stop" class="btn btn-danger" style="margin-top:6px;">Complete Capture</button>
+        </div>
+
+        <!-- Diagnostic & GPT Troubleshooting Hub -->
+        <div id="diagnostic-hub" style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <button id="btnToggleDiagnostic" style="background:none; border:none; color:#94a3b8; font-size:11px; cursor:pointer; padding:0; display:flex; align-items:center; gap:4px;">
+                    <span>💻</span> Terminal &amp; Diagnostic Guide
+                </button>
+                <button id="btnCopyGptPrompt" class="btn btn-xs btn-secondary" style="font-size:10px; padding:2px 6px;">
+                    📋 Copy Log for GPT
+                </button>
+            </div>
+            <div id="diagnosticBody" class="hidden" style="margin-top:6px; background:rgba(0,0,0,0.35); border-radius:6px; padding:8px; font-family:monospace; font-size:10.5px; color:#cbd5e1; max-height:120px; overflow-y:auto;">
+                <div style="color:#818cf8; font-weight:bold;"># Start ProcSnap Backend:</div>
+                <div style="color:#10b981; user-select:all;">powershell -File .\install.ps1</div>
+                <div id="diagnosticLogs" style="margin-top:4px; color:#94a3b8;">Probing ports 8000-8005...</div>
+            </div>
         </div>
 
         <footer class="footer">

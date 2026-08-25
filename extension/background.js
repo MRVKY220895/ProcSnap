@@ -333,6 +333,12 @@ async function captureStep(step, senderTabId = null, senderWindowId = null) {
         return;
     }
 
+    const pauseCheck = await chrome.storage.local.get(["paused"]);
+    if (pauseCheck && pauseCheck.paused === true) {
+        console.log("ProcSnap: Step ignored because recording is currently PAUSED");
+        return;
+    }
+
     const screenshotMode =
         step?._screenshotMode || "after-action";
 

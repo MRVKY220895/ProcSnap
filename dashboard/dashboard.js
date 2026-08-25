@@ -883,15 +883,25 @@ function renderWfTags() {
     });
 }
 
+function getAllUniqueWorkflowTags() {
+    const tagSet = new Set();
+    (workflows || []).forEach(w => {
+        (w.tags || "").split(",").map(t => t.trim()).filter(Boolean).forEach(t => tagSet.add(t));
+    });
+    return Array.from(tagSet);
+}
+
 // ── Add Tag Handler ────────────────────────────────────────────────────────
 async function addTagToActiveWorkflow() {
     if (!workflow) return;
-    const tag = prompt("Enter category tag name (e.g. Sales, HR, Finance, Onboarding):");
+    const existing = getAllUniqueWorkflowTags();
+    const existingStr = existing.length > 0 ? `\n\nExisting tags in Library:\n• ${existing.join("\n• ")}` : "";
+    const tag = prompt(`Enter category tag name (or pick from existing tags):${existingStr}`);
     if (!tag || !tag.trim()) return;
     const cleanTag = tag.trim().replace(/,/g, "");
     const rawTags = workflow.tags || "";
     const tagList = rawTags.split(",").map(t => t.trim()).filter(Boolean);
-    if (tagList.includes(cleanTag)) return showToast("Tag already exists");
+    if (tagList.includes(cleanTag)) return showToast("Tag already added to this workflow");
     tagList.push(cleanTag);
     const updated = tagList.join(", ");
 
@@ -911,6 +921,20 @@ async function addTagToActiveWorkflow() {
         showToast("Failed to add tag: " + err.message);
     }
 }
+
+setOnclick("btnCopyGuideTitle", async () => {
+    const titleEl = $("guideStepTitle");
+    const title = titleEl ? (titleEl.innerText || titleEl.textContent || "").trim() : "";
+    if (title) {
+        try {
+            await navigator.clipboard.writeText(title);
+            showToast("📋 Step title copied to clipboard!");
+        } catch(e) {
+            showToast("Copied: " + title);
+        }
+    }
+});
+
 
 // ── Update Library Stats ───────────────────────────────────────────────────
 function updateLibraryStats() {
@@ -2966,7 +2990,14 @@ function captureStreamFrame(stream) {
 }
 
 function updateFocusToggleUI() {
-    const isEnabled = canvasEngine ? (canvasEngine.autoSpotlightEnabled !== false && canvasEngine.focusBoxEnabled !== false) : true;
+    const visibleSteps = workflow?.steps ? workflow.steps.filter(s => !s.hidden) : [];
+    const activeStep = visibleSteps[currentStepIndex];
+    const isEnabled = activeStep ? (activeStep.focus_enabled !== false) : true;
+    
+    if (canvasEngine) {
+        canvasEngine.autoSpotlightEnabled = isEnabled;
+        canvasEngine.focusBoxEnabled = isEnabled;
+    }
     
     // Toolbar Button
     const dot = $("focusToggleDot");
@@ -2982,15 +3013,30 @@ function updateFocusToggleUI() {
 }
 
 function toggleFocusSpotlight() {
-    if (!canvasEngine) return;
-    const currentState = (canvasEngine.autoSpotlightEnabled !== false && canvasEngine.focusBoxEnabled !== false);
+    const visibleSteps = workflow?.steps ? workflow.steps.filter(s => !s.hidden) : [];
+    const activeStep = visibleSteps[currentStepIndex];
+    if (!activeStep) return;
+
+    const currentState = (activeStep.focus_enabled !== false);
     const newState = !currentState;
-    canvasEngine.autoSpotlightEnabled = newState;
-    canvasEngine.focusBoxEnabled = newState;
+    activeStep.focus_enabled = newState;
+
+    if (canvasEngine) {
+        canvasEngine.autoSpotlightEnabled = newState;
+        canvasEngine.focusBoxEnabled = newState;
+        if (typeof canvasEngine.redraw === "function") canvasEngine.redraw();
+    }
     
     updateFocusToggleUI();
-    showToast(newState ? "🎯 Element Focus & Spotlight Enabled" : "🎯 Element Focus & Spotlight Disabled", 2500);
-    loadActiveStepDetails();
+
+    if (workflow?.id && activeStep.id) {
+        api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${activeStep.id}/edits`, {
+            method: "PATCH",
+            body: JSON.stringify({ focus_enabled: newState })
+        }).catch(() => {});
+    }
+
+    showToast(newState ? "🎯 Element Focus Enabled for this step" : "🎯 Element Focus Disabled for this step", 2500);
 }
 
 // Safely extract and parse annotations array from step object
@@ -3296,12 +3342,14 @@ function renderStepThumbnails() {
     strip.innerHTML = steps.map((s, index) => {
         const img = s.screenshotUrl ? `<img src="${esc(API_BASE + s.screenshotUrl)}" alt="Step ${s.sequence}">` : '<div class="no-screenshot-thumb">No img</div>';
         const checkedBadge = s.checked ? '<div class="thumb-checked-badge">✓</div>' : '';
+        const blockedBadge = s.hidden ? '<div class="thumb-blocked-badge" style="position:absolute; inset:0; background:rgba(239,68,68,0.35); display:flex; align-items:center; justify-content:center; font-size:16px; color:#ef4444; border:1.5px dashed #ef4444; border-radius:6px; z-index:2;" title="Deleted / Hidden Step">🚫</div>' : '';
         const branchBadge = (s.branches && s.branches.length > 0) ? `<div class="branch-count-badge" title="${s.branches.length} Decision Paths">🔀 ${s.branches.length}</div>` : '';
         return `
-            <div class="thumb-card ${index === currentStepIndex ? 'active' : ''} ${s.hidden ? 'hidden-step' : ''}" data-index="${index}" draggable="true" title="Drag to reorder step">
+            <div class="thumb-card ${index === currentStepIndex ? 'active' : ''} ${s.hidden ? 'hidden-step' : ''}" data-index="${index}" draggable="true" title="Drag to reorder step" style="position:relative;">
                 ${img}
                 <div class="thumb-badge">${s.sequence}</div>
                 ${checkedBadge}
+                ${blockedBadge}
                 ${branchBadge}
             </div>
         `;
@@ -3820,6 +3868,7 @@ async function swapSteps(idx1, idx2) {
 // Bulk action: Approve all steps
 setOnclick("bulkApproveAllBtn", async () => {
     if (!workflow || !workflow.steps || workflow.steps.length === 0) return;
+    if (!confirm(`Are you sure you want to mark all ${workflow.steps.length} steps as approved?`)) return;
     workflow.steps.forEach(s => { s.checked = true; s.approved = true; });
     updateApprovalProgress(workflow.steps);
     showToast("✓ All steps marked as approved!");
@@ -3829,6 +3878,7 @@ setOnclick("bulkApproveAllBtn", async () => {
 // Bulk action: Unhide all steps
 setOnclick("bulkUnhideAllBtn", async () => {
     if (!workflow || !workflow.steps || workflow.steps.length === 0) return;
+    if (!confirm("Are you sure you want to restore and unhide all hidden steps in this SOP?")) return;
     let count = 0;
     for (const s of workflow.steps) {
         if (s.hidden) {
@@ -4919,12 +4969,46 @@ function renderPlaybackTab() {
 
 let currentExportPreviewText = "";
 let currentExportDownloadAction = null;
+let lastActivePreviewType = "docx";
+
+async function saveInlineExportStepEdit(stepId, field, value) {
+    if (!workflow?.id || !stepId) return;
+    const step = (workflow.steps || []).find(s => s.id === stepId);
+    if (step) {
+        step[field] = value;
+    }
+    try {
+        await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${stepId}/edits`, {
+            method: "PATCH",
+            body: JSON.stringify({ [field]: value })
+        });
+        showToast(`✓ Updated ${field}`);
+        renderStepsTab();
+        renderStepThumbnails();
+    } catch(e) {
+        showToast("Save failed: " + e.message);
+    }
+}
+
+async function refreshExportPreview() {
+    if (!workflow?.id) return;
+    try {
+        workflow = await api(`/sessions/${encodeURIComponent(workflow.id)}`);
+        await openExportPreview(lastActivePreviewType || "docx");
+        showToast("🔄 Export preview refreshed!");
+    } catch(e) {
+        showToast("Refresh failed: " + e.message);
+    }
+}
+
+setOnclick("btnRefreshExportPreview", refreshExportPreview);
 
 async function openExportPreview(type) {
     if (!workflow) {
         showToast("No workflow selected");
         return;
     }
+    lastActivePreviewType = type;
     
     const modal = $("exportPreviewModal");
     const titleEl = $("previewModalTitle");
@@ -4950,13 +5034,14 @@ async function openExportPreview(type) {
     
     const titles = {
         interactive: { title: "Interactive Guided Walkthrough (.html)", icon: "🎯", sub: "Live interactive simulator mode preview" },
-        docx: { title: "Microsoft Word Document (.docx)", icon: "📄", sub: "Document structure & embedded step layout preview" },
-        pptx: { title: "PowerPoint Presentation (.pptx)", icon: "📊", sub: "Widescreen 16:9 slide deck layout preview" },
+        docx: { title: "Microsoft Word Document (.docx)", icon: "📄", sub: "Document structure & embedded step layout preview (Click text to edit)" },
+        pptx: { title: "PowerPoint Presentation (.pptx)", icon: "📊", sub: "Widescreen 16:9 slide deck layout preview (Click text to edit)" },
         json: { title: "JSON Portable Backup (.json)", icon: "💾", sub: "Formatted JSON data backup preview" },
         html: { title: "Self-Contained Standalone HTML (.html)", icon: "📁", sub: "Complete offline HTML documentation preview" },
         markdown: { title: "GitHub Flavored Markdown (.md)", icon: "📝", sub: "Formatted markdown text preview" },
         confluence: { title: "Confluence Wiki Markup", icon: "⚡", sub: "Storage format wiki markup preview" },
         csv: { title: "Structured Spreadsheet CSV", icon: "📊", sub: "Tabular step data preview" },
+        scorm: { title: "SCORM 1.2 LMS E-Learning Package", icon: "🎓", sub: "SCORM compliant course preview" },
         pdf: { title: "Print / PDF Document Preview", icon: "🖨️", sub: "Printable page-break layout preview" }
     };
     
@@ -4971,11 +5056,16 @@ async function openExportPreview(type) {
             iframe.srcdoc = html;
             iframe.classList.remove("hidden");
             currentExportDownloadAction = () => $("exportInteractiveBtn")?.click();
+        } else if (type === "scorm") {
+            const html = await generateInteractiveWalkthroughHtml();
+            iframe.srcdoc = html;
+            iframe.classList.remove("hidden");
+            currentExportDownloadAction = () => $("exportScormBtn")?.click();
         } else if (type === "html" || type === "pdf") {
             const html = await generateOfflineHtml();
             iframe.srcdoc = html;
             iframe.classList.remove("hidden");
-            currentExportDownloadAction = () => (type === "pdf" ? $("exportPdfBtn")?.click() : $("exportHtmlBtn")?.click());
+            currentExportDownloadAction = () => $("btnPrintSopPdf")?.click();
         } else if (type === "markdown") {
             const md = await generateMarkdown();
             currentExportPreviewText = md;
@@ -5013,11 +5103,11 @@ async function openExportPreview(type) {
                     </div>
                     ${steps.map(st => `
                         <div style="margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #e2e8f0;">
-                            <h2 style="font-size: 17px; color: #1e293b; margin: 0 0 10px 0;">
-                                <span style="background: #2563eb; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 13px; margin-right: 8px;">Step ${st.sequence}</span>
-                                ${esc(st.title || getDefaultTitle(st))}
+                            <h2 style="font-size: 17px; color: #1e293b; margin: 0 0 10px 0; display:flex; align-items:center; gap:8px;">
+                                <span style="background: #2563eb; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 13px;">Step ${st.sequence}</span>
+                                <span contenteditable="true" style="padding:2px 6px; border-radius:4px; outline:none; border-bottom:1px dashed transparent;" onfocus="this.style.borderBottomColor='#2563eb'" onblur="this.style.borderBottomColor='transparent'; saveInlineExportStepEdit(${st.id}, 'title', this.innerText.trim())">${esc(st.title || getDefaultTitle(st))}</span>
                             </h2>
-                            <p style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 14px 0;">${esc(st.description || getDefaultDescription(st))}</p>
+                            <p contenteditable="true" style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 14px 0; padding:2px 6px; border-radius:4px; outline:none; border-bottom:1px dashed transparent;" onfocus="this.style.borderBottomColor='#2563eb'" onblur="this.style.borderBottomColor='transparent'; saveInlineExportStepEdit(${st.id}, 'description', this.innerText.trim())">${esc(st.description || getDefaultDescription(st))}</p>
                             ${st.screenshotUrl ? `<img src="${normalizeImageUrl(st.screenshotUrl)}" style="max-width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; display: block;">` : ''}
                             ${st.note ? `<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #92400e; margin-bottom: 8px;"><strong>Note:</strong> ${esc(st.note)}</div>` : ''}
                             ${st.expected ? `<div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #065f46;"><strong>Expected Result:</strong> ${esc(st.expected)}</div>` : ''}
@@ -5042,16 +5132,16 @@ async function openExportPreview(type) {
                     ${steps.map((st, i) => `
                         <div style="aspect-ratio: 16/9; background: #ffffff; color: #1e293b; border-radius: 12px; padding: 28px 36px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 8px 30px rgba(0,0,0,0.25); border: 1px solid #e2e8f0;">
                             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">
-                                <div style="font-size: 18px; font-weight: 700; color: #0f172a;">
-                                    <span style="background: #d97706; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 13px; margin-right: 8px;">Slide ${i + 1}</span>
-                                    ${esc(st.title || getDefaultTitle(st))}
+                                <div style="font-size: 18px; font-weight: 700; color: #0f172a; display:flex; align-items:center; gap:8px;">
+                                    <span style="background: #d97706; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 13px;">Slide ${i + 1}</span>
+                                    <span contenteditable="true" style="padding:2px 6px; border-radius:4px; outline:none; border-bottom:1px dashed transparent;" onfocus="this.style.borderBottomColor='#d97706'" onblur="this.style.borderBottomColor='transparent'; saveInlineExportStepEdit(${st.id}, 'title', this.innerText.trim())">${esc(st.title || getDefaultTitle(st))}</span>
                                 </div>
                                 <div style="font-size: 12px; font-weight: 600; color: #64748b;">Step ${st.sequence} of ${steps.length}</div>
                             </div>
                             <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; margin: 12px 0;">
                                 ${st.screenshotUrl ? `<img src="${normalizeImageUrl(st.screenshotUrl)}" style="max-height: 280px; max-width: 100%; object-fit: contain; border-radius: 6px; border: 1px solid #cbd5e1;">` : '<div style="color: #94a3b8;">No Screenshot</div>'}
                             </div>
-                            <div style="background: #f8fafc; padding: 10px 14px; border-radius: 6px; font-size: 13px; color: #334155; border-left: 3px solid #d97706;">
+                            <div contenteditable="true" style="background: #f8fafc; padding: 10px 14px; border-radius: 6px; font-size: 13px; color: #334155; border-left: 3px solid #d97706; outline:none;" onblur="saveInlineExportStepEdit(${st.id}, 'description', this.innerText.trim())">
                                 ${esc(st.description || getDefaultDescription(st))}
                             </div>
                         </div>
@@ -5061,13 +5151,14 @@ async function openExportPreview(type) {
             visualWrap.classList.remove("hidden");
             currentExportDownloadAction = () => $("exportPptxBtn")?.click();
         }
-    } catch (err) {
-        textWrap.textContent = `Error rendering export preview: ${err.message}`;
-        textWrap.classList.remove("hidden");
+    } catch (e) {
+        visualWrap.innerHTML = `<div style="color: #ef4444; padding: 24px;">Failed to render preview: ${esc(e.message)}</div>`;
+        visualWrap.classList.remove("hidden");
     } finally {
         spinner.classList.add("hidden");
     }
 }
+
 
 function renderExportTab() {
     // Preview buttons

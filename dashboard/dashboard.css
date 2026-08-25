@@ -1391,20 +1391,53 @@ svg {
     min-width: 0;
 }
 
-.row-title {
+.row-title,
+.inline-editable-title {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--text-main, #f8fafc) !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+[data-theme="light"] .row-title,
+[data-theme="light"] .inline-editable-title,
+body.theme-light .row-title,
+body.theme-light .inline-editable-title {
+    color: #0f172a !important;
+}
+
+.inline-editable-title:hover {
+    background: rgba(99, 102, 241, 0.1);
+    outline: 1px dashed rgba(99, 102, 241, 0.4);
+}
+
+.inline-editable-title:focus {
+    background: rgba(99, 102, 241, 0.18);
+    outline: 2px solid #6366f1;
+    color: var(--text-main, #fff) !important;
+}
+
+[data-theme="light"] .inline-editable-title:focus,
+body.theme-light .inline-editable-title:focus {
+    color: #0f172a !important;
+}
+
+.row-desc {
+    font-size: 12px;
+    color: var(--text-muted, #94a3b8);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.row-desc {
-    font-size: 12px;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+[data-theme="light"] .row-desc,
+body.theme-light .row-desc {
+    color: #475569 !important;
 }
 
 .editor-step-row-actions {
