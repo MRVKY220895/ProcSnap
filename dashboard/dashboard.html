@@ -2985,22 +2985,25 @@
 
     <!-- ProcBot RPA Automation & Parameter Runner Modal -->
     <div id="procbotRunnerModal" class="modal-backdrop hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 99999; backdrop-filter: blur(10px); display: none;">
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-surface-elevated, #182234); border: 1px solid rgba(99,102,241,0.3); border-radius: 16px; padding: 22px; width: 96vw; max-width: 1120px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 35px 90px rgba(0,0,0,0.85); gap: 12px;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-surface-elevated, #182234); border: 1px solid rgba(99,102,241,0.3); border-radius: 16px; padding: 20px; width: 96vw; max-width: 1200px; max-height: 94vh; display: flex; flex-direction: column; box-shadow: 0 35px 90px rgba(0,0,0,0.85); gap: 10px;">
             <!-- Header -->
             <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span style="font-size: 24px; padding: 6px; background: rgba(99,102,241,0.15); border-radius: 8px;">🤖</span>
                     <div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #fff;" id="procbotModalWfTitle">ProcBot RPA Runner</h3>
-                            <span style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: #6366f1; color: #fff;">AUTOMATION</span>
+                            <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #fff;" id="procbotModalWfTitle">ProcBot RPA Studio</h3>
+                            <span style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: #6366f1; color: #fff;">RPA BOT BUILDER &amp; RUNNER</span>
                         </div>
-                        <div style="font-size: 11.5px; color: var(--text-muted, #94a3b8);">Parameterize inputs, set execution controls, and run automated RPA workflows</div>
+                        <div style="font-size: 11px; color: var(--text-muted, #94a3b8);">Edit recorded fields, configure dropdowns, insert manual tasks, and execute reliable automated RPA workflows</div>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <button id="btnProcbotDownloadPlaywright" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #a5b4fc; border-color: rgba(99,102,241,0.3);" title="Download Playwright script">🐍 Playwright</button>
-                    <button id="btnProcbotDownloadSelenium" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #34d399; border-color: rgba(16,185,129,0.3);" title="Download Selenium script">🧪 Selenium</button>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <button id="btnProcbotSaveConfig" class="btn btn-primary btn-xs" style="font-weight: 800; background: linear-gradient(135deg, #6366f1, #4f46e5); border: none;" title="Save customized Bot recipe">💾 Save Bot</button>
+                    <button id="btnProcbotBatchModal" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #38bdf8; border-color: rgba(56,189,248,0.3);" title="Run with CSV batch data">📊 Batch Data</button>
+                    <button id="btnProcbotHistoryModal" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #fbbf24; border-color: rgba(251,191,36,0.3);" title="View execution audit logs">📜 History</button>
+                    <button id="btnProcbotDownloadPlaywright" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #a5b4fc; border-color: rgba(99,102,241,0.3);" title="Download Python Playwright script">🐍 Playwright</button>
+                    <button id="btnProcbotDownloadSelenium" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #34d399; border-color: rgba(16,185,129,0.3);" title="Download Python Selenium script">🧪 Selenium</button>
                     <button id="btnCloseProcbotModal" class="btn btn-secondary btn-xs" style="font-weight: 700; border-radius: 6px;">✕ Close</button>
                 </div>
             </div>
@@ -3014,14 +3017,14 @@
             </div>
 
             <!-- Execution Control Bar -->
-            <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.18); border-radius: 10px; padding: 8px 12px; border: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.18); border-radius: 10px; padding: 7px 10px; border: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap;">
                 <!-- Engine -->
                 <div style="display: flex; align-items: center; gap: 5px;">
                     <label style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); white-space: nowrap;">Engine</label>
-                    <select id="procbotEngineSelect" class="form-control" style="font-size: 11px; padding: 4px 6px; font-weight: 700; background: var(--bg-surface-elevated, #182234); color: var(--text-main, #fff); border-radius: 6px; min-width: 170px;">
-                        <option value="browser">🌐 In-Browser Replay</option>
-                        <option value="playwright">🐍 Playwright (Local)</option>
-                        <option value="selenium">🧪 Selenium (Local)</option>
+                    <select id="procbotEngineSelect" class="form-control" style="font-size: 11px; padding: 4px 6px; font-weight: 700; background: var(--bg-surface-elevated, #182234); color: var(--text-main, #fff); border-radius: 6px; min-width: 165px;">
+                        <option value="browser">🌐 In-Browser Extension</option>
+                        <option value="playwright">🐍 Playwright Engine</option>
+                        <option value="selenium">🧪 Selenium Engine</option>
                     </select>
                 </div>
                 <!-- Speed -->
@@ -3037,7 +3040,7 @@
                 </div>
                 <!-- Load Wait -->
                 <div style="display: flex; align-items: center; gap: 5px;">
-                    <label style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); white-space: nowrap;">Page Load Wait</label>
+                    <label style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); white-space: nowrap;">Page Wait</label>
                     <select id="procbotLoadWait" class="form-control" style="font-size: 11px; padding: 4px 6px; font-weight: 700; background: var(--bg-surface-elevated, #182234); color: var(--text-main, #fff); border-radius: 6px;">
                         <option value="1000">1s</option>
                         <option value="2000" selected>2s</option>
@@ -3054,25 +3057,24 @@
                         <option value="breakpoint">🔴 Breakpoints Only</option>
                     </select>
                 </div>
-                <!-- Error Handling -->
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <label style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); white-space: nowrap;">On Error</label>
-                    <select id="procbotOnError" class="form-control" style="font-size: 11px; padding: 4px 6px; font-weight: 700; background: var(--bg-surface-elevated, #182234); color: var(--text-main, #fff); border-radius: 6px;">
-                        <option value="pause">⏸️ Pause & Ask</option>
-                        <option value="skip">⏩ Skip & Continue</option>
-                        <option value="retry">🔁 Retry 3x</option>
-                        <option value="abort">🛑 Abort Run</option>
-                    </select>
+                <!-- Add Step Toolbar -->
+                <div style="margin-left: auto; display: flex; gap: 4px;">
+                    <button id="btnProcbotAddManualStep" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #fbbf24; border-color: rgba(251,191,36,0.3);">+ ✋ Manual Task</button>
+                    <button id="btnProcbotAddInputStep" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #10b981; border-color: rgba(16,185,129,0.3);">+ ⌨️ Input Field</button>
+                    <button id="btnProcbotAddClickStep" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #6366f1; border-color: rgba(99,102,241,0.3);">+ 🖱️ Click</button>
                 </div>
             </div>
 
             <!-- Two-Column Workspace -->
-            <div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 14px; flex: 1; overflow: hidden; min-height: 380px;">
+            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px; flex: 1; overflow: hidden; min-height: 400px;">
                 <!-- Left: Step & Parameter Configuration -->
                 <div style="display: flex; flex-direction: column; gap: 6px; overflow: hidden; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding: 10px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">Step Variables &amp; Breakpoints</span>
-                        <span style="font-size: 10.5px; color: #818cf8;" id="procbotStepCountBadge">0 steps</span>
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">Step Sequence &amp; Parameters</span>
+                            <span style="font-size: 10.5px; color: #818cf8; font-weight: 700;" id="procbotStepCountBadge">0 steps</span>
+                        </div>
+                        <input id="procbotStepSearch" type="search" placeholder="Search steps or variables..." style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-size: 10.5px; padding: 2px 8px; width: 160px;">
                     </div>
                     <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px;" id="procbotStepsList">
                         <!-- Rendered dynamically -->
@@ -3080,11 +3082,11 @@
                 </div>
 
                 <!-- Right: Live Execution Console & Screenshot Preview -->
-                <div style="display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding: 12px; overflow: hidden;">
+                <div style="display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding: 10px; overflow: hidden;">
                     <!-- Live Screenshot Preview -->
-                    <div id="procbotLivePreview" style="width: 100%; height: 160px; background: #0b0f19; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
+                    <div id="procbotLivePreview" style="width: 100%; height: 150px; background: #0b0f19; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
                         <img id="procbotLiveScreenshot" src="" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;">
-                        <div id="procbotLiveOverlay" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 12px; font-weight: 700;">📷 Live step screenshot preview</div>
+                        <div id="procbotLiveOverlay" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 11.5px; font-weight: 700;">📷 Live step screenshot preview</div>
                     </div>
 
                     <!-- Progress Bar -->
@@ -3092,7 +3094,7 @@
                         <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; margin-bottom: 3px;">
                             <span id="procbotStatusText" style="color: #94a3b8;">Status: Ready</span>
                             <div style="display: flex; gap: 8px;">
-                                <span id="procbotElapsedTime" style="color: #64748b;">00:00</span>
+                                <span id="procbotElapsedTime" style="color: #64748b; font-family: monospace;">00:00</span>
                                 <span id="procbotProgressPercent" style="color: #818cf8;">0%</span>
                             </div>
                         </div>
@@ -3103,7 +3105,7 @@
 
                     <!-- Live Log Terminal -->
                     <div style="flex: 1; background: #0b0f19; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); padding: 8px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; color: #a5b4fc; overflow-y: auto; display: flex; flex-direction: column; gap: 3px;" id="procbotTerminalLog">
-                        <div style="color: #64748b;">// ProcBot Console. Click 'Run' to start automation.</div>
+                        <div style="color: #64748b;">// ProcBot Console. Click 'Run Automation' to execute workflow.</div>
                     </div>
 
                     <!-- Execution Buttons -->
@@ -3121,10 +3123,52 @@
         </div>
     </div>
 
+    <!-- ProcBot Batch CSV Runner Modal -->
+    <div id="procbotBatchModal" class="modal-backdrop hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100000; backdrop-filter: blur(8px); display: none;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-surface-elevated, #182234); border: 1px solid rgba(56,189,248,0.3); border-radius: 14px; padding: 20px; width: 90vw; max-width: 720px; max-height: 85vh; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 30px 80px rgba(0,0,0,0.9);">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 22px;">📊</span>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #fff;">Data-Driven Batch Automation (CSV)</h3>
+                </div>
+                <button id="btnCloseProcbotBatchModal" class="btn btn-secondary btn-xs" style="border-radius: 6px;">✕ Close</button>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Upload a CSV file containing rows of variable values (e.g. usernames, invoice numbers, amounts). ProcBot will loop and execute the RPA workflow for each data row.</p>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="file" id="procbotBatchCsvInput" accept=".csv" class="form-control" style="font-size: 12px; background: rgba(0,0,0,0.3); color: #fff;">
+                <button id="btnProcbotDownloadCsvTemplate" class="btn btn-secondary btn-sm" style="font-weight: 700; white-space: nowrap;">📥 CSV Template</button>
+            </div>
+            <div style="flex: 1; overflow-y: auto; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 10px; border: 1px solid rgba(255,255,255,0.06); min-height: 180px;" id="procbotBatchPreviewContainer">
+                <div style="color: #64748b; font-size: 12px; text-align: center; padding: 40px;">Select a CSV file above to preview data rows</div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px;">
+                <button id="btnProcbotRunBatch" class="btn btn-primary" style="background: linear-gradient(135deg, #0284c7, #38bdf8); border: none; font-weight: 800;" disabled>
+                    ▶️ Run Batch Automation (0 Rows)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ProcBot Execution History Modal -->
+    <div id="procbotHistoryModal" class="modal-backdrop hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100000; backdrop-filter: blur(8px); display: none;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-surface-elevated, #182234); border: 1px solid rgba(251,191,36,0.3); border-radius: 14px; padding: 20px; width: 90vw; max-width: 780px; max-height: 85vh; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 30px 80px rgba(0,0,0,0.9);">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 22px;">📜</span>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #fff;">ProcBot Execution History &amp; Audit Trail</h3>
+                </div>
+                <button id="btnCloseProcbotHistoryModal" class="btn btn-secondary btn-xs" style="border-radius: 6px;">✕ Close</button>
+            </div>
+            <div style="flex: 1; overflow-y: auto; min-height: 240px;" id="procbotHistoryList">
+                <div style="color: #64748b; font-size: 12px; text-align: center; padding: 40px;">Loading run history...</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden Package File Input -->
     <input type="file" id="importPackageFileInput" accept=".zip" style="display: none;">
 
-    <script src="dashboard.js?v=20260828_procbot_v20"></script>
+    <script src="dashboard.js?v=20260828_procbot_v21"></script>
 </body>
 
 </html>

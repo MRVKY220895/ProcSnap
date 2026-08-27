@@ -340,6 +340,39 @@ def initialize_database() -> None:
         except Exception:
             pass
 
+    # ProcBot RPA Configuration & Execution History Tables
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS procbot_configs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workflow_id TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            config_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS procbot_run_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workflow_id TEXT NOT NULL,
+            engine TEXT NOT NULL,
+            mode TEXT NOT NULL,
+            total_steps INTEGER NOT NULL,
+            success_steps INTEGER NOT NULL,
+            failed_steps INTEGER NOT NULL,
+            elapsed_sec REAL NOT NULL,
+            log_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+        )
+        """
+    )
+
     connection.commit()
     connection.close()
 
@@ -6202,9 +6235,17 @@ def get_procbot_recipe(session_id: str):
         if not wf:
             raise HTTPException(status_code=404, detail="Workflow not found")
         
+        # Check if saved custom config exists
+        saved = conn.execute("SELECT config_json FROM procbot_configs WHERE workflow_id = ?", (session_id,)).fetchone()
+        if saved and saved[0]:
+            try:
+                return json.loads(saved[0])
+            except Exception:
+                pass
+
         steps_cursor = conn.execute(
             """
-            SELECT s.*, e.title as edited_title, e.hidden, e.description as edited_description
+            SELECT s.*, e.title as edited_title, e.hidden, e.description as edited_description, e.note
             FROM workflow_steps s
             LEFT JOIN step_edits e ON s.id = e.step_id
             WHERE s.workflow_id = ?
@@ -6215,6 +6256,116 @@ def get_procbot_recipe(session_id: str):
         steps = [dict(r) for r in steps_cursor.fetchall()]
         generator = ProcBotGenerator(workflow_name=dict(wf).get("name", "Workflow"), steps=steps)
         return generator.generate_json_recipe()
+    finally:
+        conn.close()
+
+
+@app.get("/sessions/{session_id}/procbot-config")
+def get_procbot_config(session_id: str):
+    """
+    Retrieves the saved custom ProcBot configuration for a workflow.
+    """
+    conn = get_connection()
+    try:
+        saved = conn.execute("SELECT * FROM procbot_configs WHERE workflow_id = ?", (session_id,)).fetchone()
+        if saved:
+            res = dict(saved)
+            try:
+                res["config"] = json.loads(res["config_json"])
+            except Exception:
+                res["config"] = None
+            return res
+        return {"workflow_id": session_id, "config": None, "saved": False}
+    finally:
+        conn.close()
+
+
+@app.post("/sessions/{session_id}/procbot-config")
+def save_procbot_config(session_id: str, payload: Dict[str, Any] = Body(...)):
+    """
+    Saves a customized ProcBot automation configuration (steps, variables, custom selectors, manual stops).
+    """
+    conn = get_connection()
+    try:
+        wf = conn.execute("SELECT name FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        name = dict(wf).get("name", "Workflow") if wf else "Workflow"
+        now = datetime.utcnow().isoformat()
+        config_str = json.dumps(payload.get("config", payload))
+
+        conn.execute(
+            """
+            INSERT INTO procbot_configs (workflow_id, name, config_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(workflow_id) DO UPDATE SET
+                name = excluded.name,
+                config_json = excluded.config_json,
+                updated_at = excluded.updated_at
+            """,
+            (session_id, name, config_str, now, now)
+        )
+        conn.commit()
+        return {"status": "saved", "workflow_id": session_id, "updated_at": now}
+    finally:
+        conn.close()
+
+
+@app.post("/sessions/{session_id}/procbot-run-log")
+def record_procbot_run_log(session_id: str, payload: Dict[str, Any] = Body(...)):
+    """
+    Records an execution run audit log for a ProcBot automation run.
+    """
+    conn = get_connection()
+    try:
+        now = datetime.utcnow().isoformat()
+        conn.execute(
+            """
+            INSERT INTO procbot_run_logs 
+            (workflow_id, engine, mode, total_steps, success_steps, failed_steps, elapsed_sec, log_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                payload.get("engine", "browser"),
+                payload.get("mode", "auto"),
+                int(payload.get("total_steps", 0)),
+                int(payload.get("success_steps", 0)),
+                int(payload.get("failed_steps", 0)),
+                float(payload.get("elapsed_sec", 0.0)),
+                json.dumps(payload.get("logs", [])),
+                now
+            )
+        )
+        conn.commit()
+        return {"status": "recorded", "created_at": now}
+    finally:
+        conn.close()
+
+
+@app.get("/sessions/{session_id}/procbot-run-logs")
+def get_procbot_run_logs(session_id: str, limit: int = 20):
+    """
+    Returns recent execution history and audit logs for ProcBot runs.
+    """
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT * FROM procbot_run_logs
+            WHERE workflow_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (session_id, limit)
+        ).fetchall()
+        logs = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["logs"] = json.loads(d["log_json"])
+            except Exception:
+                d["logs"] = []
+            logs.append(d)
+        return {"workflow_id": session_id, "count": len(logs), "runs": logs}
     finally:
         conn.close()
 

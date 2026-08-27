@@ -1556,5 +1556,238 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         showDesktopCapturePrompt(msg.sessionId);
         sendResponse({ success: true });
         return true;
+    } else if (msg?.type === "PROCBOT_EXECUTE_STEP") {
+        executeProcBotInPageStep(msg.step, msg.value, msg.options)
+            .then(result => sendResponse(result))
+            .catch(err => sendResponse({ success: false, error: err.message }));
+        return true;
+    } else if (msg?.type === "PROCBOT_RESUME_MANUAL") {
+        removeProcBotManualHUD();
+        sendResponse({ success: true });
+        return true;
     }
 });
+
+/* =========================================================
+   🤖 PROCBOT IN-PAGE RPA AUTOMATION ENGINE
+========================================================= */
+
+let procBotManualResolve = null;
+
+async function executeProcBotInPageStep(step, dynamicValue, options = {}) {
+    if (!step) return { success: false, error: "No step provided" };
+
+    const act = (step.action || "").toLowerCase();
+    const title = step.edited_title || step.title || "Step";
+    const val = dynamicValue !== undefined ? dynamicValue : (step.value || "");
+    const isManualPause = step.manual_pause || step._manualPause || act === "manual_pause" || act === "manual_task";
+
+    // Handle Manual Stop / Action Prompt
+    if (isManualPause) {
+        return new Promise(resolve => {
+            procBotManualResolve = resolve;
+            showProcBotManualHUD(title, step.manual_instructions || step.note || "Please complete this action manually on the page, then click Continue.");
+        });
+    }
+
+    // Navigation Step
+    if (act.includes("navigate") || act.includes("page_load")) {
+        const targetUrl = step.url || "";
+        if (targetUrl && !window.location.href.includes(targetUrl)) {
+            window.location.href = targetUrl;
+            return { success: true, action: "navigate", url: targetUrl };
+        }
+        return { success: true, action: "navigate_noop" };
+    }
+
+    // Find Target Element using multi-tier strategy
+    const targetEl = findTargetElement(step);
+    if (!targetEl) {
+        console.warn("[ProcBot] Element not found for step:", step);
+        if (options.ignoreNotFound) {
+            return { success: true, skipped: true, warning: "Element not found (skipped)" };
+        }
+        return { success: false, error: `Element not found: ${title}` };
+    }
+
+    // Scroll into view smoothly
+    try {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    } catch (_) {}
+
+    // Place temporary visual spotlight & glowing beacon
+    highlightProcBotElement(targetEl);
+
+    // Wait a brief moment for scroll to settle
+    await new Promise(r => setTimeout(r, 200));
+
+    // Execute DOM Action
+    try {
+        if (act in { select: 1, dropdown: 1 } || targetEl.tagName === "SELECT") {
+            // Select / Dropdown handling
+            if (targetEl.tagName === "SELECT") {
+                let matched = false;
+                for (let i = 0; i < targetEl.options.length; i++) {
+                    const opt = targetEl.options[i];
+                    if (opt.text.trim().toLowerCase() === val.toLowerCase() || opt.value.toLowerCase() === val.toLowerCase()) {
+                        targetEl.selectedIndex = i;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched && targetEl.options.length > 0) {
+                    const num = parseInt(val, 10);
+                    if (!isNaN(num) && num < targetEl.options.length) {
+                        targetEl.selectedIndex = num;
+                    }
+                }
+                targetEl.dispatchEvent(new Event("change", { bubbles: true }));
+                targetEl.dispatchEvent(new Event("input", { bubbles: true }));
+            } else {
+                // Custom select / dropdown container
+                targetEl.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+                await new Promise(r => setTimeout(r, 250));
+                // Try clicking child option with matching text
+                const options = Array.from(document.querySelectorAll("[role='option'], li, .dropdown-item, .select-option, option"));
+                const targetOpt = options.find(o => o.textContent && o.textContent.trim().toLowerCase().includes(val.toLowerCase()));
+                if (targetOpt) {
+                    targetOpt.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+                }
+            }
+        } else if (["input", "change", "textarea_input", "type"].includes(act) || targetEl.tagName === "INPUT" || targetEl.tagName === "TEXTAREA" || targetEl.isContentEditable) {
+            // Text Input with reactive framework support (React, Vue, Angular)
+            targetEl.focus();
+            if (targetEl.isContentEditable) {
+                targetEl.innerText = val;
+            } else {
+                // React 16+ value tracker override to ensure state updates
+                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype,
+                    "value"
+                )?.set || Object.getOwnPropertyDescriptor(
+                    window.HTMLTextAreaElement.prototype,
+                    "value"
+                )?.set;
+
+                if (nativeInputValueSetter) {
+                    nativeInputValueSetter.call(targetEl, val);
+                } else {
+                    targetEl.value = val;
+                }
+            }
+            targetEl.dispatchEvent(new Event("input", { bubbles: true }));
+            targetEl.dispatchEvent(new Event("change", { bubbles: true }));
+            targetEl.dispatchEvent(new Event("blur", { bubbles: true }));
+        } else if (act === "dblclick" || act === "double_click") {
+            // Double Click
+            targetEl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+            targetEl.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+            targetEl.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+            targetEl.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true, view: window }));
+        } else if (act === "keypress_enter" || act === "enter") {
+            // Keypress Enter
+            targetEl.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
+            targetEl.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
+        } else {
+            // Standard Click
+            targetEl.focus();
+            targetEl.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true, cancelable: true, view: window }));
+            targetEl.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, view: window }));
+            targetEl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+            targetEl.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, cancelable: true, view: window }));
+            targetEl.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+            targetEl.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+        }
+
+        return { success: true, action: act, title };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+function highlightProcBotElement(el) {
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    let ring = document.getElementById("procbot-action-ring");
+    if (!ring) {
+        ring = document.createElement("div");
+        ring.id = "procbot-action-ring";
+        ring.style.cssText = `
+            position: fixed;
+            z-index: 2147483640;
+            pointer-events: none;
+            border-radius: 8px;
+            border: 3px solid #10b981;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.8), inset 0 0 10px rgba(16, 185, 129, 0.4);
+            transition: all 0.2s ease-out;
+        `;
+        document.body.appendChild(ring);
+    }
+    ring.style.top = `${Math.max(0, rect.top - 4)}px`;
+    ring.style.left = `${Math.max(0, rect.left - 4)}px`;
+    ring.style.width = `${rect.width + 8}px`;
+    ring.style.height = `${rect.height + 8}px`;
+
+    setTimeout(() => {
+        if (ring) ring.remove();
+    }, 1200);
+}
+
+function showProcBotManualHUD(title, instructions) {
+    removeProcBotManualHUD();
+
+    const hud = document.createElement("div");
+    hud.id = "procbot-manual-hud";
+    hud.style.cssText = `
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        z-index: 2147483647;
+        background: #182234;
+        border: 2px solid #fbbf24;
+        border-radius: 14px;
+        padding: 16px 20px;
+        box-shadow: 0 25px 60px rgba(0,0,0,0.85);
+        color: #fff;
+        max-width: 420px;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        animation: procsnapFadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    `;
+
+    hud.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">✋</span>
+                <strong style="font-size: 13.5px; color: #fbbf24; font-weight: 800;">ProcBot: Manual Action Required</strong>
+            </div>
+            <span style="font-size: 10px; background: rgba(251,191,36,0.2); color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-weight: 700;">PAUSED</span>
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: #e2e8f0;">${title}</div>
+        <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.45; background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #fbbf24;">
+            ${instructions}
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+            <button id="procbot-btn-resume-inpage" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 15px rgba(16,185,129,0.35);">
+                ▶️ Done, Continue Bot
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(hud);
+
+    document.getElementById("procbot-btn-resume-inpage")?.addEventListener("click", () => {
+        removeProcBotManualHUD();
+        if (procBotManualResolve) {
+            procBotManualResolve({ success: true, manualCompleted: true });
+            procBotManualResolve = null;
+        }
+    });
+}
+
+function removeProcBotManualHUD() {
+    const existing = document.getElementById("procbot-manual-hud");
+    if (existing) existing.remove();
+}
