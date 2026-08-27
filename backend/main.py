@@ -375,15 +375,16 @@ def seed_initial_sample_sop():
             
             for seq, act, url, title, val, exp, sem, intent in steps_data:
                 cur.execute("""
-                    INSERT INTO workflow_steps (workflow_id, sequence, action, timestamp, url, title, value, expected_result)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (sample_id, seq, act, now, url, title, val, exp))
+                    INSERT INTO workflow_steps (workflow_id, sequence, action, timestamp, url, title, value)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (sample_id, seq, act, now, url, title, val))
+                s_id = cur.lastrowid
                 
                 # Also create default step_edits
                 cur.execute("""
-                    INSERT INTO step_edits (workflow_id, sequence, edited_title, edited_description, expected_result, business_intent, semantic_class)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (sample_id, seq, title, f"Follow this step to {title.lower()}.", exp, intent, sem))
+                    INSERT INTO step_edits (step_id, workflow_id, title, description, expected, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (s_id, sample_id, title, f"Follow this step to {title.lower()}.", exp, now))
             
             conn.commit()
             print("🚀 Seeded initial sample SOP for first-time user.")
@@ -6145,6 +6146,78 @@ def update_session_governance(session_id: str, payload: dict = Body(...)):
         return {"success": True, "message": "Governance metadata updated successfully."}
     finally:
         conn.close()
+
+
+# ── ProcBot RPA Automation Endpoints ──────────────────────────────────────────
+@app.get("/sessions/{session_id}/procbot-script")
+def get_procbot_script(session_id: str, engine: str = "playwright"):
+    """
+    Generates executable RPA automation script (Playwright or Selenium).
+    """
+    from backend.procbot_generator import ProcBotGenerator
+    conn = get_connection()
+    try:
+        wf = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        steps_cursor = conn.execute(
+            """
+            SELECT s.*, e.title as edited_title, e.hidden, e.description as edited_description
+            FROM workflow_steps s
+            LEFT JOIN step_edits e ON s.id = e.step_id
+            WHERE s.workflow_id = ?
+            ORDER BY s.sequence ASC
+            """,
+            (session_id,)
+        )
+        steps = [dict(r) for r in steps_cursor.fetchall()]
+        
+        generator = ProcBotGenerator(workflow_name=dict(wf).get("name", "Workflow"), steps=steps)
+        if engine.lower() == "selenium":
+            script = generator.generate_selenium_script()
+            filename = f"procbot_{session_id[:8]}_selenium.py"
+        else:
+            script = generator.generate_playwright_script()
+            filename = f"procbot_{session_id[:8]}_playwright.py"
+            
+        return Response(
+            content=script,
+            media_type="text/x-python",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    finally:
+        conn.close()
+
+
+@app.get("/sessions/{session_id}/procbot-recipe")
+def get_procbot_recipe(session_id: str):
+    """
+    Generates dynamic in-browser execution recipe for Chrome extension and runner.
+    """
+    from backend.procbot_generator import ProcBotGenerator
+    conn = get_connection()
+    try:
+        wf = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        if not wf:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        steps_cursor = conn.execute(
+            """
+            SELECT s.*, e.title as edited_title, e.hidden, e.description as edited_description
+            FROM workflow_steps s
+            LEFT JOIN step_edits e ON s.id = e.step_id
+            WHERE s.workflow_id = ?
+            ORDER BY s.sequence ASC
+            """,
+            (session_id,)
+        )
+        steps = [dict(r) for r in steps_cursor.fetchall()]
+        generator = ProcBotGenerator(workflow_name=dict(wf).get("name", "Workflow"), steps=steps)
+        return generator.generate_json_recipe()
+    finally:
+        conn.close()
+
 
 
 

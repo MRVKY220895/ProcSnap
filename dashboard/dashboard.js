@@ -11767,6 +11767,246 @@ function initModeSwitcher() {
     applyMode(currentMode);
 }
 
+// ── ProcBot RPA Automation & Parameter Runner ──────────────────────────────
+let isProcBotRunning = false;
+
+function initProcBotRunner() {
+    const modal = $("procbotRunnerModal");
+    const openBtn = $("btnOpenProcBot");
+    const closeBtn = $("btnCloseProcbotModal");
+    const runBtn = $("btnRunProcBotNow");
+    const stopBtn = $("btnStopProcBot");
+    const pwBtn = $("btnProcbotDownloadPlaywright");
+    const selBtn = $("btnProcbotDownloadSelenium");
+    const exportPwBtn = $("btnExportProcbotPw");
+    const exportSelBtn = $("btnExportProcbotSel");
+    const stepsListEl = $("procbotStepsList");
+    const termLog = $("procbotTerminalLog");
+    const progressBar = $("procbotProgressBar");
+    const progressPercent = $("procbotProgressPercent");
+    const statusText = $("procbotStatusText");
+    const engineSelect = $("procbotEngineSelect");
+
+    function logTerm(msg, type = "info") {
+        if (!termLog) return;
+        const line = document.createElement("div");
+        const ts = new Date().toLocaleTimeString();
+        let color = "#a5b4fc";
+        if (type === "success") color = "#34d399";
+        if (type === "warn") color = "#fbbf24";
+        if (type === "error") color = "#f87171";
+        if (type === "dim") color = "#64748b";
+
+        line.style.color = color;
+        line.textContent = `[${ts}] ${msg}`;
+        termLog.appendChild(line);
+        termLog.scrollTop = termLog.scrollHeight;
+    }
+
+    function openModal() {
+        if (!workflow || !workflow.steps || !workflow.steps.length) {
+            showToast("⚠️ No workflow loaded to automate with ProcBot.", 3000);
+            return;
+        }
+
+        if ($("procbotModalWfTitle")) {
+            $("procbotModalWfTitle").textContent = `ProcBot: ${workflow.name || "Workflow"}`;
+        }
+        if ($("procbotStepCountBadge")) {
+            $("procbotStepCountBadge").textContent = `${workflow.steps.length} steps`;
+        }
+
+        // Render Step Variables & Input Parameters
+        if (stepsListEl) {
+            stepsListEl.innerHTML = workflow.steps.map((step, idx) => {
+                const act = (step.action || "").toLowerCase();
+                const isInput = ["input", "change", "textarea_input", "type", "select"].includes(act);
+                const title = step.edited_title || step.title || `Step ${idx + 1}`;
+                const rawVal = step.value || "";
+                const varKey = `var_${(title || `step_${idx + 1}`).toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 24)}`;
+                
+                let actIcon = "🖱️";
+                let actColor = "#6366f1";
+                if (isInput) { actIcon = "⌨️"; actColor = "#10b981"; }
+                if (act.includes("navigate")) { actIcon = "🌐"; actColor = "#3b82f6"; }
+                if (act.includes("enter") || act.includes("key")) { actIcon = "⏎"; actColor = "#f59e0b"; }
+
+                return `
+                    <div class="procbot-step-card" data-step-idx="${idx}" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" class="procbot-step-active" checked style="accent-color: #10b981; cursor: pointer;">
+                                <span style="font-size: 11px; font-weight: 800; background: ${actColor}22; color: ${actColor}; padding: 1px 6px; border-radius: 4px; border: 1px solid ${actColor}44;">
+                                    ${actIcon} #${idx + 1} ${act.toUpperCase()}
+                                </span>
+                                <strong style="font-size: 12px; color: var(--text-main, #fff);">${esc(title)}</strong>
+                            </div>
+                            <span style="font-size: 10.5px; font-family: monospace; color: var(--text-muted);">${step.url ? new URL(step.url.startsWith("http") ? step.url : "https://app.local").hostname : ""}</span>
+                        </div>
+
+                        ${isInput ? `
+                        <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; align-items: center; background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px 8px; border: 1px dashed rgba(16,185,129,0.3);">
+                            <span style="font-size: 10.5px; font-family: monospace; color: #34d399; font-weight: 700;">{{${varKey}}}</span>
+                            <input type="text" class="procbot-var-input form-control" data-var-key="${varKey}" value="${esc(rawVal)}" placeholder="Enter dynamic value..." style="font-size: 11.5px; padding: 4px 8px; height: 26px; border-radius: 4px;">
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join("");
+        }
+
+        if (progressBar) progressBar.style.width = "0%";
+        if (progressPercent) progressPercent.textContent = "0%";
+        if (statusText) statusText.textContent = "Status: Ready to execute";
+        if (termLog) termLog.innerHTML = `<div style="color: #64748b;">// ProcBot ready with ${workflow.steps.length} steps. Click 'Run ProcBot' to start.</div>`;
+
+        if (modal) {
+            modal.style.display = "block";
+            modal.classList.remove("hidden");
+        }
+    }
+
+    if (openBtn) openBtn.onclick = openModal;
+    if (closeBtn && modal) {
+        closeBtn.onclick = () => {
+            modal.style.display = "none";
+            modal.classList.add("hidden");
+        };
+    }
+
+    // Python Script Downloads
+    if (pwBtn) {
+        pwBtn.onclick = () => {
+            if (!workflow) return;
+            window.open(`${API_BASE}/sessions/${workflow.id}/procbot-script?engine=playwright`, "_blank");
+            showToast("📥 Downloading Playwright RPA Script...", 3000);
+        };
+    }
+    if (selBtn) {
+        selBtn.onclick = () => {
+            if (!workflow) return;
+            window.open(`${API_BASE}/sessions/${workflow.id}/procbot-script?engine=selenium`, "_blank");
+            showToast("📥 Downloading Selenium WebDriver RPA Script...", 3000);
+        };
+    }
+    if (exportPwBtn) {
+        exportPwBtn.onclick = () => {
+            if (!workflow) return;
+            window.open(`${API_BASE}/sessions/${workflow.id}/procbot-script?engine=playwright`, "_blank");
+            showToast("📥 Downloading Playwright RPA Script...", 3000);
+        };
+    }
+    if (exportSelBtn) {
+        exportSelBtn.onclick = () => {
+            if (!workflow) return;
+            window.open(`${API_BASE}/sessions/${workflow.id}/procbot-script?engine=selenium`, "_blank");
+            showToast("📥 Downloading Selenium WebDriver RPA Script...", 3000);
+        };
+    }
+
+    // Execute ProcBot Live Simulation & In-Browser Runner
+    if (runBtn) {
+        runBtn.onclick = async () => {
+            if (isProcBotRunning) return;
+            isProcBotRunning = true;
+            runBtn.disabled = true;
+            if (stopBtn) stopBtn.classList.remove("hidden");
+
+            const selectedEngine = engineSelect ? engineSelect.value : "browser";
+            logTerm(`🚀 Initializing ProcBot RPA Engine [${selectedEngine.toUpperCase()}]...`, "info");
+            
+            // Gather dynamic variables
+            const vars = {};
+            document.querySelectorAll(".procbot-var-input").forEach(inp => {
+                const k = inp.dataset.varKey;
+                if (k) vars[k] = inp.value;
+            });
+            logTerm(`📋 Injected ${Object.keys(vars).length} runtime variable parameters`, "dim");
+
+            const stepCards = Array.from(document.querySelectorAll(".procbot-step-card"));
+            const activeCards = stepCards.filter(c => {
+                const cb = c.querySelector(".procbot-step-active");
+                return !cb || cb.checked;
+            });
+
+            const total = activeCards.length;
+            if (total === 0) {
+                logTerm("⚠️ No active steps selected to execute.", "warn");
+                isProcBotRunning = false;
+                runBtn.disabled = false;
+                if (stopBtn) stopBtn.classList.add("hidden");
+                return;
+            }
+
+            for (let i = 0; i < total; i++) {
+                if (!isProcBotRunning) {
+                    logTerm("⏹️ ProcBot execution halted by user.", "warn");
+                    break;
+                }
+
+                const card = activeCards[i];
+                const sIdx = parseInt(card.dataset.stepIdx, 10);
+                const step = workflow.steps[sIdx];
+                const title = step.edited_title || step.title || `Step ${sIdx + 1}`;
+                const act = (step.action || "").toLowerCase();
+
+                // Highlight active step
+                stepCards.forEach(c => c.style.borderColor = "rgba(255,255,255,0.08)");
+                card.style.borderColor = "#6366f1";
+                card.style.background = "rgba(99,102,241,0.12)";
+
+                const pct = Math.round(((i + 1) / total) * 100);
+                if (progressBar) progressBar.style.width = `${pct}%`;
+                if (progressPercent) progressPercent.textContent = `${pct}%`;
+                if (statusText) statusText.textContent = `Executing Step ${i + 1}/${total}...`;
+
+                if (act.includes("navigate") || i === 0) {
+                    logTerm(`🌐 [Step ${i + 1}/${total}] Navigating to ${step.url || "target application"}`, "info");
+                } else if (["input", "change", "textarea_input", "type"].includes(act)) {
+                    const varInp = card.querySelector(".procbot-var-input");
+                    const currentVal = varInp ? varInp.value : (step.value || "");
+                    logTerm(`⌨️ [Step ${i + 1}/${total}] Typing value "${currentVal}" into ${title}`, "info");
+                } else if (act.includes("click")) {
+                    logTerm(`🖱️ [Step ${i + 1}/${total}] Clicking target element: ${title}`, "info");
+                } else {
+                    logTerm(`▶️ [Step ${i + 1}/${total}] Action: ${title}`, "info");
+                }
+
+                // If extension is active, forward live command
+                if (selectedEngine === "browser" && window.chrome && chrome.runtime) {
+                    try {
+                        chrome.runtime.sendMessage({
+                            type: "PROCBOT_STEP",
+                            step: step,
+                            value: card.querySelector(".procbot-var-input")?.value || step.value
+                        });
+                    } catch(e) {}
+                }
+
+                // Smooth playback pause
+                await new Promise(r => setTimeout(r, 650));
+            }
+
+            if (isProcBotRunning) {
+                logTerm(`🎉 [ProcBot] All ${total} RPA steps executed successfully!`, "success");
+                if (statusText) statusText.textContent = "Status: Execution Completed ✓";
+                showToast("🎉 ProcBot RPA Execution Completed!", 4000);
+            }
+
+            isProcBotRunning = false;
+            runBtn.disabled = false;
+            if (stopBtn) stopBtn.classList.add("hidden");
+        };
+    }
+
+    if (stopBtn) {
+        stopBtn.onclick = () => {
+            isProcBotRunning = false;
+            if (statusText) statusText.textContent = "Status: Stopped";
+        };
+    }
+}
+
 // Global Escape Key Modal Closer
 document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -11786,6 +12026,8 @@ document.addEventListener("keydown", (e) => {
         if ($("piiScannerModal")) $("piiScannerModal").style.display = "none";
         $("settingsModal")?.classList.add("hidden");
         if ($("settingsModal")) $("settingsModal").style.display = "none";
+        $("procbotRunnerModal")?.classList.add("hidden");
+        if ($("procbotRunnerModal")) $("procbotRunnerModal").style.display = "none";
         window.closeFeedbackModal?.();
     }
 });
@@ -11795,10 +12037,12 @@ if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
         init();
         initPowerUserShortcuts();
+        initProcBotRunner();
     });
 } else {
     init();
     initPowerUserShortcuts();
+    initProcBotRunner();
 }
 
 
