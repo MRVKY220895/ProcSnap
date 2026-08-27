@@ -3667,8 +3667,6 @@ function renderStepsTab() {
 
         return `
         <div class="editor-step-row ${s.hidden ? 'is-deleted' : ''} ${isSelected ? 'is-selected-row' : ''}" data-id="${s.id}" data-index="${originalIndex}">
-        return `
-        <div class="editor-step-row ${s.hidden ? 'is-deleted' : ''} ${isSelected ? 'is-selected-row' : ''}" data-id="${s.id}" data-index="${originalIndex}">
             <div class="editor-step-row-left" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
                 <input type="checkbox" class="step-select-cb" data-id="${s.id}" ${isSelected ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #6366f1; flex-shrink: 0;">
                 <span class="drag-handle" style="cursor: grab; color: var(--text-muted); font-size: 14px; user-select: none;">☰</span>
