@@ -197,7 +197,8 @@ svg {
     align-items: center;
     justify-content: space-between;
     padding: 0 24px;
-    z-index: 10;
+    position: relative;
+    z-index: 5000;
     flex-shrink: 0;
 }
 
@@ -6141,18 +6142,31 @@ textarea {
 /* =========================================================
    Z-INDEX & STACKING CONTEXT RESOLUTION FOR DROPDOWNS
 ========================================================= */
+.topbar {
+    position: relative !important;
+    z-index: 5000 !important;
+}
+
+.topbar .export-quick-menu {
+    z-index: 5001 !important;
+}
+
 .workflow-header {
     position: relative !important;
-    z-index: 10000 !important;
+    z-index: 200 !important;
 }
 
 .export-quick-wrap {
     position: relative !important;
-    z-index: 10001 !important;
+    z-index: 201 !important;
 }
 
-.export-quick-menu {
-    z-index: 99999 !important;
+.workflow-header .export-quick-menu {
+    z-index: 300 !important;
+}
+
+.canvas-toolbar-dock {
+    z-index: 50 !important;
 }
 
 /* =========================================================
