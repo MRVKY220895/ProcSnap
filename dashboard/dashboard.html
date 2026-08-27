@@ -251,9 +251,40 @@
                             </div>
                         </div>
                         <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
+                            <!-- AI Copilot Dropdown -->
+                            <div class="export-quick-wrap" id="aiCopilotWrap" style="position: relative;">
+                                <button id="aiCopilotBtn" class="btn btn-secondary btn-sm" style="padding: 6px 13px; font-size: 12.5px; font-weight: 700; color: #a5b4fc; border-color: rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.08); display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;" title="AI Automation & SOP Intelligence Tools">
+                                    <span>✨</span> AI Copilot
+                                    <svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+                                </button>
+                                <div id="aiCopilotMenu" class="export-quick-menu hidden" style="min-width: 220px;">
+                                    <button class="export-quick-item" id="menuAiAutoTitles"><span>🪄</span> Auto-Generate Titles</button>
+                                    <button class="export-quick-item" id="menuAiNormalize"><span>🧹</span> Normalize &amp; Clean Steps</button>
+                                    <button class="export-quick-item" id="menuAiSopMeta"><span>📋</span> SOP Purpose &amp; Metadata</button>
+                                    <button class="export-quick-item" id="menuAiPolish"><span>🤖</span> Polish Descriptions</button>
+                                    <div class="export-quick-divider"></div>
+                                    <button class="export-quick-item" id="menuAiMicroDemos"><span>🎬</span> Batch Demo GIFs</button>
+                                </div>
+                            </div>
+
+                            <!-- Quality & Governance Dropdown -->
+                            <div class="export-quick-wrap" id="qualityAuditWrap" style="position: relative;">
+                                <button id="qualityAuditBtn" class="btn btn-secondary btn-sm" style="padding: 6px 13px; font-size: 12.5px; font-weight: 700; color: #34d399; border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.08); display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;" title="Quality Audit, Health Score & Governance">
+                                    <span>🩺</span> Quality Audit
+                                    <svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+                                </button>
+                                <div id="qualityAuditMenu" class="export-quick-menu hidden" style="min-width: 220px;">
+                                    <button class="export-quick-item" id="menuHealthAudit"><span>🩺</span> 100-Point Health Audit</button>
+                                    <button class="export-quick-item" id="menuPrivacyScan"><span>🛡️</span> PII &amp; Privacy Scanner</button>
+                                    <button class="export-quick-item" id="menuSopTemplates"><span>📋</span> Templates &amp; {{Variables}}</button>
+                                    <button class="export-quick-item" id="menuBranchAudit"><span>🔀</span> Decision Branch Audit</button>
+                                </div>
+                            </div>
+
                             <button id="btnGuideMeLive" class="btn btn-secondary btn-sm" style="padding: 6px 14px; font-size: 12.5px; font-weight: 700; color: #818cf8; border-color: rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.08); display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;" title="Guide Me: Interactive in-browser beacon that highlights elements on the live website!">
                                 🎯 Guide Me Live
                             </button>
+
                             <div class="export-quick-wrap" id="exportQuickWrap">
                                 <button id="exportQuickBtn" class="btn btn-secondary btn-sm" style="padding: 6px 14px; font-size: 12.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;" title="Quick export options">
                                     ⬇ Export SOP
@@ -284,54 +315,6 @@
                         <button class="tab" data-tab="play">Slideshow Playback</button>
                         <button class="tab" data-tab="export">Export SOP</button>
                     </nav>
-
-                    <!-- Global Studio Toolbar across All Workflow Modes -->
-                    <div class="global-studio-toolbar" id="globalStudioToolbar" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 16px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08)); flex-wrap: wrap; z-index: 90;">
-                        <!-- Group 1: Session Actions -->
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <button id="globalRefreshBtn" class="btn btn-secondary btn-xs" title="Refresh session, steps, and annotations from server" style="font-weight: 700; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>🔄</span> Refresh
-                            </button>
-                            <button id="globalInsertStepBtn" class="btn btn-primary btn-xs" title="Insert a new step" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>➕</span> Insert Step
-                            </button>
-                        </div>
-
-                        <!-- Group 2: AI & SOP Intelligence -->
-                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                            <button id="globalAutoTitlesBtn" class="btn btn-secondary btn-xs" title="Auto-generate professional verb-first titles for all steps" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>🪄</span> Auto-Titles
-                            </button>
-                            <button id="globalNormalizeBtn" class="btn btn-secondary btn-xs" title="Remove duplicate/noisy steps and classify actions semantically" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>🧹</span> Normalize
-                            </button>
-                            <button id="globalSopMetaBtn" class="btn btn-secondary btn-xs" title="Generate SOP purpose, scope, roles &amp; prerequisites" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>✨</span> SOP Meta
-                            </button>
-                            <button id="globalAiPolishBtn" class="btn btn-secondary btn-xs" title="AI Polish descriptions of all steps" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>🤖</span> AI Polish
-                            </button>
-                        </div>
-
-                        <!-- Group 3: Quality, Privacy & Governance -->
-                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                            <button id="globalHealthBtn" class="btn btn-secondary btn-xs" title="View 100-Point SOP Health Audit Report &amp; 1-Click Auto-Repair" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: #10b981; font-weight: 700; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>🩺</span> Health
-                            </button>
-                            <button id="globalPrivacyBtn" class="btn btn-secondary btn-xs" title="Scan screenshots and text for sensitive PII, passwords, and tokens" style="background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #f87171; font-weight: 700; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>🛡️</span> Privacy
-                            </button>
-                            <button id="globalTemplatesBtn" class="btn btn-secondary btn-xs" title="Configure SOP Template Structure &amp; {{Variables}}" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>📋</span> Templates
-                            </button>
-                            <button id="globalBranchAuditBtn" class="btn btn-secondary btn-xs" title="Audit Decision Gateways and Exception Paths" style="font-weight: 600; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>🔀</span> Branches
-                            </button>
-                            <button id="globalMicroDemosBtn" class="btn btn-secondary btn-xs" title="Generate interactive micro-demos for all steps" style="background: rgba(99,102,241,0.12); color: #818cf8; border-color: rgba(99,102,241,0.3); font-weight: 700; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>🎬</span> Micro-Demos
-                            </button>
-                        </div>
-                    </div>
 
                     <section id="tab-guide" class="tab-panel">
                         <div class="guide-layout">
@@ -897,20 +880,19 @@
                                             <span>🔲</span> Split
                                         </button>
                                     </div>
-                                    <button id="btnRefreshSteps" class="btn btn-secondary btn-sm" title="Refresh session and all steps from server" style="font-weight: 700;">🔄 Refresh</button>
-                                    <button id="btnBulkMicroDemos" class="btn btn-secondary btn-sm" title="Generate interactive micro-demos for all steps" style="background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); font-weight: 700;">🎬 Micro-Demos</button>
-                                    <button id="sopHealthScoreBtn" class="btn btn-secondary btn-sm" title="View SOP Health Score and Quality Audit Report" style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #10b981; font-weight: 700;">🩺 Health: --</button>
-                                    <button id="privacyScanBtn" class="btn btn-secondary btn-sm" title="Scan for sensitive PII, passwords, and tokens" style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; font-weight: 700;">🛡️ Privacy Scan</button>
-                                    <button id="sopTemplatesBtn" class="btn btn-secondary btn-sm" title="Configure SOP Template Structure &amp; {{Variables}}">📋 Templates &amp; {{Vars}}</button>
-
-                                    <button id="validateBranchesBtn" class="btn btn-secondary btn-sm" title="Audit Decision Gateways and Exception Paths">🔀 Branch Audit</button>
-                                    <button id="bulkApproveAllBtn" class="btn btn-secondary btn-sm" title="Mark all steps as approved">✓ Approve All</button>
-                                    <button id="bulkUnhideAllBtn" class="btn btn-secondary btn-sm" title="Restore/unhide all steps">👁 Unhide All</button>
-                                    <button id="normalizeStepsBtn" class="btn btn-secondary btn-sm" title="Remove duplicate/noisy steps and classify actions semantically">🧹 Normalize</button>
-                                    <button id="autoTitlesBtn" class="btn btn-secondary btn-sm" title="Auto-generate professional SOP titles for all untitled steps">🪄 Auto-Titles</button>
-                                    <button id="generateSopMetaBtn" class="btn btn-secondary btn-sm" title="Generate SOP-level metadata: purpose, scope, roles, prerequisites">✨ SOP Metadata</button>
-                                    <button id="aiPolishBtn" class="btn btn-secondary btn-sm" title="AI Polish descriptions of all steps">🤖 AI Polish</button>
-                                    <button id="addNewStepBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700;">+ Insert Step</button>
+                                    
+                                    <button id="bulkApproveAllBtn" class="btn btn-secondary btn-sm" title="Mark all steps as approved" style="font-weight: 700; color: #10b981; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08);">
+                                        ✓ Approve All
+                                    </button>
+                                    <button id="bulkUnhideAllBtn" class="btn btn-secondary btn-sm" title="Restore/unhide all steps" style="font-weight: 700;">
+                                        👁 Unhide All
+                                    </button>
+                                    <button id="btnRefreshSteps" class="btn btn-secondary btn-sm" title="Refresh session and all steps from server" style="font-weight: 700;">
+                                        🔄 Refresh
+                                    </button>
+                                    <button id="addNewStepBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; padding: 6px 14px; box-shadow: 0 2px 10px rgba(99,102,241,0.3);">
+                                        + Insert Step
+                                    </button>
                                 </div>
                             </div>
 

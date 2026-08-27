@@ -679,6 +679,46 @@ async function init() {
         });
     }
 
+    // ── AI Copilot Dropdown ──────────────────────────────────────────────────
+    const aiCopilotBtn = $("aiCopilotBtn");
+    const aiCopilotMenu = $("aiCopilotMenu");
+    const qualityAuditBtn = $("qualityAuditBtn");
+    const qualityAuditMenu = $("qualityAuditMenu");
+
+    if (aiCopilotBtn && aiCopilotMenu) {
+        aiCopilotBtn.onclick = (e) => {
+            e.stopPropagation();
+            aiCopilotMenu.classList.toggle("hidden");
+            if (qualityAuditMenu) qualityAuditMenu.classList.add("hidden");
+            if (exportQuickMenu) exportQuickMenu.classList.add("hidden");
+        };
+        document.addEventListener("click", () => {
+            if (aiCopilotMenu) aiCopilotMenu.classList.add("hidden");
+        });
+        setOnclick("menuAiAutoTitles", () => $("autoTitlesBtn")?.click() || autoGenerateTitles());
+        setOnclick("menuAiNormalize", () => $("normalizeStepsBtn")?.click() || normalizeWorkflowSteps());
+        setOnclick("menuAiSopMeta", () => $("generateSopMetaBtn")?.click() || generateSopMetadata());
+        setOnclick("menuAiPolish", () => $("aiPolishBtn")?.click() || aiPolishStepDescriptions());
+        setOnclick("menuAiMicroDemos", () => generateAndShowMicroDemos());
+    }
+
+    // ── Quality Audit Dropdown ───────────────────────────────────────────────
+    if (qualityAuditBtn && qualityAuditMenu) {
+        qualityAuditBtn.onclick = (e) => {
+            e.stopPropagation();
+            qualityAuditMenu.classList.toggle("hidden");
+            if (aiCopilotMenu) aiCopilotMenu.classList.add("hidden");
+            if (exportQuickMenu) exportQuickMenu.classList.add("hidden");
+        };
+        document.addEventListener("click", () => {
+            if (qualityAuditMenu) qualityAuditMenu.classList.add("hidden");
+        });
+        setOnclick("menuHealthAudit", () => $("sopHealthScoreBtn")?.click() || auditSopHealth());
+        setOnclick("menuPrivacyScan", () => $("privacyScanBtn")?.click() || scanForPII());
+        setOnclick("menuSopTemplates", () => $("sopTemplatesBtn")?.click() || openTemplateModal());
+        setOnclick("menuBranchAudit", () => $("validateBranchesBtn")?.click() || validateWorkflowBranches());
+    }
+
     // ── Import JSON Workflow Binding ──────────────────────────────────────────
     const importInput = $("importJsonInput");
     if (importInput) {
@@ -8333,19 +8373,6 @@ function initDrawerVoiceoverAndAiDiff() {
 
     // Initialize Dual Control Panel (Master Switcher: Step Inspector vs Global Styles)
     initDualControlPanel();
-
-    // ── Global Studio Toolbar Button Listeners ─────────────────────────────
-    setOnclick("globalRefreshBtn", refreshActiveWorkflowSteps);
-    setOnclick("globalInsertStepBtn", () => $("addNewStepBtn")?.click());
-    setOnclick("globalAutoTitlesBtn", () => $("autoTitlesBtn")?.click());
-    setOnclick("globalNormalizeBtn", () => $("normalizeStepsBtn")?.click());
-    setOnclick("globalSopMetaBtn", () => $("generateSopMetaBtn")?.click());
-    setOnclick("globalAiPolishBtn", () => $("aiPolishBtn")?.click());
-    setOnclick("globalHealthBtn", () => $("sopHealthScoreBtn")?.click());
-    setOnclick("globalPrivacyBtn", () => $("privacyScanBtn")?.click());
-    setOnclick("globalTemplatesBtn", () => $("sopTemplatesBtn")?.click());
-    setOnclick("globalBranchAuditBtn", () => $("validateBranchesBtn")?.click());
-    setOnclick("globalMicroDemosBtn", () => generateAndShowMicroDemos());
 
     
     if (btnPlay) {
