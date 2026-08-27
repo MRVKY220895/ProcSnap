@@ -43,3 +43,4 @@ test_*.js
 debug.html
 headless_output.html
 missing_refs.txt
+scratch/

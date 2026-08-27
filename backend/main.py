@@ -258,6 +258,9 @@ def initialize_database() -> None:
                 "role TEXT",
                 "control_id TEXT",
                 "estimated_duration INTEGER",
+                "duration TEXT",
+                "alert_type TEXT DEFAULT 'none'",
+                "alert_msg TEXT DEFAULT ''",
                 "noise_flags TEXT"]:
         try:
             cursor.execute(f"ALTER TABLE step_edits ADD COLUMN {col}")
@@ -305,16 +308,37 @@ def initialize_database() -> None:
 
     for col in ["current_version TEXT DEFAULT '1.0'",
                 "lifecycle_status TEXT DEFAULT 'draft'",
-                "review_due_date TEXT"]:
+                "review_due_date TEXT",
+                "department TEXT DEFAULT ''",
+                "owner TEXT DEFAULT ''",
+                "reviewer TEXT DEFAULT ''",
+                "approver TEXT DEFAULT ''",
+                "effective_date TEXT DEFAULT ''",
+                "review_frequency_days INTEGER DEFAULT 90",
+                "preconditions_json TEXT DEFAULT '[]'",
+                "postconditions_json TEXT DEFAULT '[]'"]:
         try:
             cursor.execute(f"ALTER TABLE workflows ADD COLUMN {col}")
         except Exception:
             pass
 
-    try:
-        cursor.execute("ALTER TABLE step_edits ADD COLUMN redaction_flags TEXT DEFAULT NULL")
-    except Exception:
-        pass
+    for col in ["expected_result TEXT DEFAULT ''",
+                "exception_info TEXT DEFAULT ''",
+                "phase_name TEXT DEFAULT 'Execution'",
+                "business_intent TEXT DEFAULT ''",
+                "pii_masked INTEGER DEFAULT 0",
+                "redaction_flags TEXT DEFAULT NULL"]:
+        try:
+            cursor.execute(f"ALTER TABLE step_edits ADD COLUMN {col}")
+        except Exception:
+            pass
+
+    for col in ["expected_result TEXT DEFAULT ''",
+                "phase_name TEXT DEFAULT 'Execution'"]:
+        try:
+            cursor.execute(f"ALTER TABLE workflow_steps ADD COLUMN {col}")
+        except Exception:
+            pass
 
     connection.commit()
     connection.close()
@@ -326,7 +350,7 @@ def initialize_database() -> None:
 initialize_database()
 
 def seed_initial_sample_sop():
-    """Seeds 1 sample SOP if the database is brand new so first-time users have an immediate interactive guide."""
+    """Seeds rich sample SOPs if the database is brand new so first-time users have immediate interactive guides."""
     try:
         conn = get_connection()
         cur = conn.cursor()
@@ -335,17 +359,31 @@ def seed_initial_sample_sop():
             now = datetime.utcnow().isoformat()
             sample_id = "sample_welcome_guide"
             cur.execute("""
-                INSERT INTO workflows (id, name, application, status, started_at, ended_at, created_at, updated_at, tags)
-                VALUES (?, '🚀 Welcome to ProcSnap: Quickstart SOP', 'Chrome Web Browser', 'completed', ?, ?, ?, ?, 'Sample Guide')
+                INSERT INTO workflows (id, name, application, status, started_at, ended_at, created_at, updated_at, tags, department, owner, reviewer, approver)
+                VALUES (?, '🚀 Welcome to ProcSnap: Master SOP Guide', 'Chrome Web Browser', 'completed', ?, ?, ?, ?, 'Sample Guide, Onboarding', 'Operations', 'Process Team', 'Lead Auditor', 'Head of Ops')
             """, (sample_id, now, now, now, now))
             
             sample_dir = SCREENSHOTS_DIR / sample_id
             sample_dir.mkdir(parents=True, exist_ok=True)
             
-            cur.execute("""
-                INSERT INTO workflow_steps (workflow_id, sequence, action, timestamp, url, title, value)
-                VALUES (?, 1, 'click', ?, 'https://google.com', 'Click the Search Box', 'ProcSnap')
-            """, (sample_id, now))
+            steps_data = [
+                (1, "click", "https://app.procsnap.local/dashboard", "Open the Operations Dashboard", "", "The central management portal loads with current metrics.", "Navigation", "To access the main company operational tools."),
+                (2, "click", "https://app.procsnap.local/customers", "Select Customer Management", "", "The Customer Directory list is displayed.", "Selection", "To locate or create account records."),
+                (3, "input", "https://app.procsnap.local/customers/new", "Enter Customer Account Name", "Acme Global Corp", "The account name field accepts the input.", "DataEntry", "To register the official client entity name."),
+                (4, "click", "https://app.procsnap.local/customers/new", "Submit and Save Account Record", "", "The account is successfully created and assigned ID #10492.", "Submission", "To commit the record to the permanent database.")
+            ]
+            
+            for seq, act, url, title, val, exp, sem, intent in steps_data:
+                cur.execute("""
+                    INSERT INTO workflow_steps (workflow_id, sequence, action, timestamp, url, title, value, expected_result)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (sample_id, seq, act, now, url, title, val, exp))
+                
+                # Also create default step_edits
+                cur.execute("""
+                    INSERT INTO step_edits (workflow_id, sequence, edited_title, edited_description, expected_result, business_intent, semantic_class)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (sample_id, seq, title, f"Follow this step to {title.lower()}.", exp, intent, sem))
             
             conn.commit()
             print("🚀 Seeded initial sample SOP for first-time user.")
@@ -458,6 +496,10 @@ class StepEditRequest(BaseModel):
     branches: Optional[str] = None
     hidden: Optional[bool] = None
     checked: Optional[bool] = None
+    alert_type: Optional[str] = None
+    alert_msg: Optional[str] = None
+    role: Optional[str] = None
+    duration: Optional[str] = None
 
 
 # =========================================================
@@ -637,6 +679,21 @@ def start_session(request: StartSessionRequest):
     print("======================================")
     print()
 
+    # Start Desktop Recorder in hybrid mode so native OS dialogs (e.g. File Explorer upload picker) are automatically captured
+    if desktop_recorder:
+        try:
+            desktop_recorder.start(
+                title=name,
+                target_monitor="auto",
+                auto_click_capture=True,
+                session_id=workflow_id,
+                mode="hybrid",
+                db_callback=_desktop_step_db_callback
+            )
+            print(f"[ProcSnap] Hybrid Desktop Recorder linked to session {workflow_id}")
+        except Exception as dex:
+            print(f"[ProcSnap] Hybrid desktop recorder start notice: {dex}")
+
     return {
         "success": True,
         "session": {
@@ -717,6 +774,12 @@ def stop_session(session_id: str):
     print("Steps:", step_count)
     print("======================================")
     print()
+
+    if desktop_recorder and desktop_recorder.is_recording:
+        try:
+            desktop_recorder.stop()
+        except Exception:
+            pass
 
     return {
         "success": True,
@@ -857,7 +920,7 @@ def get_session(session_id: str):
         # Fetch all edits for this workflow
         edits_rows = cursor.execute(
             """
-            SELECT step_id, title, description, note, expected, voiceover, branches, hidden
+            SELECT step_id, title, description, note, expected, voiceover, branches, hidden, alert_type, alert_msg, role, duration
             FROM step_edits
             WHERE workflow_id = ?
             """,
@@ -881,6 +944,10 @@ def get_session(session_id: str):
                 step_dict["note"] = edit["note"] or ""
                 step_dict["expected"] = edit["expected"] or ""
                 step_dict["voiceover"] = edit["voiceover"] or ""
+                step_dict["alertType"] = edit["alert_type"] if "alert_type" in edit.keys() and edit["alert_type"] else "none"
+                step_dict["alertMsg"] = edit["alert_msg"] if "alert_msg" in edit.keys() and edit["alert_msg"] else ""
+                step_dict["role"] = edit["role"] if "role" in edit.keys() and edit["role"] else ""
+                step_dict["duration"] = edit["duration"] if "duration" in edit.keys() and edit["duration"] else ""
                 raw_branches = edit["branches"] if "branches" in edit.keys() and edit["branches"] else ""
                 try:
                     step_dict["branches"] = json.loads(raw_branches) if raw_branches else []
@@ -891,6 +958,10 @@ def get_session(session_id: str):
                 step_dict["note"] = ""
                 step_dict["expected"] = ""
                 step_dict["voiceover"] = ""
+                step_dict["alertType"] = "none"
+                step_dict["alertMsg"] = ""
+                step_dict["role"] = ""
+                step_dict["duration"] = ""
                 step_dict["branches"] = []
                 step_dict["hidden"] = False
                 
@@ -1222,17 +1293,16 @@ def get_screenshot(
             detail="Invalid screenshot filename",
         )
 
-    filepath = (
-        SCREENSHOTS_DIR /
-        session_id /
-        safe_filename
-    )
-
+    filepath = SCREENSHOTS_DIR / session_id / safe_filename
     if not filepath.is_file():
-        raise HTTPException(
-            status_code=404,
-            detail="Screenshot not found",
-        )
+        alt_filepath = BASE_DIR.parent / "screenshots" / session_id / safe_filename
+        if alt_filepath.is_file():
+            filepath = alt_filepath
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail="Screenshot not found",
+            )
 
     return FileResponse(
         path=filepath,
@@ -1568,6 +1638,10 @@ def edit_step(session_id: str, step_id: int, request: StepEditRequest):
             voiceover = request.voiceover if request.voiceover is not None else existing["voiceover"]
             branches = request.branches if request.branches is not None else (existing["branches"] if "branches" in existing.keys() else "")
             hidden = int(request.hidden) if request.hidden is not None else existing["hidden"]
+            alert_type = request.alert_type if request.alert_type is not None else (existing["alert_type"] if "alert_type" in existing.keys() else "none")
+            alert_msg = request.alert_msg if request.alert_msg is not None else (existing["alert_msg"] if "alert_msg" in existing.keys() else "")
+            role = request.role if request.role is not None else (existing["role"] if "role" in existing.keys() else "")
+            duration = request.duration if request.duration is not None else (existing["duration"] if "duration" in existing.keys() else "")
         else:
             orig_step = cursor.execute(
                 "SELECT title, action, value FROM workflow_steps WHERE id = ?",
@@ -1581,11 +1655,15 @@ def edit_step(session_id: str, step_id: int, request: StepEditRequest):
             voiceover = request.voiceover if request.voiceover is not None else ""
             branches = request.branches if request.branches is not None else ""
             hidden = int(request.hidden) if request.hidden is not None else 0
+            alert_type = request.alert_type if request.alert_type is not None else "none"
+            alert_msg = request.alert_msg if request.alert_msg is not None else ""
+            role = request.role if request.role is not None else ""
+            duration = request.duration if request.duration is not None else ""
             
         cursor.execute(
             """
-            INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, voiceover, branches, hidden, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO step_edits (step_id, workflow_id, title, description, note, expected, voiceover, branches, hidden, alert_type, alert_msg, role, duration, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(step_id) DO UPDATE SET
                 title = excluded.title,
                 description = excluded.description,
@@ -1594,9 +1672,13 @@ def edit_step(session_id: str, step_id: int, request: StepEditRequest):
                 voiceover = excluded.voiceover,
                 branches = excluded.branches,
                 hidden = excluded.hidden,
+                alert_type = excluded.alert_type,
+                alert_msg = excluded.alert_msg,
+                role = excluded.role,
+                duration = excluded.duration,
                 updated_at = excluded.updated_at
             """,
-            (step_id, session_id, title, description, note, expected, voiceover, branches, hidden, now)
+            (step_id, session_id, title, description, note, expected, voiceover, branches, hidden, alert_type, alert_msg, role, duration, now)
         )
         if request.checked is not None:
             cursor.execute(
@@ -4567,6 +4649,17 @@ def _desktop_step_db_callback(session_id: str, sequence: int, action: str, times
     conn = get_connection()
     try:
         cur = conn.cursor()
+        now = datetime.utcnow().isoformat()
+        # Guarantee workflow entry exists so foreign key is always satisfied
+        cur.execute(
+            """
+            INSERT OR IGNORE INTO workflows (id, name, application, status, started_at, created_at, updated_at, tags)
+            VALUES (?, ?, 'Windows Desktop', 'recording', ?, ?, ?, 'Desktop App SOP')
+            """,
+            (session_id, "Native Desktop Workflow", now, now, now)
+        )
+        cur.execute("SELECT COALESCE(MAX(sequence), 0) + 1 AS next_seq FROM workflow_steps WHERE workflow_id = ?", (session_id,))
+        actual_seq = cur.fetchone()["next_seq"]
         cur.execute(
             """
             INSERT INTO workflow_steps (
@@ -4575,14 +4668,103 @@ def _desktop_step_db_callback(session_id: str, sequence: int, action: str, times
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (session_id, sequence, action, timestamp, url, title, None, None, None, None, element_json, screenshot_path)
+            (session_id, actual_seq, action, timestamp, url, title, None, None, None, None, element_json, screenshot_path)
         )
         conn.commit()
     finally:
         conn.close()
 
+# ── User Feedback & Support System ──────────────────────────────────────────
+class FeedbackSubmissionRequest(BaseModel):
+    name: Optional[str] = "Anonymous User"
+    email: Optional[str] = "Vickykalam34@gmail.com"
+    feedback_type: Optional[str] = "feedback"  # 'bug_report', 'feature_request', 'feedback', 'question'
+    subject: Optional[str] = "ProcSnap User Feedback"
+    message: str
+    system_diagnostics: Optional[Dict[str, Any]] = None
+
+@app.post("/feedback")
+def submit_user_feedback(payload: FeedbackSubmissionRequest):
+    """
+    Submits and logs user feedback / bug reports directed to Vickykalam34@gmail.com.
+    """
+    import uuid
+    feedback_dir = BASE_DIR / "backend" / "storage" / "feedback"
+    feedback_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.utcnow().isoformat()
+    feedback_id = f"fb_{uuid.uuid4().hex[:8]}"
+
+    record = {
+        "id": feedback_id,
+        "timestamp": timestamp,
+        "recipient": "Vickykalam34@gmail.com",
+        "sender_name": payload.name,
+        "sender_email": payload.email,
+        "feedback_type": payload.feedback_type,
+        "subject": payload.subject or "ProcSnap Feedback",
+        "message": payload.message,
+        "diagnostics": payload.system_diagnostics or {}
+    }
+
+    log_file = feedback_dir / "feedback_submissions.json"
+    existing = []
+    if log_file.exists():
+        try:
+            existing = json.loads(log_file.read_text(encoding="utf-8"))
+            if not isinstance(existing, list): existing = []
+        except Exception:
+            existing = []
+    existing.append(record)
+    log_file.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+
+    return {
+        "success": True,
+        "feedback_id": feedback_id,
+        "recipient": "Vickykalam34@gmail.com",
+        "message": "Thank you! Your feedback has been recorded and submitted to Vickykalam34@gmail.com."
+    }
+
+@app.get("/desktop/windows")
+def list_desktop_windows():
+    """
+    Lists all visible top-level Windows application windows for selective targeting.
+    """
+    windows = []
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            EnumWindows = ctypes.windll.user32.EnumWindows
+            EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
+            GetWindowTextW = ctypes.windll.user32.GetWindowTextW
+            GetWindowTextLengthW = ctypes.windll.user32.GetWindowTextLengthW
+            IsWindowVisible = ctypes.windll.user32.IsWindowVisible
+
+            def foreach_window(hwnd, lParam):
+                if IsWindowVisible(hwnd):
+                    length = GetWindowTextLengthW(hwnd)
+                    if length > 0:
+                        buff = ctypes.create_unicode_buffer(length + 1)
+                        GetWindowTextW(hwnd, buff, length + 1)
+                        title = buff.value.strip()
+                        if title and title not in ("Program Manager", "Settings", "Default IME", "MSCTFIME UI"):
+                            windows.append({"hwnd": hwnd, "title": title})
+                return True
+
+            EnumWindows(EnumWindowsProc(foreach_window), 0)
+        except Exception as e:
+            windows.append({"hwnd": 0, "title": f"Desktop (Scan error: {e})"})
+    return {"windows": windows, "count": len(windows)}
+
 class DesktopRecordStartRequest(BaseModel):
     title: Optional[str] = "Native Windows Desktop Workflow"
+    target_monitor: Optional[str] = "auto"  # "auto", "1", "2", "3", "all"
+    auto_click_capture: Optional[bool] = True
+
+@app.get("/desktop/monitors")
+def get_desktop_monitors():
+    from .desktop_recorder import get_connected_monitors
+    monitors = get_connected_monitors()
+    return {"monitors": monitors, "count": len(monitors)}
 
 @app.post("/desktop-recorder/start")
 def start_desktop_recording(payload: DesktopRecordStartRequest):
@@ -4590,7 +4772,15 @@ def start_desktop_recording(payload: DesktopRecordStartRequest):
         raise HTTPException(status_code=500, detail="Desktop recorder module not available.")
     
     title = payload.title or "Native Windows Desktop Workflow"
-    session_id = desktop_recorder.start(title=title, db_callback=_desktop_step_db_callback)
+    target_monitor = payload.target_monitor or "auto"
+    auto_click_capture = True if payload.auto_click_capture is None else payload.auto_click_capture
+
+    session_id = desktop_recorder.start(
+        title=title,
+        target_monitor=target_monitor,
+        auto_click_capture=auto_click_capture,
+        db_callback=_desktop_step_db_callback
+    )
 
     # Initialize workflow entry in database
     conn = get_connection()
@@ -4612,6 +4802,8 @@ def start_desktop_recording(payload: DesktopRecordStartRequest):
         "success": True,
         "sessionId": session_id,
         "title": title,
+        "targetMonitor": target_monitor,
+        "autoClickCapture": auto_click_capture,
         "message": "Native desktop recording started! Click anywhere on your desktop or applications."
     }
 
@@ -4620,6 +4812,7 @@ def stop_desktop_recording():
     if not desktop_recorder:
         raise HTTPException(status_code=500, detail="Desktop recorder module not available.")
     
+    recorded_count = desktop_recorder.step_sequence
     session_id = desktop_recorder.stop()
     if session_id:
         conn = get_connection()
@@ -4638,11 +4831,12 @@ def stop_desktop_recording():
         finally:
             conn.close()
         
+        final_count = max(count, recorded_count)
         return {
             "success": True,
             "sessionId": session_id,
-            "stepCount": count,
-            "message": f"Desktop recording stopped. Captured {count} steps!"
+            "stepCount": final_count,
+            "message": f"Desktop recording stopped. Captured {final_count} steps!"
         }
     return {"success": False, "message": "No active desktop recording session."}
 
@@ -4651,6 +4845,22 @@ def get_desktop_recorder_status():
     if not desktop_recorder:
         return {"isRecording": False, "error": "Module not available"}
     return desktop_recorder.get_status()
+
+@app.post("/desktop-recorder/capture-step")
+def trigger_desktop_capture_step():
+    """Manually captures the current desktop screen as a step in the active recording."""
+    if not desktop_recorder:
+        raise HTTPException(status_code=500, detail="Desktop recorder not available")
+    if not desktop_recorder.is_recording:
+        raise HTTPException(status_code=400, detail="Desktop recorder is not currently recording")
+    
+    desktop_recorder.instant_capture_hotkey()
+    time.sleep(0.15)
+    return {
+        "success": True,
+        "stepCount": desktop_recorder.step_sequence,
+        "message": f"Step {desktop_recorder.step_sequence} captured successfully!"
+    }
 
 
 @app.post("/sessions/{session_id}/capture-desktop-popup")
@@ -5706,6 +5916,236 @@ def compare_workflow_versions(session_id: str, v1_id: int = Query(...), v2_id: i
         return diff
     finally:
         conn.close()
+
+
+@app.post("/sessions/{session_id}/scan-pii")
+def scan_session_pii(session_id: str):
+    """
+    Scans all steps in a session for sensitive PII, passwords, API keys, and credit cards.
+    """
+    from backend.privacy_scanner import privacy_scanner
+    sess = get_session(session_id)
+    steps = sess.get("steps", [])
+    report = privacy_scanner.scan_workflow(steps)
+    return report
+
+
+@app.post("/sessions/{session_id}/auto-redact-pii")
+def auto_redact_session_pii(session_id: str):
+    """
+    Automatically redacts sensitive PII across all steps in the session.
+    """
+    from backend.privacy_scanner import privacy_scanner
+    sess = get_session(session_id)
+    steps = sess.get("steps", [])
+    conn = get_connection()
+    now = datetime.now().isoformat()
+    total_redacted = 0
+    try:
+        for s in steps:
+            step_id = s.get("id")
+            if not step_id:
+                continue
+            
+            t = s.get("title") or ""
+            d = s.get("description") or ""
+            v = s.get("value") or ""
+            exp = s.get("expected_result") or ""
+            
+            t_red, c1 = privacy_scanner.redact_text(t)
+            d_red, c2 = privacy_scanner.redact_text(d)
+            v_red, c3 = privacy_scanner.redact_text(v)
+            exp_red, c4 = privacy_scanner.redact_text(exp)
+            
+            step_total = c1 + c2 + c3 + c4
+            if step_total > 0:
+                total_redacted += step_total
+                conn.execute(
+                    """
+                    INSERT INTO step_edits (step_id, workflow_id, title, description, expected_result, pii_masked, updated_at)
+                    VALUES (?, ?, ?, ?, ?, 1, ?)
+                    ON CONFLICT(step_id) DO UPDATE SET
+                        title = excluded.title,
+                        description = excluded.description,
+                        expected_result = excluded.expected_result,
+                        pii_masked = 1,
+                        updated_at = excluded.updated_at
+                    """,
+                    (step_id, session_id, t_red, d_red, exp_red, now)
+                )
+        conn.commit()
+        return {
+            "success": True,
+            "total_redactions_applied": total_redacted,
+            "message": f"Successfully redacted {total_redacted} sensitive items across the workflow."
+        }
+    finally:
+        conn.close()
+
+
+@app.get("/sessions/{session_id}/export-package")
+def export_session_package(session_id: str):
+    """
+    Exports the workflow as a self-contained portable .procsnap.zip package.
+    """
+    from backend.package_manager import package_manager
+    try:
+        buf, filename = package_manager.export_package(session_id)
+        return Response(
+            content=buf.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/sessions/import-package")
+async def import_session_package(file: UploadFile = File(...)):
+    """
+    Imports and restores a .procsnap.zip portable package into the local workspace.
+    """
+    from backend.package_manager import package_manager
+    try:
+        contents = await file.read()
+        res = package_manager.import_package(contents)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Import failed: {str(e)}")
+
+
+@app.get("/sessions/{session_id}/flowchart")
+def get_session_flowchart(session_id: str):
+    """
+    Generates Mermaid.js and BPMN-style process maps depicting phases, steps, and decision branches.
+    """
+    sess = get_session(session_id)
+    steps = sess.get("steps", [])
+    name = sess.get("name", "Process Workflow")
+    
+    lines = ["graph TD", f'    Start(["🏁 Start: {name}"])']
+    prev_node = "Start"
+    
+    for i, s in enumerate(steps):
+        step_id = s.get("id")
+        seq = s.get("sequence", i + 1)
+        title = (s.get("title") or s.get("edited_title") or f"Step {seq}").replace('"', "'")
+        act = s.get("action", "click")
+        branches = s.get("branches") or []
+        node_key = f"S{seq}"
+        
+        if branches:
+            lines.append(f'    {node_key}{{"🔀 {title}?"}}')
+            lines.append(f'    {prev_node} --> {node_key}')
+            for b in branches:
+                cond = b.get("condition", "Condition").replace('"', "'")
+                target_seq = b.get("target_step_sequence", seq + 1)
+                lines.append(f'    {node_key} -- "{cond}" --> S{target_seq}')
+        else:
+            lines.append(f'    {node_key}["{seq}. {title}"]')
+            lines.append(f'    {prev_node} --> {node_key}')
+            
+        prev_node = node_key
+        
+    lines.append(f'    End(["✅ End: Process Completed"])')
+    lines.append(f'    {prev_node} --> End')
+    
+    mermaid_code = "\n".join(lines)
+    return {
+        "mermaid": mermaid_code,
+        "step_count": len(steps),
+        "workflow_name": name
+    }
+
+
+@app.get("/sessions/{session_id}/export-qa-matrix")
+def export_qa_test_case_matrix(session_id: str, format: str = "csv"):
+    """
+    Generates a formal QA Test Case Matrix (CSV or Markdown) with Action vs. Expected Result.
+    """
+    sess = get_session(session_id)
+    steps = sess.get("steps", [])
+    name = sess.get("name", "QA Test Cases")
+    
+    if format == "csv":
+        import csv
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Test Case ID", "Step Number", "Test Step Description", "Action Type", "Input Data / Value", "Expected Result", "Status", "Tester Notes"])
+        for i, s in enumerate(steps):
+            seq = s.get("sequence", i + 1)
+            title = s.get("title") or s.get("edited_title") or f"Step {seq}"
+            act = s.get("action", "click")
+            val = s.get("value") or ""
+            exp = s.get("expected_result") or s.get("expected") or "System accepts input and interface updates without errors."
+            writer.writerow([f"TC-{seq:03d}", seq, title, act, val, exp, "Pending", ""])
+        
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{name}_QA_Matrix.csv"'}
+        )
+    else:
+        lines = [
+            f"# 🧪 QA Test Case Matrix: {name}",
+            "",
+            "| TC ID | Step | Action & Target | Input Data | Expected Result | Status |",
+            "| :--- | :--- | :--- | :--- | :--- | :--- |"
+        ]
+        for i, s in enumerate(steps):
+            seq = s.get("sequence", i + 1)
+            title = s.get("title") or s.get("edited_title") or f"Step {seq}"
+            val = s.get("value") or "N/A"
+            exp = s.get("expected_result") or s.get("expected") or "Action executes successfully."
+            lines.append(f"| `TC-{seq:03d}` | {seq} | {title} | `{val}` | {exp} | ⏳ Pending |")
+        
+        return Response(
+            content="\n".join(lines),
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="{name}_QA_Matrix.md"'}
+        )
+
+
+@app.post("/sessions/{session_id}/governance")
+def update_session_governance(session_id: str, payload: dict = Body(...)):
+    """
+    Updates enterprise governance metadata: Department, Owner, Reviewer, Approver, Pre/Postconditions.
+    """
+    conn = get_connection()
+    now = datetime.now().isoformat()
+    try:
+        conn.execute(
+            """
+            UPDATE workflows SET
+                department = ?,
+                owner = ?,
+                reviewer = ?,
+                approver = ?,
+                effective_date = ?,
+                review_frequency_days = ?,
+                preconditions_json = ?,
+                postconditions_json = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                payload.get("department", ""),
+                payload.get("owner", ""),
+                payload.get("reviewer", ""),
+                payload.get("approver", ""),
+                payload.get("effective_date", ""),
+                int(payload.get("review_frequency_days", 90)),
+                json.dumps(payload.get("preconditions", [])),
+                json.dumps(payload.get("postconditions", [])),
+                now,
+                session_id
+            )
+        )
+        conn.commit()
+        return {"success": True, "message": "Governance metadata updated successfully."}
+    finally:
+        conn.close()
+
 
 
 

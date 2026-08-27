@@ -125,6 +125,62 @@ class DescriptionGenerator:
                 .replace('{page}', page))
 
 
+class ExpectedResultGenerator:
+    """
+    Deduces the expected system state after every user action.
+    Crucial for Enterprise Training and QA Runbooks.
+    """
+    def generate(self, step: dict, semantic_class: Optional[str] = None) -> str:
+        action = (step.get('action') or '').lower()
+        title = (step.get('title') or step.get('edited_title') or '').lower()
+        el_name = _element_name(step) or title or 'the element'
+        sem = semantic_class or 'Default'
+
+        if 'save' in title or 'submit' in title or sem == 'Submission':
+            return f"The changes are committed successfully and a confirmation message appears."
+        elif 'approve' in title or sem == 'Approval':
+            return f"The request status transitions to 'Approved' and advances to the next workflow stage."
+        elif 'delete' in title or 'remove' in title or sem == 'Deletion':
+            return f"The selected item is permanently removed from the list."
+        elif 'search' in title or sem == 'Search':
+            return f"The system updates the table view to display filtered matching records."
+        elif 'navigate' in title or action in ('navigate', 'page_load') or sem == 'Navigation':
+            return f"The target screen loads completely with all necessary controls accessible."
+        elif 'input' in action or 'type' in action or sem == 'DataEntry':
+            val = step.get('value')
+            if val:
+                return f"'{val}' is entered into {el_name} and validated without input errors."
+            return f"The value is entered into {el_name} and validated."
+        elif 'select' in action or 'change' in action or sem == 'Selection':
+            return f"The selected option is highlighted and active."
+        elif 'login' in title or 'sign in' in title:
+            return f"Authentication succeeds and user is redirected to the main dashboard."
+        else:
+            return f"The action is performed and the application interface updates accordingly."
+
+
+class BusinessRationaleGenerator:
+    """
+    Generates business purpose and rationale explaining 'why' an action is performed.
+    """
+    def generate(self, step: dict) -> str:
+        title = (step.get('title') or step.get('edited_title') or '').lower()
+        el_name = _element_name(step) or title
+
+        if 'save' in title or 'submit' in title:
+            return "To finalize transaction records and ensure data persistence in the database."
+        elif 'approve' in title:
+            return "To provide formal managerial authorization before proceeding."
+        elif 'search' in title or 'filter' in title:
+            return "To locate the specific target record quickly."
+        elif 'delete' in title:
+            return "To purge deprecated or erroneous records from the system."
+        elif 'login' in title or 'sign in' in title:
+            return "To establish secure, role-based session credentials."
+        else:
+            return f"Required step in standard operating procedure to process {el_name}."
+
+
 class MetadataGenerator:
     def generate_sop_metadata(self, steps: List[dict]) -> dict:
         if not steps:
@@ -140,9 +196,16 @@ class MetadataGenerator:
         else:
             purpose = f"This procedure documents the process performed in {app_str}."
         scope = f"This procedure applies to {', '.join(applications[:4]) if applications else 'the application'} users."
-        prereqs = [f"Access to {applications[0]}"] if applications else []
+        prereqs = [f"Access permissions to {applications[0]}"] if applications else []
         if any('login' in (s.get('url') or '').lower() or 'sign in' in (s.get('title') or '').lower() for s in steps[:3]):
-            prereqs.append('Valid login credentials')
+            prereqs.append('Active user login credentials')
+        prereqs.append('Standard network connectivity and authorized role privileges')
+        
+        postconditions = [
+            f"Process successfully finalized after: {last_title or 'final step'}.",
+            "System database updated and transaction audit logged."
+        ]
+
         roles = []
         for s in steps:
             if any(kw in (s.get('title') or '').lower() for kw in ['approve', 'authorize', 'manager', 'admin', 'supervisor']):
@@ -159,10 +222,20 @@ class MetadataGenerator:
             duration_min = max(1, int((t1 - t0) / 60))
         except Exception:
             duration_min = None
-        return {'purpose': purpose, 'scope': scope, 'prerequisites': prereqs, 'roles': roles,
-                'applications': applications, 'expected_outcome': expected,
-                'estimated_duration_min': duration_min, 'total_steps': total_steps,
-                'suggested_tags': applications[:3]}
+        return {
+            'purpose': purpose,
+            'scope': scope,
+            'prerequisites': prereqs,
+            'postconditions': postconditions,
+            'roles': roles,
+            'applications': applications,
+            'expected_outcome': expected,
+            'estimated_duration_min': duration_min,
+            'total_steps': total_steps,
+            'department': 'Operations',
+            'review_frequency_days': 90,
+            'suggested_tags': applications[:3]
+        }
 
     def generate_step_titles(self, steps: List[dict], force: bool = True) -> dict:
         gen = TitleGenerator()
@@ -176,6 +249,13 @@ class MetadataGenerator:
             return {s['id']: gen.generate(s, s.get('semantic_class')) for s in steps}
         return {s['id']: gen.generate(s, s.get('semantic_class')) for s in steps if not (s.get('edited_description') or '').strip()}
 
+    def generate_expected_results(self, steps: List[dict]) -> dict:
+        gen = ExpectedResultGenerator()
+        return {s['id']: gen.generate(s, s.get('semantic_class')) for s in steps}
+
+    def generate_business_intents(self, steps: List[dict]) -> dict:
+        gen = BusinessRationaleGenerator()
+        return {s['id']: gen.generate(step=s) for s in steps}
 
     def _extract_applications(self, steps: List[dict]) -> List[str]:
         seen: dict = {}
@@ -201,5 +281,7 @@ def generate_all_suggestions(steps: List[dict]) -> dict:
         'sop_metadata': meta_gen.generate_sop_metadata(steps),
         'title_suggestions': meta_gen.generate_step_titles(steps),
         'description_suggestions': meta_gen.generate_step_descriptions(steps),
+        'expected_results_suggestions': meta_gen.generate_expected_results(steps),
+        'business_intent_suggestions': meta_gen.generate_business_intents(steps),
         'intent_markers': INTENT_MARKERS,
     }

@@ -1449,3 +1449,112 @@ function escapeHtml(str) {
         "'": "&#39;"
     }[m]));
 }
+
+/* =========================================================
+   🖥️ AUTO-DETECT & ASK WHEN CLICKING OUTSIDE BROWSER
+========================================================= */
+
+let desktopPromptActive = false;
+
+function showDesktopCapturePrompt(sessionId) {
+    if (desktopPromptActive || document.getElementById("procsnap-desktop-prompt")) return;
+    desktopPromptActive = true;
+
+    const promptEl = document.createElement("div");
+    promptEl.id = "procsnap-desktop-prompt";
+    promptEl.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 2147483647;
+        background: #182234;
+        border: 1.5px solid #38bdf8;
+        border-radius: 14px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.75);
+        padding: 16px 20px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #fff;
+        max-width: 390px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        animation: procsnapFadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    `;
+
+    promptEl.innerHTML = `
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="font-size: 26px; line-height: 1;">🖥️</div>
+            <div style="flex: 1;">
+                <div style="font-size: 13.5px; font-weight: 800; color: #38bdf8; margin-bottom: 3px;">Clicked Outside Browser?</div>
+                <div style="font-size: 11.5px; color: #cbd5e1; line-height: 1.45;">
+                    You interacted with an external desktop application (Excel, SAP, File Explorer). Would you like to capture your desktop actions in this SOP?
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+            <button id="ps-btn-dismiss-desktop" style="background: transparent; color: #94a3b8; border: none; padding: 5px 8px; font-size: 11.5px; cursor: pointer; border-radius: 6px;">✕ Dismiss</button>
+            <button id="ps-btn-snap-once" style="background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 6px; font-weight: 600; font-size: 11.5px; cursor: pointer;">📸 Grab This Step</button>
+            <button id="ps-btn-enable-desktop" style="background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; border: none; padding: 6px 13px; border-radius: 6px; font-weight: 700; font-size: 11.5px; cursor: pointer; box-shadow: 0 4px 12px rgba(56,189,248,0.35);">✓ Auto-Capture Desktop</button>
+        </div>
+    `;
+
+    document.body.appendChild(promptEl);
+
+    document.getElementById("ps-btn-enable-desktop")?.addEventListener("click", () => {
+        chrome.runtime.sendMessage({ type: "ENABLE_DESKTOP_CAPTURE", sessionId });
+        promptEl.remove();
+        desktopPromptActive = false;
+        showToastNotification("✓ Desktop auto-capture enabled! Clicks outside Chrome are now recorded.");
+    });
+
+    document.getElementById("ps-btn-snap-once")?.addEventListener("click", () => {
+        chrome.runtime.sendMessage({ type: "CAPTURE_DESKTOP_POPUP", sessionId });
+        promptEl.remove();
+        desktopPromptActive = false;
+        showToastNotification("📸 Desktop screenshot captured as next step!");
+    });
+
+    document.getElementById("ps-btn-dismiss-desktop")?.addEventListener("click", () => {
+        promptEl.remove();
+        desktopPromptActive = false;
+    });
+}
+
+function showToastNotification(text) {
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2147483647;
+        background: #0f172a;
+        color: #38bdf8;
+        border: 1px solid rgba(56,189,248,0.4);
+        padding: 8px 18px;
+        border-radius: 999px;
+        font-family: sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    `;
+    toast.textContent = text;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+// Window blur listener to detect focus loss to outside applications
+window.addEventListener("blur", () => {
+    if (!recording || paused) return;
+    chrome.runtime.sendMessage({ type: "BROWSER_WINDOW_BLURRED" }).catch(() => {});
+});
+
+// Runtime message listener for desktop prompt
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg?.type === "ASK_DESKTOP_CAPTURE") {
+        showDesktopCapturePrompt(msg.sessionId);
+        sendResponse({ success: true });
+        return true;
+    }
+});

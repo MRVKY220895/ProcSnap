@@ -2,34 +2,43 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>ProcSnap</title>
+    <title>ProcSnap — Workflow Companion</title>
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
     <div class="container">
+        <!-- Top Bar Header -->
         <header class="header">
-            <div class="brand" style="display: flex; align-items: center; gap: 8px;">
-                <img src="icons/icon48.png" alt="ProcSnap" style="width: 24px; height: 24px; border-radius: 6px; object-fit: contain; box-shadow: 0 2px 6px rgba(99,102,241,0.35);">
-                <span class="logo-text">ProcSnap</span>
+            <div class="brand">
+                <img src="icons/icon48.png" alt="ProcSnap" class="brand-logo">
+                <div class="brand-info">
+                    <span class="logo-text">ProcSnap</span>
+                    <span class="logo-sub">Local SOP Studio</span>
+                </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <div id="api-status-pill" class="api-status offline" title="Click to test/reconnect API">API Offline</div>
-                <button id="btnToggleApiConnect" class="btn btn-xs btn-secondary" style="font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" title="Disconnect / Reconnect local backend server">
-                    <span id="toggleApiIcon">🔌</span> <span id="toggleApiText">Disconnect</span>
+            <div class="header-actions">
+                <div id="api-status-pill" class="api-status offline" title="Click to test API connectivity">
+                    <span class="status-indicator"></span>
+                    <span id="apiStatusText">OFFLINE</span>
+                </div>
+                <button id="btnToggleApiConnect" class="btn-power" title="Connect or Disconnect local server">
+                    <span id="toggleApiIcon">⚡</span>
+                    <span id="toggleApiText">Connect</span>
                 </button>
             </div>
         </header>
 
         <!-- Backend Offline Assistant (shown when API is not reachable) -->
         <div id="api-offline-banner" class="api-offline-card hidden">
-            <div class="api-offline-title">
-                <span>⚠️</span> Backend Server Offline
-            </div>
-            <div class="api-offline-desc">
-                ProcSnap backend is not responding on ports 8000-8005.
+            <div class="api-offline-header">
+                <span class="offline-icon">⚠️</span>
+                <div>
+                    <div class="api-offline-title">Backend Server Offline</div>
+                    <div class="api-offline-desc">ProcSnap local engine is not active on ports 8000-8005.</div>
+                </div>
             </div>
             <div class="api-offline-actions">
-                <button id="btnRetryApi" class="btn btn-xs btn-primary">⚡ Start / Reconnect API</button>
+                <button id="btnRetryApi" class="btn btn-xs btn-primary">⚡ 1-Click Reconnect</button>
                 <button id="btnCopyStartCmd" class="btn btn-xs btn-secondary">📋 Copy Launch Command</button>
             </div>
         </div>
@@ -37,27 +46,46 @@
         <!-- Setup Form (shown when not recording) -->
         <div id="setup-panel" class="panel">
             <div class="field">
-                <label for="workflow-name">Workflow Name</label>
+                <div class="field-header">
+                    <label for="workflow-name">Workflow Name</label>
+                    <span class="field-hint">e.g. Standard SOP</span>
+                </div>
                 <input type="text" id="workflow-name" placeholder="e.g. How to Approve Expense Report" value="">
             </div>
             <div class="field">
-                <label for="application-name">Application / System</label>
+                <div class="field-header">
+                    <label for="application-name">Application / System</label>
+                    <div class="app-presets">
+                        <span class="app-preset-chip active" data-app="Chrome">Chrome</span>
+                        <span class="app-preset-chip" data-app="Desktop">Desktop</span>
+                        <span class="app-preset-chip" data-app="Salesforce">Salesforce</span>
+                    </div>
+                </div>
                 <input type="text" id="application-name" placeholder="e.g. Chrome, Salesforce, Jira" value="Chrome">
             </div>
-            <button id="start" class="btn btn-primary">Start Capture</button>
+            <button id="start" class="btn btn-primary btn-start">
+                <span>🚀</span> Start Capture
+            </button>
         </div>
 
-        <!-- Extension Quick Utility Toolbar (Git Update, Dependencies, Connection) -->
+        <!-- Extension Unified 1-Click Control Toolbar -->
         <div class="ext-utility-toolbar">
+            <div class="ext-toolbar-header">
+                <span class="ext-toolbar-title">⚡ Quick Controls &amp; Engine</span>
+                <span id="latencyBadge" class="latency-badge hidden">--ms</span>
+            </div>
             <div class="ext-util-row">
+                <button id="btnExtDebug" class="btn-util" title="Run 1-click comprehensive system diagnostics">
+                    <span>🐞</span> Debug
+                </button>
+                <button id="btnExtReconnect" class="btn-util" title="Probe ports and reconnect to engine">
+                    <span>🔄</span> Reconnect
+                </button>
                 <button id="btnExtGitPull" class="btn-util" title="Pull latest updates from GitHub">
                     <span>⬇️</span> Git Pull
                 </button>
-                <button id="btnExtReinstall" class="btn-util" title="Re-install Python package dependencies">
+                <button id="btnExtReinstall" class="btn-util" title="Re-install Python dependencies">
                     <span>📦</span> Pip Update
-                </button>
-                <button id="btnExtStartAPI" class="btn-util" title="Start / Reconnect backend API server">
-                    <span>⚡</span> Connect
                 </button>
             </div>
             <div id="extUtilStatus" class="ext-util-status hidden"></div>
@@ -88,31 +116,50 @@
         </div>
 
         <!-- Diagnostic & GPT Troubleshooting Hub -->
-        <div id="diagnostic-hub" style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <button id="btnToggleDiagnostic" style="background:none; border:none; color:#94a3b8; font-size:11px; cursor:pointer; padding:0; display:flex; align-items:center; gap:4px;">
-                    <span>💻</span> Terminal &amp; Diagnostic Guide
+        <div id="diagnostic-hub" class="diagnostic-hub">
+            <div class="diagnostic-header">
+                <button id="btnToggleDiagnostic" class="btn-toggle-diag">
+                    <span>💻</span> Diagnostic Console
                 </button>
-                <button id="btnCopyGptPrompt" class="btn btn-xs btn-secondary" style="font-size:10px; padding:2px 6px;">
-                    📋 Copy Log for GPT
-                </button>
+                <div style="display: flex; gap: 4px;">
+                    <button id="btnExtAutoFix" class="btn btn-xs btn-primary" style="background: #10b981; border: none; font-weight: 700;" title="1-Click Auto-Repair Connection and Reset Server State">
+                        ⚡ Auto-Fix
+                    </button>
+                    <button id="btnCopyGptPrompt" class="btn btn-xs btn-secondary" title="Copy full debug info for ChatGPT / Claude">
+                        📋 GPT Log
+                    </button>
+                </div>
             </div>
-            <div id="diagnosticBody" class="hidden" style="margin-top:6px; background:rgba(0,0,0,0.35); border-radius:6px; padding:8px; font-family:monospace; font-size:10.5px; color:#cbd5e1; max-height:120px; overflow-y:auto;">
-                <div style="color:#818cf8; font-weight:bold;"># Start ProcSnap Backend:</div>
-                <div style="color:#10b981; user-select:all;">powershell -File .\install.ps1</div>
-                <div id="diagnosticLogs" style="margin-top:4px; color:#94a3b8;">Probing ports 8000-8005...</div>
+            <div id="diagnosticBody" class="diagnostic-body hidden">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+                    <button id="btnExtSelfTest" class="btn btn-xs btn-secondary" style="font-weight: 700; padding: 4px 6px;">
+                        🩺 Run Self-Test
+                    </button>
+                    <button id="btnExtResetStorage" class="btn btn-xs btn-secondary" style="font-weight: 700; padding: 4px 6px;">
+                        🧹 Reset Cache
+                    </button>
+                </div>
+                <div class="diag-cmd-box">
+                    <span class="diag-cmd-label"># Launch Server Command:</span>
+                    <code class="diag-cmd-text">powershell -File .\install.ps1</code>
+                </div>
+                <div id="diagnosticLogs" class="diag-logs">Ready. Click Auto-Fix or Run Self-Test to verify and repair system.</div>
             </div>
         </div>
 
+        <!-- Footer -->
         <footer class="footer">
             <a id="openStudioLink" href="http://127.0.0.1:8000/dashboard/dashboard.html" target="_blank" class="dashboard-link">
                 <svg class="icon" viewBox="0 0 24 24" width="14" height="14">
                     <path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
                 </svg>
-                Open Studio
+                Studio
             </a>
-            <button id="popout-btn" class="popout-btn" title="Pop out into separate window so it stays open">📌 Pin Window</button>
-            <div class="version">v0.2.0</div>
+            <a id="extFeedbackLink" href="mailto:Vickykalam34@gmail.com?subject=ProcSnap%20Feedback" target="_blank" class="dashboard-link" title="Send feedback to Vickykalam34@gmail.com" style="color: #818cf8; font-weight: 700;">
+                💬 Feedback
+            </a>
+            <button id="popout-btn" class="popout-btn" title="Pop out into separate window so it stays open">📌 Pin</button>
+            <div class="version">v0.2.1</div>
         </footer>
     </div>
     <script src="popup.js"></script>

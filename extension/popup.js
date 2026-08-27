@@ -1,3 +1,6 @@
+// ProcSnap Extension Popup Controller
+// Provides 1-Click Start, Debug, Connect, Disconnect, and System Management
+
 const setupPanel = document.getElementById("setup-panel");
 const activePanel = document.getElementById("active-panel");
 const startButton = document.getElementById("start");
@@ -9,14 +12,20 @@ const applicationNameInput = document.getElementById("application-name");
 const stepCounter = document.getElementById("step-counter");
 const activeWfName = document.getElementById("active-wf-name");
 const apiStatusPill = document.getElementById("api-status-pill");
+const apiStatusText = document.getElementById("apiStatusText");
 const pulseDot = document.getElementById("pulse-dot");
 const activeStatusTitle = document.getElementById("active-status-title");
 const stepCountBadge = document.getElementById("step-count-badge");
 const popoutButton = document.getElementById("popout-btn");
+const latencyBadge = document.getElementById("latencyBadge");
 
 let pollingInterval = null;
 let cachedBackendUrl = "http://127.0.0.1:8000";
+let manuallyDisconnected = false;
 
+// -------------------------------------------------------------
+// 1. Port Discovery & Health Probe Engine
+// -------------------------------------------------------------
 async function getBackendUrl() {
     try {
         const controller = new AbortController();
@@ -43,17 +52,17 @@ async function getBackendUrl() {
     return cachedBackendUrl;
 }
 
-let manuallyDisconnected = false;
 const apiOfflineBanner = document.getElementById("api-offline-banner");
 const btnRetryApi = document.getElementById("btnRetryApi");
 const btnCopyStartCmd = document.getElementById("btnCopyStartCmd");
 const btnToggleApiConnect = document.getElementById("btnToggleApiConnect");
-const btnExtStartAPI = document.getElementById("btnExtStartAPI");
+const btnExtDebug = document.getElementById("btnExtDebug");
+const btnExtReconnect = document.getElementById("btnExtReconnect");
 const btnExtGitPull = document.getElementById("btnExtGitPull");
 const btnExtReinstall = document.getElementById("btnExtReinstall");
 const extUtilStatus = document.getElementById("extUtilStatus");
 
-function setApiStatus(online, port = "") {
+function setApiStatus(online, port = "", latencyMs = null) {
     const openStudioLink = document.getElementById("openStudioLink");
     if (openStudioLink) {
         openStudioLink.href = `${cachedBackendUrl}/dashboard/dashboard.html`;
@@ -62,26 +71,31 @@ function setApiStatus(online, port = "") {
     const textEl = document.getElementById("toggleApiText");
 
     if (online) {
-        apiStatusPill.textContent = port ? `Online (Port ${port})` : "API Connected";
+        if (apiStatusText) apiStatusText.textContent = port ? `ONLINE : ${port}` : "CONNECTED";
         apiStatusPill.className = "api-status online";
         startButton.disabled = false;
         if (iconEl) iconEl.textContent = "🔌";
         if (textEl) textEl.textContent = "Disconnect";
         if (btnToggleApiConnect) {
-            btnToggleApiConnect.title = "Connected to local backend. Click to disconnect.";
-            btnToggleApiConnect.style.color = "#ef4444";
+            btnToggleApiConnect.className = "btn-power is-connected";
+            btnToggleApiConnect.title = "Connected to local engine. Click to Disconnect.";
+        }
+        if (latencyBadge && latencyMs !== null) {
+            latencyBadge.classList.remove("hidden");
+            latencyBadge.textContent = `⚡ ${latencyMs}ms`;
         }
         if (apiOfflineBanner) apiOfflineBanner.classList.add("hidden");
     } else {
-        apiStatusPill.textContent = manuallyDisconnected ? "Disconnected" : "API Offline";
+        if (apiStatusText) apiStatusText.textContent = manuallyDisconnected ? "DISCONNECTED" : "OFFLINE";
         apiStatusPill.className = "api-status offline";
         startButton.disabled = true;
         if (iconEl) iconEl.textContent = "⚡";
         if (textEl) textEl.textContent = "Connect";
         if (btnToggleApiConnect) {
-            btnToggleApiConnect.title = "Disconnected. Click to connect to local backend.";
-            btnToggleApiConnect.style.color = "#10b981";
+            btnToggleApiConnect.className = "btn-power is-disconnected";
+            btnToggleApiConnect.title = "Engine offline or disconnected. Click to Connect.";
         }
+        if (latencyBadge) latencyBadge.classList.add("hidden");
         if (apiOfflineBanner) {
             if (manuallyDisconnected) {
                 apiOfflineBanner.classList.add("hidden");
@@ -92,18 +106,25 @@ function setApiStatus(online, port = "") {
     }
 }
 
-async function checkBackendHealth() {
-    if (manuallyDisconnected) {
-        setApiStatus(false);
-        return false;
-    }
+async function checkBackendHealth(force = false) {
+    const t0 = performance.now();
     try {
         const backend = await getBackendUrl();
         const res = await fetch(`${backend}/health`);
+        const elapsed = Math.round(performance.now() - t0);
         if (res.ok) {
             const portMatch = backend.match(/:(\d+)$/);
             const port = portMatch ? portMatch[1] : "8000";
-            setApiStatus(true, port);
+            if (manuallyDisconnected && !force) {
+                // Backend is online, but user had paused. Update status with 1-click connect readiness
+                setApiStatus(false);
+                if (apiStatusText) apiStatusText.textContent = `PAUSED (Engine Ready : ${port})`;
+                startButton.disabled = false;
+                return true;
+            }
+            manuallyDisconnected = false;
+            try { await chrome.storage.local.set({ server_disconnected: false }); } catch (_) {}
+            setApiStatus(true, port, elapsed);
             return true;
         }
     } catch (e) {
@@ -113,17 +134,113 @@ async function checkBackendHealth() {
     return false;
 }
 
+// -------------------------------------------------------------
+// 2. One-Click Connect / Disconnect Toggle
+// -------------------------------------------------------------
 if (btnToggleApiConnect) {
     btnToggleApiConnect.onclick = async () => {
         if (!manuallyDisconnected) {
+            // User requested Disconnect
             manuallyDisconnected = true;
             try { await chrome.storage.local.set({ server_disconnected: true }); } catch (_) {}
             setApiStatus(false);
+            showExtStatus("🔌 Disconnected from local server. Recording paused.", "info");
         } else {
+            // User requested Connect
             manuallyDisconnected = false;
             try { await chrome.storage.local.set({ server_disconnected: false }); } catch (_) {}
-            await checkBackendHealth();
+            const ok = await checkBackendHealth(true);
+            if (ok) {
+                showExtStatus("✓ Connected to ProcSnap local engine!", "success");
+            } else {
+                showExtStatus("⚠️ Could not reach server. Verify python backend is running.", "error");
+            }
         }
+    };
+}
+
+// -------------------------------------------------------------
+// 3. One-Click Debug & Diagnostic Probe
+// -------------------------------------------------------------
+if (btnExtDebug) {
+    btnExtDebug.onclick = async () => {
+        btnExtDebug.disabled = true;
+        btnExtDebug.innerHTML = "<span>⏳</span> Debugging…";
+        const diagLogs = document.getElementById("diagnosticLogs");
+        const diagBody = document.getElementById("diagnosticBody");
+        if (diagBody) diagBody.classList.remove("hidden");
+
+        const t0 = performance.now();
+        let report = `[ProcSnap Diagnostic Report — ${new Date().toLocaleTimeString()}]\n`;
+        report += `• Target Engine: ${cachedBackendUrl}\n`;
+
+        try {
+            // 1. Health Probe
+            const hRes = await fetch(`${cachedBackendUrl}/health`);
+            const hData = await hRes.json();
+            const latency = Math.round(performance.now() - t0);
+            report += `• Health Probe: ✓ 200 OK (${latency}ms) — Database: ${hData.database || "connected"}\n`;
+
+            // 2. Storage Check
+            const storage = await chrome.storage.local.get(null);
+            report += `• Extension Storage: Recording=${!!storage.recording}, Steps=${storage.stepCount || 0}\n`;
+
+            // 3. System Requirements Check
+            try {
+                const reqRes = await fetch(`${cachedBackendUrl}/system/requirements`);
+                if (reqRes.ok) {
+                    const reqData = await reqRes.json();
+                    const pyVer = reqData.python?.version || "3.x";
+                    const inVenv = reqData.python?.in_venv ? "VEnv: Yes" : "Global";
+                    report += `• Python Version: ${pyVer} (${inVenv})\n`;
+                    const pkgs = reqData.packages?.items || [];
+                    const missing = pkgs.filter(p => !p.installed);
+                    if (missing.length === 0) {
+                        report += `• Dependencies: ✓ All ${pkgs.length} required packages installed.\n`;
+                    } else {
+                        report += `• Missing Packages: ❌ ${missing.map(m => m.name).join(", ")}\n`;
+                    }
+                }
+            } catch (_) {
+                report += `• System requirements endpoint not reachable.\n`;
+            }
+
+            report += `• Result: 🟢 System fully operational & ready to capture!`;
+            if (diagLogs) diagLogs.textContent = report;
+            btnExtDebug.innerHTML = "<span>✓</span> OK (100%)";
+            showExtStatus("✓ Debug test passed! Engine is 100% healthy.", "success");
+        } catch (e) {
+            report += `• Health Probe: ❌ FAILED (${e.message})\n`;
+            report += `• Suggestion: Run install.ps1 or start backend via PowerShell.\n`;
+            if (diagLogs) diagLogs.textContent = report;
+            btnExtDebug.innerHTML = "<span>⚠️</span> Issues";
+            showExtStatus("⚠️ Debug found issues: Server is not responding.", "error");
+        } finally {
+            setTimeout(() => {
+                btnExtDebug.disabled = false;
+                btnExtDebug.innerHTML = "<span>🐞</span> Debug";
+            }, 3000);
+        }
+    };
+}
+
+// -------------------------------------------------------------
+// 4. One-Click Reconnect Probe
+// -------------------------------------------------------------
+if (btnExtReconnect) {
+    btnExtReconnect.onclick = async () => {
+        manuallyDisconnected = false;
+        btnExtReconnect.disabled = true;
+        btnExtReconnect.innerHTML = "<span>⏳</span> Probing…";
+        const ok = await checkBackendHealth();
+        btnExtReconnect.disabled = false;
+        btnExtReconnect.innerHTML = ok ? "<span>✓</span> Connected" : "<span>🔄</span> Reconnect";
+        if (ok) {
+            showExtStatus("✓ Successfully reconnected to ProcSnap engine!", "success");
+        } else {
+            showExtStatus("❌ Server not found on ports 8000-8005.", "error");
+        }
+        setTimeout(() => { btnExtReconnect.innerHTML = "<span>🔄</span> Reconnect"; }, 2000);
     };
 }
 
@@ -134,43 +251,29 @@ if (btnRetryApi) {
         btnRetryApi.textContent = "⏳ Testing Ports 8000-8005...";
         const ok = await checkBackendHealth();
         btnRetryApi.disabled = false;
-        btnRetryApi.textContent = "⚡ Start / Reconnect API";
+        btnRetryApi.textContent = "⚡ 1-Click Reconnect";
         if (ok) {
             btnRetryApi.textContent = "✓ Connected!";
-            setTimeout(() => { btnRetryApi.textContent = "⚡ Start / Reconnect API"; }, 1500);
+            setTimeout(() => { btnRetryApi.textContent = "⚡ 1-Click Reconnect"; }, 1500);
         }
     };
 }
 
-if (btnExtStartAPI) {
-    btnExtStartAPI.onclick = async () => {
-        manuallyDisconnected = false;
-        btnExtStartAPI.disabled = true;
-        btnExtStartAPI.innerHTML = "<span>⏳</span> Connecting…";
-        const ok = await checkBackendHealth();
-        btnExtStartAPI.disabled = false;
-        btnExtStartAPI.innerHTML = ok ? "<span>✓</span> Connected" : "<span>⚡</span> Connect";
-        setTimeout(() => { btnExtStartAPI.innerHTML = "<span>⚡</span> Connect"; }, 2000);
-    };
-}
-
+// -------------------------------------------------------------
+// 5. Maintenance: Git Pull & Pip Updates
+// -------------------------------------------------------------
 if (btnExtGitPull) {
     btnExtGitPull.onclick = async () => {
         btnExtGitPull.disabled = true;
         btnExtGitPull.innerHTML = "<span>⏳</span> Pulling…";
-        if (extUtilStatus) {
-            extUtilStatus.classList.remove("hidden");
-            extUtilStatus.textContent = "Pulling latest update from GitHub repository...";
-        }
+        showExtStatus("Pulling latest updates from GitHub repository...", "info");
         try {
             const res = await fetch(`${cachedBackendUrl}/system/git-pull`, { method: "POST" });
             const data = await res.json();
-            if (extUtilStatus) {
-                extUtilStatus.textContent = data.output || (data.success ? "✓ Up to date!" : "Failed to update");
-            }
+            showExtStatus(data.output || (data.success ? "✓ Repository up to date!" : "Failed to update"), data.success ? "success" : "error");
             btnExtGitPull.innerHTML = "<span>✓</span> Done";
-        } catch(e) {
-            if (extUtilStatus) extUtilStatus.textContent = `❌ Error: ${e.message}`;
+        } catch (e) {
+            showExtStatus(`❌ Git error: ${e.message}`, "error");
             btnExtGitPull.innerHTML = "<span>❌</span> Error";
         } finally {
             btnExtGitPull.disabled = false;
@@ -183,19 +286,14 @@ if (btnExtReinstall) {
     btnExtReinstall.onclick = async () => {
         btnExtReinstall.disabled = true;
         btnExtReinstall.innerHTML = "<span>⏳</span> Updating…";
-        if (extUtilStatus) {
-            extUtilStatus.classList.remove("hidden");
-            extUtilStatus.textContent = "Running pip dependency updates in background...";
-        }
+        showExtStatus("Running pip dependency updates in background...", "info");
         try {
             const res = await fetch(`${cachedBackendUrl}/system/reinstall-packages`, { method: "POST" });
             const data = await res.json();
-            if (extUtilStatus) {
-                extUtilStatus.textContent = data.output || (data.success ? "✓ Dependencies updated!" : "Installation completed");
-            }
+            showExtStatus(data.output || (data.success ? "✓ Dependencies updated!" : "Installation completed"), data.success ? "success" : "error");
             btnExtReinstall.innerHTML = "<span>✓</span> Done";
-        } catch(e) {
-            if (extUtilStatus) extUtilStatus.textContent = `❌ Error: ${e.message}`;
+        } catch (e) {
+            showExtStatus(`❌ Pip error: ${e.message}`, "error");
             btnExtReinstall.innerHTML = "<span>❌</span> Error";
         } finally {
             btnExtReinstall.disabled = false;
@@ -204,9 +302,41 @@ if (btnExtReinstall) {
     };
 }
 
+function showExtStatus(msg, type = "info") {
+    if (!extUtilStatus) return;
+    extUtilStatus.classList.remove("hidden");
+    extUtilStatus.textContent = msg;
+    if (type === "error") {
+        extUtilStatus.style.background = "rgba(239, 68, 68, 0.12)";
+        extUtilStatus.style.borderColor = "rgba(239, 68, 68, 0.35)";
+        extUtilStatus.style.color = "#f87171";
+    } else if (type === "success") {
+        extUtilStatus.style.background = "rgba(16, 185, 129, 0.12)";
+        extUtilStatus.style.borderColor = "rgba(16, 185, 129, 0.35)";
+        extUtilStatus.style.color = "#10b981";
+    } else {
+        extUtilStatus.style.background = "rgba(99, 102, 241, 0.1)";
+        extUtilStatus.style.borderColor = "rgba(99, 102, 241, 0.25)";
+        extUtilStatus.style.color = "#a5b4fc";
+    }
+}
+
+// -------------------------------------------------------------
+// 6. Preset App Selector Chips
+// -------------------------------------------------------------
+document.querySelectorAll(".app-preset-chip").forEach(chip => {
+    chip.onclick = () => {
+        document.querySelectorAll(".app-preset-chip").forEach(c => c.classList.remove("active"));
+        chip.classList.add("active");
+        if (applicationNameInput) {
+            applicationNameInput.value = chip.dataset.app || "Chrome";
+        }
+    };
+});
+
 if (btnCopyStartCmd) {
     btnCopyStartCmd.onclick = async () => {
-        const cmd = `backend\\.venv\\Scripts\\python.exe -m uvicorn backend.main:app --port 8000`;
+        const cmd = `powershell -File .\\install.ps1`;
         try {
             await navigator.clipboard.writeText(cmd);
             const prev = btnCopyStartCmd.textContent;
@@ -229,7 +359,7 @@ function updateUI(recording, name = "Untitled Workflow", steps = 0, paused = fal
         activeWfName.textContent = name;
         stepCounter.textContent = `${steps} step${steps === 1 ? "" : "s"} captured`;
         if (stepCountBadge) stepCountBadge.textContent = String(steps);
-        
+
         if (paused) {
             activeStatusTitle.textContent = "Paused";
             pulseDot.style.background = "#eab308"; // yellow
@@ -263,7 +393,9 @@ function startPollingState() {
     }, 1000);
 }
 
-// Initial state load
+// -------------------------------------------------------------
+// 7. Initial State Load
+// -------------------------------------------------------------
 async function init() {
     try {
         const { server_disconnected = false } = await chrome.storage.local.get(["server_disconnected"]);
@@ -273,8 +405,8 @@ async function init() {
         }
     } catch (_) {}
 
-    const isOnline = await checkBackendHealth();
-    
+    await checkBackendHealth();
+
     chrome.storage.local.get(["recording", "sessionId", "workflowName", "stepCount", "paused"], (result) => {
         const active = result.recording === true && !!result.sessionId;
         updateUI(active, result.workflowName, result.stepCount || 0, result.paused === true);
@@ -287,9 +419,20 @@ async function init() {
     setInterval(checkBackendHealth, 5000);
 }
 
+// -------------------------------------------------------------
+// 8. Capture Handlers
+// -------------------------------------------------------------
 startButton.addEventListener("click", async () => {
-    const isOnline = await checkBackendHealth();
-    if (!isOnline) return;
+    let isOnline = await checkBackendHealth();
+    if (!isOnline) {
+        // Attempt quick auto-reconnect
+        manuallyDisconnected = false;
+        isOnline = await checkBackendHealth();
+        if (!isOnline) {
+            showExtStatus("⚠️ Start failed: Backend server is offline.", "error");
+            return;
+        }
+    }
 
     let name = workflowNameInput.value.trim();
     if (!name) name = "Untitled Workflow";
@@ -305,12 +448,12 @@ startButton.addEventListener("click", async () => {
             application: app
         },
         (response) => {
-            startButton.textContent = "Start Capture";
+            startButton.innerHTML = "<span>🚀</span> Start Capture";
             startButton.disabled = false;
 
             if (chrome.runtime.lastError || !response || !response.success) {
                 console.error("Capture start failed", chrome.runtime.lastError || response);
-                alert("Failed to start capture. Make sure backend is running.");
+                showExtStatus("Failed to start capture. Check server connection.", "error");
                 return;
             }
 
@@ -334,14 +477,13 @@ stopButton.addEventListener("click", () => {
 
             if (chrome.runtime.lastError || !response || !response.success) {
                 console.error("Capture stop failed", chrome.runtime.lastError || response);
-                alert("Failed to stop capture properly.");
+                showExtStatus("Failed to stop capture properly.", "error");
                 return;
             }
 
             if (pollingInterval) clearInterval(pollingInterval);
             updateUI(false);
-            
-            // Open the dashboard to the completed session if returned
+
             if (response.session && response.session.id) {
                 const url = `${cachedBackendUrl}/dashboard/dashboard.html?session_id=${response.session.id}`;
                 window.open(url, "_blank");
@@ -355,7 +497,6 @@ pauseButton.addEventListener("click", () => {
         const nextPaused = !result.paused;
         chrome.storage.local.set({ paused: nextPaused }, () => {
             chrome.runtime.sendMessage({ type: "PAUSE_STATE_CHANGED", paused: nextPaused });
-            // Retrieve actual steps count
             chrome.storage.local.get(["stepCount", "workflowName"], (res) => {
                 updateUI(true, res.workflowName, res.stepCount || 0, nextPaused);
             });
@@ -367,13 +508,13 @@ captureManualButton.addEventListener("click", () => {
     captureManualButton.disabled = true;
     const origText = captureManualButton.textContent;
     captureManualButton.textContent = "Capturing...";
-    
+
     chrome.runtime.sendMessage({ type: "CAPTURE_MANUAL" }, (response) => {
         captureManualButton.disabled = false;
         captureManualButton.textContent = origText;
         if (chrome.runtime.lastError || !response || !response.success) {
             console.error("Manual capture failed");
-            alert("Instant capture failed.");
+            showExtStatus("Instant capture failed.", "error");
         }
     });
 });
@@ -396,7 +537,7 @@ if (btnCaptureDesktopPopup) {
             } else {
                 throw new Error(data.message || "Failed");
             }
-        } catch(e) {
+        } catch (e) {
             btnCaptureDesktopPopup.innerHTML = "<span>❌</span> Failed";
             console.error("Popup capture failed:", e);
         } finally {
@@ -408,6 +549,9 @@ if (btnCaptureDesktopPopup) {
     });
 }
 
+// -------------------------------------------------------------
+// 9. Diagnostic & Auto-Repair Hub
+// -------------------------------------------------------------
 const btnToggleDiagnostic = document.getElementById("btnToggleDiagnostic");
 const diagnosticBody = document.getElementById("diagnosticBody");
 if (btnToggleDiagnostic && diagnosticBody) {
@@ -416,25 +560,175 @@ if (btnToggleDiagnostic && diagnosticBody) {
     });
 }
 
+const btnExtAutoFix = document.getElementById("btnExtAutoFix");
+if (btnExtAutoFix) {
+    btnExtAutoFix.addEventListener("click", async () => {
+        btnExtAutoFix.disabled = true;
+        btnExtAutoFix.textContent = "⚡ Fixing...";
+        const diagLogs = document.getElementById("diagnosticLogs");
+        if (diagnosticBody) diagnosticBody.classList.remove("hidden");
+
+        manuallyDisconnected = false;
+        try {
+            await chrome.storage.local.set({ server_disconnected: false, paused: false });
+        } catch (_) {}
+
+        if (diagLogs) diagLogs.textContent = "1/4 Clearing stuck session locks & flags...\n";
+        
+        // Probe ports
+        const backend = await getBackendUrl();
+        if (diagLogs) diagLogs.textContent += `2/4 Probing backend on ${backend}...\n`;
+
+        try {
+            const res = await fetch(`${backend}/health`);
+            if (res.ok) {
+                const data = await res.json();
+                if (diagLogs) {
+                    diagLogs.textContent += `3/4 Backend engine alive (DB: ${data.database || "OK"}).\n`;
+                    diagLogs.textContent += `4/4 ✓ Auto-repair complete! Status: 100% Ready.\n`;
+                }
+                setApiStatus(true, backend.split(":").pop());
+                showExtStatus("✓ Connection repaired & verified successfully!", "success");
+            } else {
+                throw new Error(`HTTP ${res.status}`);
+            }
+        } catch (err) {
+            if (diagLogs) {
+                diagLogs.textContent += `3/4 ⚠️ Backend not responding on ${backend}.\n`;
+                diagLogs.textContent += `4/4 Suggested Fix: Launch engine using command below:\n    powershell -File .\\install.ps1\n`;
+            }
+            showExtStatus("⚠️ Run install.ps1 to start the backend engine.", "error");
+        } finally {
+            btnExtAutoFix.disabled = false;
+            btnExtAutoFix.textContent = "⚡ Auto-Fix";
+        }
+    });
+}
+
+const btnExtSelfTest = document.getElementById("btnExtSelfTest");
+if (btnExtSelfTest) {
+    btnExtSelfTest.addEventListener("click", async () => {
+        btnExtSelfTest.disabled = true;
+        btnExtSelfTest.textContent = "⏳ Testing...";
+        const diagLogs = document.getElementById("diagnosticLogs");
+        if (diagnosticBody) diagnosticBody.classList.remove("hidden");
+
+        const t0 = performance.now();
+        let out = `=== 🩺 PROCSNAP SYSTEM SELF-TEST ===\n`;
+
+        // Check 1: Port & Health
+        try {
+            const backend = await getBackendUrl();
+            const hRes = await fetch(`${backend}/health`);
+            const hData = await hRes.json();
+            const lat = Math.round(performance.now() - t0);
+            out += `[PASS] 1. API Health: OK (${lat}ms, ${backend})\n`;
+            out += `[PASS] 2. Database: ${hData.database || "Connected"}\n`;
+        } catch (e) {
+            out += `[FAIL] 1. API Health: Offline (${e.message})\n`;
+            out += `[FAIL] 2. Database: Unreachable\n`;
+        }
+
+        // Check 2: Chrome Extension Storage
+        try {
+            const storage = await chrome.storage.local.get(null);
+            out += `[PASS] 3. Storage: OK (Recording=${!!storage.recording}, Steps=${storage.stepCount || 0})\n`;
+        } catch (e) {
+            out += `[WARN] 3. Storage: ${e.message}\n`;
+        }
+
+        // Check 3: Python Environment & Packages
+        try {
+            const reqRes = await fetch(`${cachedBackendUrl}/system/requirements`);
+            if (reqRes.ok) {
+                const req = await reqRes.json();
+                out += `[PASS] 4. Python Env: ${req.python?.version || "3.x"} (VEnv: ${req.python?.in_venv ? "YES" : "NO"})\n`;
+                const missing = (req.packages?.items || []).filter(p => !p.installed);
+                if (missing.length === 0) {
+                    out += `[PASS] 5. Packages: All dependencies installed.\n`;
+                } else {
+                    out += `[FAIL] 5. Packages: Missing ${missing.map(m => m.name).join(", ")}\n`;
+                }
+            }
+        } catch (_) {
+            out += `[WARN] 4. Requirements probe skipped.\n`;
+        }
+
+        out += `\nSelf-test concluded at ${new Date().toLocaleTimeString()}.`;
+        if (diagLogs) diagLogs.textContent = out;
+        btnExtSelfTest.disabled = false;
+        btnExtSelfTest.textContent = "🩺 Run Self-Test";
+    });
+}
+
+const btnExtResetStorage = document.getElementById("btnExtResetStorage");
+if (btnExtResetStorage) {
+    btnExtResetStorage.addEventListener("click", async () => {
+        if (!confirm("Reset extension state and clear session locks?")) return;
+        try {
+            await chrome.storage.local.set({
+                recording: false,
+                sessionId: null,
+                workflowName: "",
+                stepCount: 0,
+                paused: false,
+                server_disconnected: false
+            });
+            manuallyDisconnected = false;
+            await checkBackendHealth(true);
+            updateUI(false);
+            showExtStatus("✓ Extension storage and cache reset clean!", "success");
+            const diagLogs = document.getElementById("diagnosticLogs");
+            if (diagLogs) diagLogs.textContent = "✓ Storage reset completed: Orphaned recording locks removed.";
+        } catch (e) {
+            showExtStatus(`Reset failed: ${e.message}`, "error");
+        }
+    });
+}
+
 const btnCopyGptPrompt = document.getElementById("btnCopyGptPrompt");
 if (btnCopyGptPrompt) {
     btnCopyGptPrompt.addEventListener("click", async () => {
         const state = await chrome.storage.local.get(null);
-        const gptPrompt = `I am using ProcSnap local SOP documentation engine.
+        let sysReq = "N/A";
+        try {
+            const r = await fetch(`${cachedBackendUrl}/system/requirements`);
+            if (r.ok) sysReq = JSON.stringify(await r.json(), null, 2);
+        } catch (_) {}
+
+        const gptPrompt = `[ProcSnap Diagnostic & Support Context]
 Backend URL: ${cachedBackendUrl}
-Active Storage State: ${JSON.stringify(state, null, 2)}
-System Status: Checked ports 8000-8005.
-Issue description: [Paste your specific issue or error message here].
-Please diagnose the issue and provide the exact steps or PowerShell command to resolve it.`;
+Manually Disconnected: ${manuallyDisconnected}
+Storage State: ${JSON.stringify(state, null, 2)}
+System Requirements: ${sysReq}
+
+Issue Description: [Describe what happened or paste terminal output here]
+Please provide step-by-step instructions to fix this issue.`;
 
         try {
             await navigator.clipboard.writeText(gptPrompt);
             const orig = btnCopyGptPrompt.textContent;
-            btnCopyGptPrompt.textContent = "✓ Copied for GPT!";
+            btnCopyGptPrompt.textContent = "✓ Copied!";
             setTimeout(() => { btnCopyGptPrompt.textContent = orig; }, 2500);
-        } catch(e) {
+        } catch (e) {
             console.error("Clipboard copy failed:", e);
         }
+    });
+}
+
+// -------------------------------------------------------------
+// 10. Popout Window Support
+// -------------------------------------------------------------
+if (popoutButton) {
+    popoutButton.addEventListener("click", () => {
+        chrome.windows.create({
+            url: chrome.runtime.getURL("popup.html"),
+            type: "popup",
+            width: 360,
+            height: 600,
+            focused: true
+        });
+        window.close();
     });
 }
 

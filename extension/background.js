@@ -194,6 +194,20 @@ async function startRecording(name = "Untitled Workflow", application = "Chrome"
     currentStepCount = 0;
     recording = true;
 
+    // Auto-sync native desktop recorder if Desktop app or Windows capture requested
+    if (application.toLowerCase().includes("desktop") || application.toLowerCase().includes("windows")) {
+        try {
+            await fetch(`${backendUrl}/desktop-recorder/start`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: currentWorkflowName })
+            });
+            console.log("ProcSnap: Native desktop recorder also started for", currentSessionId);
+        } catch (err) {
+            console.warn("ProcSnap: Desktop recorder sync notice:", err);
+        }
+    }
+
     await chrome.storage.local.set({
         recording: true,
         sessionId: currentSessionId,
@@ -223,7 +237,8 @@ async function stopRecording() {
     const stored =
         await chrome.storage.local.get([
             "recording",
-            "sessionId"
+            "sessionId",
+            "workflowName"
         ]);
 
     const sessionId =
@@ -234,6 +249,13 @@ async function stopRecording() {
         "Stopping recording. Session:",
         sessionId
     );
+
+    const backendUrl = await getBackendUrl();
+
+    // Auto-stop native desktop recorder if active
+    try {
+        await fetch(`${backendUrl}/desktop-recorder/stop`, { method: "POST" });
+    } catch (_) {}
 
     if (!sessionId) {
         recording = false;
@@ -259,7 +281,6 @@ async function stopRecording() {
         };
     }
 
-    const backendUrl = await getBackendUrl();
     const response = await fetch(
         `${backendUrl}/sessions/${sessionId}/stop`,
         {
@@ -907,6 +928,97 @@ if (typeof chrome !== "undefined" && chrome.tabs && chrome.tabs.onUpdated) {
     });
 }
 
+
+/* =========================================================
+   🖥️ DETECT WHEN USER CLICKS OUTSIDE BROWSER
+========================================================= */
+
+let desktopPromptShownForSession = false;
+
+if (typeof chrome !== "undefined" && chrome.windows && chrome.windows.onFocusChanged) {
+    chrome.windows.onFocusChanged.addListener(async (windowId) => {
+        const stored = await chrome.storage.local.get(["recording", "sessionId", "desktopAutoCaptureEnabled"]);
+        if (!stored.recording || !stored.sessionId) {
+            desktopPromptShownForSession = false;
+            return;
+        }
+
+        // windowId === chrome.windows.WINDOW_ID_NONE indicates focus left Chrome to an external desktop app
+        if (windowId === chrome.windows.WINDOW_ID_NONE) {
+            console.log("[ProcSnap] Focus moved outside Chrome to external desktop application.");
+            const backendUrl = await getBackendUrl();
+
+            if (stored.desktopAutoCaptureEnabled) {
+                try {
+                    await fetch(`${backendUrl}/desktop-recorder/start`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ title: "Desktop Interaction" })
+                    });
+                } catch (_) {}
+                return;
+            }
+
+            if (!desktopPromptShownForSession) {
+                desktopPromptShownForSession = true;
+                try {
+                    const tabs = await chrome.tabs.query({ active: true });
+                    for (const tab of tabs) {
+                        chrome.tabs.sendMessage(tab.id, {
+                            type: "ASK_DESKTOP_CAPTURE",
+                            sessionId: stored.sessionId
+                        }).catch(() => {});
+                    }
+                } catch (_) {}
+            }
+        }
+    });
+}
+
+// Background message routing for desktop capture commands
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "ENABLE_DESKTOP_CAPTURE") {
+        chrome.storage.local.set({ desktopAutoCaptureEnabled: true });
+        getBackendUrl().then(backendUrl => {
+            fetch(`${backendUrl}/desktop-recorder/start`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: "Desktop Application" })
+            }).catch(() => {});
+        });
+        sendResponse({ success: true });
+        return true;
+    }
+
+    if (message.type === "CAPTURE_DESKTOP_POPUP") {
+        const sid = message.sessionId || currentSessionId;
+        if (sid) {
+            getBackendUrl().then(backendUrl => {
+                fetch(`${backendUrl}/sessions/${sid}/capture-desktop-popup`, { method: "POST" })
+                    .then(res => res.json())
+                    .then(data => sendResponse({ success: true, data }))
+                    .catch(err => sendResponse({ success: false, error: err.message }));
+            });
+            return true;
+        }
+    }
+
+    if (message.type === "BROWSER_WINDOW_BLURRED") {
+        chrome.storage.local.get(["recording", "sessionId", "desktopAutoCaptureEnabled"]).then(stored => {
+            if (stored.recording && stored.sessionId && !stored.desktopAutoCaptureEnabled && !desktopPromptShownForSession) {
+                desktopPromptShownForSession = true;
+                if (sender?.tab?.id) {
+                    chrome.tabs.sendMessage(sender.tab.id, {
+                        type: "ASK_DESKTOP_CAPTURE",
+                        sessionId: stored.sessionId
+                    }).catch(() => {});
+                }
+            }
+        });
+        sendResponse({ success: true });
+        return true;
+    }
+});
 
 /* =========================================================
    STARTUP & KEYBOARD SHORTCUTS

@@ -128,50 +128,59 @@ function getDefaultDescription(s) {
 }
 
 async function checkStatus() {
+    // 1. Localhost Engine Health Check
+    const localhostPill = $("localhostStatusPill");
     try {
         await api("/health");
-        setText("apiStatus", "Connected");
-        const statusEl = $("apiStatus");
-        if (statusEl) {
-            statusEl.className = "api-status online";
-            statusEl.removeAttribute("style");
+        setText("apiStatus", "Localhost");
+        if (localhostPill) {
+            localhostPill.classList.remove("offline");
+            localhostPill.classList.add("online");
+            localhostPill.title = "Localhost Server Connected (127.0.0.1:8000)";
         }
     } catch (e) {
-        setText("apiStatus", "API Offline");
-        const statusEl = $("apiStatus");
-        if (statusEl) {
-            statusEl.className = "api-status offline";
-            statusEl.removeAttribute("style");
+        setText("apiStatus", "Offline");
+        if (localhostPill) {
+            localhostPill.classList.remove("online");
+            localhostPill.classList.add("offline");
+            localhostPill.title = "Localhost Server Disconnected (127.0.0.1:8000)";
         }
     }
+
+    // 2. AI Engine Health Check
+    const aiPill = $("aiStatusPill");
     try {
         const res = await api("/ai/status");
-        const statusEl = $("aiStatus");
-        if (res.diagnostic_message && statusEl) {
-            statusEl.title = res.diagnostic_message;
-        }
         const aiReady = res.running && res.required_models_present;
         if (res.running) {
             if (res.required_models_present) {
-                statusEl.textContent = "AI Connected";
-                statusEl.className = "api-status online";
-                statusEl.removeAttribute("style");
+                setText("aiStatus", "AI Ready");
+                if (aiPill) {
+                    aiPill.classList.remove("offline");
+                    aiPill.classList.add("online");
+                    aiPill.title = "Local AI Engine Ready (Ollama running)";
+                }
             } else {
-                statusEl.textContent = "AI: Pull Models";
-                statusEl.style.backgroundColor = "rgba(234, 179, 8, 0.12)";
-                statusEl.style.color = "#d97706";
-                statusEl.className = "api-status";
-                statusEl.title = res.diagnostic_message || "Open Requirements → Pull AI Models to download moondream & qwen2.5";
+                setText("aiStatus", "AI Setup");
+                if (aiPill) {
+                    aiPill.classList.remove("online");
+                    aiPill.classList.add("offline");
+                    aiPill.title = res.diagnostic_message || "Open Settings → Diagnostics to download AI models";
+                }
             }
             if ($("startOllamaBtn")) $("startOllamaBtn").classList.add("hidden");
         } else {
-            statusEl.textContent = "AI Offline";
-            statusEl.className = "api-status offline";
-            statusEl.removeAttribute("style");
+            setText("aiStatus", "AI Offline");
+            if (aiPill) {
+                aiPill.classList.remove("online");
+                aiPill.classList.add("offline");
+                aiPill.title = "Local AI service unreachable (127.0.0.1:11434)";
+            }
             if ($("startOllamaBtn")) $("startOllamaBtn").classList.remove("hidden");
         }
-        // Toggle AI feature buttons so users know they are optional / unavailable
-        const aiOfflineHint = aiReady ? "" : "AI offline — open 🛠️ Requirements → Pull AI Models to enable";
+
+        // Toggle AI feature buttons
+        const aiOfflineHint = aiReady ? "" : "AI offline — open Settings → Diagnostics to enable";
         ["aiEnhanceStepBtn", "aiPolishBtn"].forEach(id => {
             const el = $(id);
             if (!el) return;
@@ -189,15 +198,13 @@ async function checkStatus() {
             }
         });
     } catch (e) {
-        const statusEl = $("aiStatus");
-        if (statusEl) {
-            statusEl.textContent = "AI Offline";
-            statusEl.className = "api-status offline";
-            statusEl.title = "Ollama service unreachable on 127.0.0.1:11434. Click 'Start Ollama' to launch.";
-            statusEl.removeAttribute("style");
+        setText("aiStatus", "AI Offline");
+        if (aiPill) {
+            aiPill.classList.remove("online");
+            aiPill.classList.add("offline");
+            aiPill.title = "Ollama service unreachable on 127.0.0.1:11434";
         }
         if ($("startOllamaBtn")) $("startOllamaBtn").classList.remove("hidden");
-        // Disable AI buttons when offline
         ["aiEnhanceStepBtn", "aiPolishBtn"].forEach(id => {
             const el = $(id);
             if (!el) return;
@@ -205,7 +212,7 @@ async function checkStatus() {
             el.style.opacity = "0.4";
             el.style.cursor = "not-allowed";
             if (!el.getAttribute("data-original-title")) el.setAttribute("data-original-title", el.title);
-            el.title = "AI offline — open 🛠️ Requirements → Pull AI Models to enable";
+            el.title = "AI offline — open Settings → Diagnostics to enable";
         });
     }
 }
@@ -288,6 +295,9 @@ async function init() {
             }
         };
     }
+
+    // ── 3-Mode Persona Switcher (Simple / Advanced / Enterprise) ──────────────────
+    initModeSwitcher();
 
     // System Requirements Diagnostic Modal binding
     if ($("systemRequirementsBtn")) {
@@ -660,6 +670,12 @@ async function init() {
                 if (!workflow) return showToast("No workflow selected.");
                 if (type === "duplicate") {
                     await duplicateWorkflow();
+                } else if (type === "package") {
+                    window.open(`${API_BASE}/sessions/${workflow.id}/export-package`, "_blank");
+                    showToast("📦 Exporting self-contained .procsnap.zip package...", 3000);
+                } else if (type === "qa-csv") {
+                    window.open(`${API_BASE}/sessions/${workflow.id}/export-qa-matrix?format=csv`, "_blank");
+                    showToast("🧪 Exporting QA Test Case Matrix (.csv)...", 3000);
                 } else if (type === "interactive") {
                     $("exportInteractiveBtn")?.click();
                 } else if (type === "pptx") {
@@ -714,7 +730,9 @@ async function init() {
             if (qualityAuditMenu) qualityAuditMenu.classList.add("hidden");
         });
         setOnclick("menuHealthAudit", () => $("sopHealthScoreBtn")?.click() || auditSopHealth());
-        setOnclick("menuPrivacyScan", () => $("privacyScanBtn")?.click() || scanForPII());
+        setOnclick("menuPrivacyScan", () => openPiiScannerModal());
+        setOnclick("menuAutoRedact", () => triggerAutoRedactPii());
+        setOnclick("menuFlowchart", () => openFlowchartModal());
         setOnclick("menuSopTemplates", () => $("sopTemplatesBtn")?.click() || openTemplateModal());
         setOnclick("menuBranchAudit", () => $("validateBranchesBtn")?.click() || validateWorkflowBranches());
     }
@@ -1170,9 +1188,11 @@ function showLibraryHub() {
     if ($("studioView")) $("studioView").classList.add("hidden");
     if ($("topBreadcrumb")) $("topBreadcrumb").classList.add("hidden");
     
-    // Auto-collapse sidebar in Hub view for full-width gallery experience
+    // Auto-collapse sidebar in Hub view only if not pinned open
     const sidebar = document.querySelector(".sidebar");
-    if (sidebar) sidebar.classList.add("collapsed");
+    if (sidebar && !sidebar.classList.contains("pinned") && localStorage.getItem("sidebar_pinned") !== "true") {
+        sidebar.classList.add("collapsed");
+    }
 
     // Clean URL query param
     const url = new URL(window.location);
@@ -1355,10 +1375,10 @@ async function openWorkflow(id) {
 
 // Tab Switching
 function setTab(tabName) {
-    if (tabName === "slideshow") tabName = "play";
+    if (tabName === "slideshow" || tabName === "reader") tabName = "play";
     activeTab = tabName;
     document.querySelectorAll(".tab").forEach(tab => {
-        const t = tab.dataset.tab === "slideshow" ? "play" : tab.dataset.tab;
+        const t = (tab.dataset.tab === "slideshow" || tab.dataset.tab === "reader") ? "play" : tab.dataset.tab;
         tab.classList.toggle("active", t === tabName || tab.dataset.tab === tabName);
     });
 
@@ -1371,6 +1391,81 @@ function setTab(tabName) {
     if (tabName === "steps") renderStepsTab();
     if (tabName === "play") renderPlaybackTab();
     if (tabName === "export") renderExportTab();
+}
+
+function renderReaderTab() {
+    if (!workflow) return;
+    const steps = workflow.steps || [];
+    setText("readerWfTitle", workflow.name || "Process SOP");
+    
+    if (steps.length === 0) {
+        setText("readerPageIndicator", "0 of 0");
+        setText("readerStepTitle", "No steps in this workflow");
+        setText("readerStepDesc", "Record or add steps to read this SOP.");
+        if ($("readerStepImg")) $("readerStepImg").style.display = "none";
+        return;
+    }
+
+    let rIdx = typeof currentStepIndex === "number" ? currentStepIndex : 0;
+    if (rIdx < 0 || rIdx >= steps.length) rIdx = 0;
+    const step = steps[rIdx];
+
+    setText("readerPageIndicator", `Step ${rIdx + 1} of ${steps.length}`);
+    setText("readerStepBadge", `STEP ${rIdx + 1}`);
+    setText("readerStepSemantic", step.semantic_class || actionTitle(step.action));
+    setText("readerStepTitle", step.title || getDefaultTitle(step));
+    setText("readerStepDesc", step.description || getDefaultDescription(step));
+    
+    const expText = step.expected || step.expected_result || "Action executes successfully and the process proceeds.";
+    setText("readerExpectedText", expText);
+
+    const imgEl = $("readerStepImg");
+    if (imgEl) {
+        let imgUrl = "";
+        if (step.screenshotUrl) {
+            imgUrl = step.screenshotUrl.startsWith("http") ? step.screenshotUrl : `${API_BASE}/${step.screenshotUrl.replace(/^\/+/, "")}`;
+        } else if (step.screenshot_path) {
+            imgUrl = step.screenshot_path.startsWith("http") ? step.screenshot_path : `${API_BASE}/${step.screenshot_path.replace(/^\/+/, "")}`;
+        } else if (step.image) {
+            imgUrl = step.image;
+        } else if (workflow && workflow.id) {
+            imgUrl = `${API_BASE}/screenshots/${workflow.id}/step-${String(step.sequence).padStart(3, "0")}.png`;
+        }
+
+        if (imgUrl) {
+            imgEl.src = imgUrl;
+            imgEl.style.display = "block";
+            imgEl.onerror = () => {
+                // Fallback attempt without query params or alternative path
+                if (workflow && workflow.id) {
+                    imgEl.src = `${API_BASE}/screenshots/${workflow.id}/step-${String(step.sequence).padStart(3, "0")}.png?t=${Date.now()}`;
+                }
+            };
+        } else {
+            imgEl.style.display = "none";
+        }
+    }
+
+    const prevBtn = $("btnReaderPrev");
+    const nextBtn = $("btnReaderNext");
+    if (prevBtn) {
+        prevBtn.disabled = rIdx === 0;
+        prevBtn.onclick = () => {
+            if (rIdx > 0) {
+                currentStepIndex = rIdx - 1;
+                renderReaderTab();
+            }
+        };
+    }
+    if (nextBtn) {
+        nextBtn.disabled = rIdx === steps.length - 1;
+        nextBtn.onclick = () => {
+            if (rIdx < steps.length - 1) {
+                currentStepIndex = rIdx + 1;
+                renderReaderTab();
+            }
+        };
+    }
 }
 
 document.querySelectorAll(".tab").forEach(tab => {
@@ -3228,6 +3323,10 @@ function loadActiveStepDetails() {
     setVal("guideStepExpected", step.expected || "");
     setVal("guideStepNote", step.note || "");
     setVal("guideStepVoiceover", step.voiceover || "");
+    setVal("guideStepAlertType", step.alertType || "none");
+    setVal("guideStepAlertMsg", step.alertMsg || "");
+    setVal("guideStepRole", step.role || "");
+    setVal("guideStepDuration", step.duration || "");
     renderStepBranches(step);
 
     // Detect if step has an active GIF micro-demo
@@ -3316,6 +3415,27 @@ function loadActiveStepDetails() {
         }
     }
 
+    // Step Intelligence Panel Updates
+    const action = (step.action || "").toLowerCase();
+    let why = "Direct user interaction on target UI control.";
+    if (action.includes("navigate") || (step.url && step.url.startsWith("http"))) why = "Page navigation / URL transition detected.";
+    else if (action.includes("input") || action.includes("type")) why = "Data entry input modification.";
+    else if (action.includes("submit") || (step.title || "").toLowerCase().includes("submit") || (step.title || "").toLowerCase().includes("save")) why = "Form submission & state commitment.";
+
+    setText("intelWhyCaptured", why);
+    setText("intelSemanticClass", step.semantic_class || actionTitle(step.action));
+    const piiStatus = step.pii_masked ? "🔒 Redacted" : "✓ Clean (0 PII)";
+    setText("intelPrivacyStatus", piiStatus);
+
+    // Re-record this specific step button handler
+    const reRecordBtn = $("btnReRecordActiveStep");
+    if (reRecordBtn) {
+        reRecordBtn.onclick = () => {
+            showToast("📷 Select new screenshot to update this step...", 2500);
+            $("replaceScreenshotInput")?.click();
+        };
+    }
+
     // Sync step jump input
     const sji = $("stepJumpInput");
     if (sji) sji.value = currentStepIndex + 1;
@@ -3335,11 +3455,26 @@ function loadActiveStepDetails() {
     const canvasWrap = $("canvasWrapper");
     const noScr = $("noScreenshot");
 
-    if (step.screenshotUrl) {
+    if (step.screenshotUrl || (workflow && workflow.id)) {
         if (imgEl) {
+            const rawUrl = step.screenshotUrl || `${API_BASE}/screenshots/${workflow.id}/step-${String(step.sequence).padStart(3, "0")}.png`;
             const displayUrl = step.hasActiveDemo
-                ? (step.screenshotUrl.includes("-demo") ? step.screenshotUrl : step.screenshotUrl.replace(/\.png$/i, "-demo.gif"))
-                : step.screenshotUrl.replace(/-demo.*\.gif/i, ".png");
+                ? (rawUrl.includes("-demo") ? rawUrl : rawUrl.replace(/\.png$/i, "-demo.gif"))
+                : rawUrl.replace(/-demo.*\.gif/i, ".png");
+            
+            imgEl.onerror = () => {
+                console.warn("[ProcSnap] Screenshot load retry for step", step.sequence);
+                if (workflow && workflow.id) {
+                    const fallbackUrl = `${API_BASE}/screenshots/${workflow.id}/step-${String(step.sequence).padStart(3, "0")}.png`;
+                    if (imgEl.src !== fallbackUrl && !imgEl.src.endsWith(fallbackUrl)) {
+                        imgEl.src = fallbackUrl;
+                        return;
+                    }
+                }
+                imgEl.classList.add("hidden");
+                if (noScr) noScr.classList.remove("hidden");
+            };
+
             imgEl.src = `${normalizeImageUrl(displayUrl)}?t=${Date.now()}`;
             imgEl.classList.remove("hidden");
         }
@@ -3442,6 +3577,10 @@ async function saveActiveStepEditsSilent() {
     const expected = $("guideStepExpected") ? $("guideStepExpected").value.trim() : (step.expected || "");
     const note = $("guideStepNote") ? $("guideStepNote").value.trim() : (step.note || "");
     const voiceover = $("guideStepVoiceover") ? $("guideStepVoiceover").value.trim() : (step.voiceover || "");
+    const alertType = $("guideStepAlertType") ? $("guideStepAlertType").value : (step.alertType || "none");
+    const alertMsg = $("guideStepAlertMsg") ? $("guideStepAlertMsg").value.trim() : (step.alertMsg || "");
+    const role = $("guideStepRole") ? $("guideStepRole").value.trim() : (step.role || "");
+    const duration = $("guideStepDuration") ? $("guideStepDuration").value.trim() : (step.duration || "");
 
     // Read hotspot values
     const hx = parseFloat($("hotspotX")?.value) || 40;
@@ -3463,6 +3602,10 @@ async function saveActiveStepEditsSilent() {
     step.expected = expected;
     step.note = note;
     step.voiceover = voiceover;
+    step.alertType = alertType;
+    step.alertMsg = alertMsg;
+    step.role = role;
+    step.duration = duration;
 
     try {
         await api(`/sessions/${encodeURIComponent(workflow.id)}/steps/${step.id}/edits`, {
@@ -3473,6 +3616,10 @@ async function saveActiveStepEditsSilent() {
                 expected: expected,
                 note: note,
                 voiceover: voiceover,
+                alert_type: alertType,
+                alert_msg: alertMsg,
+                role: role,
+                duration: duration,
                 branches: JSON.stringify(step.branches || [])
             })
         });
@@ -4899,6 +5046,8 @@ function renderPlaybackTab() {
         if (foundIdx !== -1) playIdx = foundIdx;
     }
     
+    let isPlayZoomed = false;
+
     const showPlayStep = () => {
         const s = visibleSteps[playIdx];
         if (!s) return;
@@ -4908,6 +5057,43 @@ function renderPlaybackTab() {
         if ($("playStepDesc")) $("playStepDesc").textContent = s.description || getDefaultDescription(s);
         if ($("playVoiceText")) {
             $("playVoiceText").value = s.voiceover || s.description || getDefaultDescription(s);
+        }
+
+        // Action, Role, Duration Badges
+        if ($("playStepActionLabel")) $("playStepActionLabel").textContent = actionTitle(s.action) + " Step";
+        const roleBadge = $("playStepRoleBadge");
+        if (roleBadge) {
+            if (s.role) {
+                roleBadge.textContent = `👤 ${s.role}`;
+                roleBadge.classList.remove("hidden");
+            } else {
+                roleBadge.classList.add("hidden");
+            }
+        }
+        const durBadge = $("playStepDurationBadge");
+        if (durBadge) {
+            if (s.duration) {
+                durBadge.textContent = `⏱️ ${s.duration}`;
+                durBadge.classList.remove("hidden");
+            } else {
+                durBadge.classList.add("hidden");
+            }
+        }
+
+        // Caution / Disclaimer Alert Callout in Slideshow
+        const alertBox = $("playStepAlertBox");
+        if (alertBox) {
+            if (s.alertType && s.alertType !== "none") {
+                alertBox.className = `playback-alert-banner ${s.alertType}`;
+                alertBox.classList.remove("hidden");
+                const iconMap = { caution: "⚠️", disclaimer: "🚨", tip: "💡", security: "🔒" };
+                const labelMap = { caution: "Caution / Warning:", disclaimer: "Legal Disclaimer:", tip: "Pro-Tip & Best Practice:", security: "Security Prerequisite:" };
+                if ($("playStepAlertIcon")) $("playStepAlertIcon").textContent = iconMap[s.alertType] || "⚠️";
+                if ($("playStepAlertLabel")) $("playStepAlertLabel").textContent = labelMap[s.alertType] || "Alert:";
+                if ($("playStepAlertMsg")) $("playStepAlertMsg").textContent = s.alertMsg || "Important operational requirement.";
+            } else {
+                alertBox.classList.add("hidden");
+            }
         }
         
         if (s.note && $("playStepNotesBox") && $("playStepNoteText")) {
@@ -4926,10 +5112,85 @@ function renderPlaybackTab() {
                 $("playImg").classList.add("hidden");
             }
         }
+
+        // Interactive Target Hotspot Overlay & Coordinates
+        const hs = calculateDefaultHotspot(s);
+        const xPct = Math.max(5, Math.min(95, hs.xPct + (hs.wPct / 2)));
+        const yPct = Math.max(5, Math.min(95, hs.yPct + (hs.hPct / 2)));
+        const playReticle = $("playHotspotReticle");
+        const stageWrapper = $("playStageWrapper");
+
+        if (playReticle) {
+            playReticle.style.left = `${xPct}%`;
+            playReticle.style.top = `${yPct}%`;
+            const isPinOn = !s.hidePin;
+            playReticle.style.display = (isPinOn || isPracticeModeActive) ? "block" : "none";
+            
+            const tooltip = $("playHotspotTooltip");
+            if (tooltip) {
+                tooltip.textContent = isPracticeModeActive 
+                    ? `Click to Perform Action 🎯` 
+                    : (s.element?.text || s.title || `Target Element`);
+            }
+
+            // Click Handler for Hotspot in Interactive / Practice Mode
+            playReticle.onclick = (e) => {
+                e.stopPropagation();
+                createHotspotClickRipple(xPct, yPct, stageWrapper);
+                if (isPracticeModeActive) {
+                    showToast("✓ Great job! Advancing to next step...", 1200);
+                    setTimeout(() => {
+                        if (playIdx < visibleSteps.length - 1) {
+                            playIdx++;
+                            showPlayStep();
+                        } else {
+                            showToast("🏁 Congratulations! Completed practice procedure successfully!");
+                        }
+                    }, 400);
+                }
+            };
+        }
+
+        // Stage click in Practice Mode (if user missed hotspot)
+        const imgContainer = $("playImgContainer");
+        if (imgContainer) {
+            imgContainer.onclick = (e) => {
+                if (isPracticeModeActive && e.target !== playReticle) {
+                    showToast("👆 Guide Me: Click on the glowing highlighted target on the slide.", 1500);
+                }
+            };
+        }
+
+        // Apply Zoom State
+        if (stageWrapper) {
+            if (isPlayZoomed) {
+                stageWrapper.style.transform = "scale(2)";
+                stageWrapper.style.transformOrigin = `${xPct}% ${yPct}%`;
+            } else {
+                stageWrapper.style.transform = "none";
+                stageWrapper.style.transformOrigin = "center center";
+            }
+        }
         
         if ($("playProgress")) $("playProgress").textContent = `Step ${playIdx + 1} of ${visibleSteps.length}`;
         if ($("playPrevBtn")) $("playPrevBtn").disabled = playIdx === 0;
         if ($("playNextBtn")) $("playNextBtn").disabled = playIdx === visibleSteps.length - 1;
+
+        // Reset and trigger auto-play countdown line if active
+        const progressBar = $("playAutoProgressBar");
+        if (progressBar) {
+            progressBar.style.transition = "none";
+            progressBar.style.width = "0%";
+            if (isAutoPlaying) {
+                const spd = parseInt($("autoPlaySpeedSelect")?.value || "5000", 10);
+                if (!isNaN(spd)) {
+                    setTimeout(() => {
+                        progressBar.style.transition = `width ${spd}ms linear`;
+                        progressBar.style.width = "100%";
+                    }, 50);
+                }
+            }
+        }
 
         // Decision Branching in Playback / Presentation View
         let playBranchWrap = $("playBranchActionsWrap");
@@ -5014,6 +5275,18 @@ function renderPlaybackTab() {
             });
         }
     };
+
+    // Zoom Toggle Button Handler
+    const zoomBtn = $("btnTogglePlayZoom");
+    if (zoomBtn) {
+        zoomBtn.onclick = () => {
+            isPlayZoomed = !isPlayZoomed;
+            const label = $("playZoomLabel");
+            if (label) label.textContent = isPlayZoomed ? "Reset Zoom (1x)" : "Zoom Hotspot (2x)";
+            zoomBtn.classList.toggle("btn-primary", isPlayZoomed);
+            showPlayStep();
+        };
+    }
     
     setOnclick("playPrevBtn", () => {
         if (playIdx > 0) {
@@ -5029,18 +5302,48 @@ function renderPlaybackTab() {
         }
     });
 
-    // Keyboard navigation in playback mode
+    // Toggle Pin Target on Slideshow
+    const pinToggleBtn = $("btnTogglePlayPinTarget");
+    if (pinToggleBtn) {
+        pinToggleBtn.onclick = () => {
+            const step = visibleSteps[playIdx];
+            if (step) {
+                step.hidePin = !step.hidePin;
+                const playPinLabel = $("playPinLabel");
+                if (playPinLabel) {
+                    playPinLabel.textContent = step.hidePin ? "OFF" : "ON";
+                    playPinLabel.style.color = step.hidePin ? "#94a3b8" : "#10b981";
+                }
+                showPlayStep();
+            }
+        };
+    }
+
+    // Comprehensive Keyboard Navigation in Playback Mode
     if (!window._playbackKeyBound) {
         window._playbackKeyBound = true;
         window.addEventListener("keydown", (e) => {
             if (activeTab !== "play") return;
             if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
-            if (e.key === "ArrowRight" || e.key === "PageDown") {
+            
+            if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
                 e.preventDefault();
                 $("playNextBtn")?.click();
             } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
                 e.preventDefault();
                 $("playPrevBtn")?.click();
+            } else if (e.key.toLowerCase() === "p") {
+                e.preventDefault();
+                $("btnTogglePracticeMode")?.click();
+            } else if (e.key.toLowerCase() === "z") {
+                e.preventDefault();
+                $("btnTogglePlayZoom")?.click();
+            } else if (e.key.toLowerCase() === "v") {
+                e.preventDefault();
+                $("playVoiceBtn")?.click();
+            } else if (e.key.toLowerCase() === "f") {
+                e.preventDefault();
+                $("btnToggleFullscreenPlay")?.click();
             }
         });
     }
@@ -5121,6 +5424,37 @@ async function refreshExportPreview() {
 }
 
 setOnclick("btnRefreshExportPreview", refreshExportPreview);
+
+function renderStepAlertBadgeHtml(step) {
+    if (!step || !step.alertType || step.alertType === "none" || !step.alertMsg) return "";
+    let icon = "⚠️";
+    let title = "CAUTION";
+    let bg = "rgba(245, 158, 11, 0.12)";
+    let border = "rgba(245, 158, 11, 0.4)";
+    let color = "#b45309";
+    
+    if (step.alertType === "disclaimer") {
+        icon = "🚨";
+        title = "LEGAL DISCLAIMER";
+        bg = "rgba(239, 68, 68, 0.12)";
+        border = "rgba(239, 68, 68, 0.4)";
+        color = "#b91c1c";
+    } else if (step.alertType === "tip") {
+        icon = "💡";
+        title = "PRO-TIP & BEST PRACTICE";
+        bg = "rgba(16, 185, 129, 0.12)";
+        border = "rgba(16, 185, 129, 0.4)";
+        color = "#047857";
+    } else if (step.alertType === "security") {
+        icon = "🔒";
+        title = "SECURITY & COMPLIANCE REQUIREMENT";
+        bg = "rgba(99, 102, 241, 0.12)";
+        border = "rgba(99, 102, 241, 0.4)";
+        color = "#4338ca";
+    }
+    
+    return `<div style="background: ${bg}; border-left: 4px solid ${border}; border: 1px solid ${border}; border-left-width: 4px; padding: 10px 14px; border-radius: 6px; font-size: 12.5px; color: ${color}; margin-bottom: 10px; line-height: 1.4;"><strong>${icon} ${title}:</strong> ${esc(step.alertMsg)}</div>`;
+}
 
 async function openExportPreview(type) {
     if (!workflow) {
@@ -5223,16 +5557,25 @@ async function openExportPreview(type) {
             visualWrap.innerHTML = `
                 <div style="max-width: 820px; margin: 0 auto; background: #ffffff; color: #1e293b; padding: 48px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif;">
                     <div style="border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 28px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: #e0e7ff; color: #3730a3; text-transform: uppercase;">${esc(globalStudioStyle.sopClassification || "Internal Only")}</span>
+                            <span style="font-size: 11px; color: #64748b;">ProcSnap Certified SOP</span>
+                        </div>
                         <h1 style="font-size: 26px; color: #1e40af; margin: 0 0 8px 0;">${esc(workflow.name)}</h1>
                         <div style="font-size: 13px; color: #64748b;">Application: <strong>${esc(workflow.application)}</strong> • Steps: <strong>${steps.length}</strong> • Created with ProcSnap</div>
                     </div>
+                    ${globalStudioStyle.sopDisclaimer ? `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #64748b; padding: 12px 16px; border-radius: 6px; font-size: 12px; color: #475569; margin-bottom: 24px; line-height: 1.45;"><strong>Executive Disclaimer:</strong> ${esc(globalStudioStyle.sopDisclaimer)}</div>` : ''}
                     ${steps.map(st => `
                         <div style="margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #e2e8f0;">
-                            <h2 style="font-size: 17px; color: #1e293b; margin: 0 0 10px 0; display:flex; align-items:center; gap:8px;">
-                                <span style="background: #2563eb; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 13px;">Step ${st.sequence}</span>
-                                <span contenteditable="true" style="padding:2px 6px; border-radius:4px; outline:none; border-bottom:1px dashed transparent;" onfocus="this.style.borderBottomColor='#2563eb'" onblur="this.style.borderBottomColor='transparent'; saveInlineExportStepEdit(${st.id}, 'title', this.innerText.trim())">${esc(st.title || getDefaultTitle(st))}</span>
-                            </h2>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <h2 style="font-size: 17px; color: #1e293b; margin: 0; display:flex; align-items:center; gap:8px;">
+                                    <span style="background: #2563eb; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 13px;">Step ${st.sequence}</span>
+                                    <span contenteditable="true" style="padding:2px 6px; border-radius:4px; outline:none; border-bottom:1px dashed transparent;" onfocus="this.style.borderBottomColor='#2563eb'" onblur="this.style.borderBottomColor='transparent'; saveInlineExportStepEdit(${st.id}, 'title', this.innerText.trim())">${esc(st.title || getDefaultTitle(st))}</span>
+                                </h2>
+                                ${st.duration || st.role ? `<div style="font-size: 11.5px; color: #64748b; font-weight: 600;">${st.role ? `👤 ${esc(st.role)}` : ''} ${st.duration ? `• ⏱️ ${esc(st.duration)}` : ''}</div>` : ''}
+                            </div>
                             <p contenteditable="true" style="font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 14px 0; padding:2px 6px; border-radius:4px; outline:none; border-bottom:1px dashed transparent;" onfocus="this.style.borderBottomColor='#2563eb'" onblur="this.style.borderBottomColor='transparent'; saveInlineExportStepEdit(${st.id}, 'description', this.innerText.trim())">${esc(st.description || getDefaultDescription(st))}</p>
+                            ${renderStepAlertBadgeHtml(st)}
                             ${bakedImgs[st.id] ? `<img src="${bakedImgs[st.id]}" style="max-width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; display: block;">` : ''}
                             ${st.note ? `<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #92400e; margin-bottom: 8px;"><strong>Note:</strong> ${esc(st.note)}</div>` : ''}
                             ${st.expected ? `<div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #065f46;"><strong>Expected Result:</strong> ${esc(st.expected)}</div>` : ''}
@@ -5573,6 +5916,51 @@ async function getBakedBase64Image(step) {
         ctx.restore();
     });
 
+    // 3. Draw Watermark if enabled globally
+    const wm = globalStudioStyle.watermark;
+    if (wm && wm.enabled && wm.text) {
+        ctx.save();
+        const pos = wm.position || "diagonal";
+        const op = typeof wm.opacity === "number" ? wm.opacity : 0.25;
+        const color = wm.color || "#94a3b8";
+
+        if (pos === "diagonal") {
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(-Math.PI / 4);
+            ctx.font = `800 ${Math.max(26, Math.round(canvas.width * 0.045))}px Arial, sans-serif`;
+            ctx.fillStyle = color;
+            ctx.globalAlpha = op;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(wm.text.toUpperCase(), 0, 0);
+        } else if (pos === "bottom-right") {
+            ctx.font = `700 ${Math.max(15, Math.round(canvas.width * 0.018))}px Arial, sans-serif`;
+            ctx.fillStyle = color;
+            ctx.globalAlpha = op * 1.2;
+            ctx.textAlign = "right";
+            ctx.textBaseline = "bottom";
+            ctx.fillText(wm.text.toUpperCase(), canvas.width - 24, canvas.height - 18);
+        } else if (pos === "tile") {
+            ctx.font = `700 ${Math.max(16, Math.round(canvas.width * 0.022))}px Arial, sans-serif`;
+            ctx.fillStyle = color;
+            ctx.globalAlpha = op * 0.7;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    const cx = (c + 0.5) * (canvas.width / 3);
+                    const cy = (r + 0.5) * (canvas.height / 3);
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.rotate(-Math.PI / 6);
+                    ctx.fillText(wm.text.toUpperCase(), 0, 0);
+                    ctx.restore();
+                }
+            }
+        }
+        ctx.restore();
+    }
+
     return canvas.toDataURL("image/png");
 }
 
@@ -5586,8 +5974,10 @@ async function generateOfflineHtml() {
     for (const s of visibleSteps) {
         const base64 = s.screenshotUrl ? await getBakedBase64Image(s) : "";
         const imageBlock = base64 ? `<div class="sop-image-container"><img src="${base64}" alt="Step ${s.sequence}"></div>` : '<div class="no-image-placeholder">No image captured</div>';
+        const alertBlock = renderStepAlertBadgeHtml(s);
         const noteBlock = s.note ? `<div class="sop-note"><strong>Note:</strong> ${esc(s.note)}</div>` : "";
         const expectedBlock = s.expected ? `<div class="sop-expected"><strong>Expected Result:</strong> ${esc(s.expected)}</div>` : "";
+        const metaTag = (s.role || s.duration) ? `<div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">${s.role ? `👤 <strong>Role:</strong> ${esc(s.role)}` : ''} ${s.duration ? `• ⏱️ <strong>Duration:</strong> ${esc(s.duration)}` : ''}</div>` : "";
         
         stepsHtml.push(`
             <section class="sop-step">
@@ -5595,7 +5985,9 @@ async function generateOfflineHtml() {
                     <span class="sop-step-number">Step ${s.sequence}</span>
                     <h2 class="sop-step-title">${esc(s.title || getDefaultTitle(s))}</h2>
                 </div>
+                ${metaTag}
                 <p class="sop-step-description">${esc(s.description || getDefaultDescription(s))}</p>
+                ${alertBlock}
                 ${noteBlock}
                 ${expectedBlock}
                 ${imageBlock}
@@ -6191,6 +6583,11 @@ async function generateInteractiveWalkthroughHtml() {
         <div class="header-title-group">
             <span class="app-badge">Interactive SOP</span>
             <span class="wf-title">${title}</span>
+            <div style="display:inline-flex; gap:3px; background:rgba(0,0,0,0.35); padding:2px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); margin-left:10px;">
+                <button id="btnModeGuided" class="mode-pill active" onclick="setInteractiveMode('guided')" style="padding:2px 8px; font-size:10.5px; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:#6366f1; color:#fff;">🎯 Guided</button>
+                <button id="btnModePractice" class="mode-pill" onclick="setInteractiveMode('practice')" style="padding:2px 8px; font-size:10.5px; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">🏋️ Practice</button>
+                <button id="btnModeAssessment" class="mode-pill" onclick="setInteractiveMode('assessment')" style="padding:2px 8px; font-size:10.5px; font-weight:700; border:none; border-radius:4px; cursor:pointer; background:transparent; color:#94a3b8;">🏆 Assessment</button>
+            </div>
         </div>
         <div class="header-controls">
             <div class="progress-indicator">
@@ -8555,7 +8952,16 @@ const globalStudioStyle = {
     cursorType: "arrow",
     demoSpeed: "smooth",
     clickRipple: true,
-    blurStyle: "frosted"
+    blurStyle: "frosted",
+    watermark: {
+        enabled: false,
+        text: "CONFIDENTIAL",
+        opacity: 0.25,
+        position: "diagonal",
+        color: "#94a3b8"
+    },
+    sopDisclaimer: "This standard operating procedure contains proprietary and confidential information. Unauthorized distribution or reproduction is strictly prohibited.",
+    sopClassification: "Internal Only"
 };
 
 function initDualControlPanel() {
@@ -8709,6 +9115,82 @@ function initDualControlPanel() {
             globalStudioStyle.blurStyle = btn.dataset.blur || "frosted";
         };
     });
+
+    // Watermark Toggle & Inputs
+    const wmToggleBtn = $("btnGlobalWatermarkToggle");
+    const wmTextInput = $("globalWatermarkTextInput");
+    const wmPosSelect = $("globalWatermarkPosSelect");
+    const wmOpacitySlider = $("globalWatermarkOpacitySlider");
+    const wmOpacityLabel = $("globalWatermarkOpacityLabel");
+
+    if (wmToggleBtn) {
+        wmToggleBtn.onclick = () => {
+            globalStudioStyle.watermark.enabled = !globalStudioStyle.watermark.enabled;
+            if (globalStudioStyle.watermark.enabled) {
+                wmToggleBtn.textContent = "ENABLED ✓";
+                wmToggleBtn.style.color = "#10b981";
+                wmToggleBtn.style.borderColor = "rgba(16,185,129,0.35)";
+            } else {
+                wmToggleBtn.textContent = "DISABLED";
+                wmToggleBtn.style.color = "#f87171";
+                wmToggleBtn.style.borderColor = "rgba(239,68,68,0.35)";
+            }
+            applyGlobalStyleLivePreview();
+        };
+    }
+
+    if (wmTextInput) {
+        wmTextInput.oninput = (e) => {
+            globalStudioStyle.watermark.text = e.target.value.trim();
+            applyGlobalStyleLivePreview();
+        };
+    }
+
+    document.querySelectorAll(".watermark-preset-btn").forEach(btn => {
+        btn.onclick = () => {
+            const txt = btn.dataset.text || "CONFIDENTIAL";
+            globalStudioStyle.watermark.text = txt;
+            if (wmTextInput) wmTextInput.value = txt;
+            if (wmToggleBtn && !globalStudioStyle.watermark.enabled) {
+                globalStudioStyle.watermark.enabled = true;
+                wmToggleBtn.textContent = "ENABLED ✓";
+                wmToggleBtn.style.color = "#10b981";
+                wmToggleBtn.style.borderColor = "rgba(16,185,129,0.35)";
+            }
+            applyGlobalStyleLivePreview();
+        };
+    });
+
+    if (wmPosSelect) {
+        wmPosSelect.onchange = (e) => {
+            globalStudioStyle.watermark.position = e.target.value;
+            applyGlobalStyleLivePreview();
+        };
+    }
+
+    if (wmOpacitySlider) {
+        wmOpacitySlider.oninput = (e) => {
+            const val = parseInt(e.target.value, 10);
+            globalStudioStyle.watermark.opacity = val / 100;
+            if (wmOpacityLabel) wmOpacityLabel.textContent = `${val}%`;
+            applyGlobalStyleLivePreview();
+        };
+    }
+
+    // Disclaimer & Classification Inputs
+    const sopClassSelect = $("globalSopClassificationSelect");
+    if (sopClassSelect) {
+        sopClassSelect.onchange = (e) => {
+            globalStudioStyle.sopClassification = e.target.value;
+        };
+    }
+
+    const sopDisclaimerText = $("globalSopDisclaimerText");
+    if (sopDisclaimerText) {
+        sopDisclaimerText.oninput = (e) => {
+            globalStudioStyle.sopDisclaimer = e.target.value.trim();
+        };
+    }
 
     // Apply to All Steps Button
     setOnclick("btnApplyGlobalToAll", applyGlobalStylesToAllSteps);
@@ -9638,7 +10120,7 @@ function initDesktopRecorderModal() {
     const activeHud = $("desktopRecActiveHud");
     const liveStepCount = $("desktopLiveStepCount");
 
-    if (!openBtn || !modal) return;
+    if (!modal) return;
 
     let pollInterval = null;
 
@@ -9648,71 +10130,167 @@ function initDesktopRecorderModal() {
             pollInterval = null;
         }
         modal.classList.add("hidden");
+        modal.style.display = "none";
     };
 
-    openBtn.onclick = () => {
-        modal.classList.remove("hidden");
-        if (preStart) preStart.classList.remove("hidden");
-        if (activeHud) activeHud.classList.add("hidden");
-        if (startBtn) startBtn.classList.remove("hidden");
-        if (stopBtn) stopBtn.classList.add("hidden");
+    const showPreStartState = () => {
+        if (preStart) preStart.style.display = "block";
+        if (activeHud) activeHud.style.display = "none";
+        if (startBtn) {
+            startBtn.style.display = "inline-flex";
+            startBtn.disabled = false;
+            startBtn.innerHTML = `🚀 Start Desktop Capture`;
+        }
+        if (cancelBtn) cancelBtn.style.display = "inline-flex";
+        if (stopBtn) stopBtn.style.display = "none";
         if (titleInput) titleInput.value = "Desktop Workflow: " + new Date().toLocaleDateString();
     };
 
+    const showActiveHudState = (initialCount = 0) => {
+        if (preStart) preStart.style.display = "none";
+        if (activeHud) activeHud.style.display = "flex";
+        if (startBtn) startBtn.style.display = "none";
+        if (cancelBtn) cancelBtn.style.display = "none";
+        if (stopBtn) {
+            stopBtn.style.display = "inline-flex";
+            stopBtn.disabled = false;
+            stopBtn.innerHTML = `⏹ Stop &amp; Open Studio`;
+        }
+        if (liveStepCount) {
+            liveStepCount.textContent = `${initialCount} Steps Captured`;
+        }
+
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(async () => {
+            try {
+                const sRes = await fetch(`${API_BASE}/desktop-recorder/status`);
+                if (sRes.ok) {
+                    const sData = await sRes.json();
+                    if (liveStepCount && typeof sData.stepCount === "number") {
+                        liveStepCount.textContent = `${sData.stepCount} Steps Captured`;
+                    }
+                    if (!sData.isRecording && pollInterval) {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        if (sData.sessionId && sData.stepCount > 0) {
+                            window.location.href = `dashboard.html?session_id=${encodeURIComponent(sData.sessionId)}`;
+                        } else {
+                            showPreStartState();
+                        }
+                    }
+                }
+            } catch (e) {
+                console.debug("Desktop status poll notice:", e);
+            }
+        }, 500);
+    };
+
+    const openModal = async () => {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+
+        // Check live status on open
+        try {
+            const res = await fetch(`${API_BASE}/desktop-recorder/status`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.isRecording) {
+                    showActiveHudState(data.stepCount || 0);
+                    return;
+                }
+            }
+        } catch (_) {}
+
+        showPreStartState();
+
+        // Enumerate connected monitors
+        try {
+            const mRes = await fetch(`${API_BASE}/desktop/monitors`);
+            if (mRes.ok) {
+                const mData = await mRes.json();
+                const screenSelect = $("desktopRecScreenSelect");
+                const monList = mData.monitors || [];
+                if (screenSelect && monList.length > 0) {
+                    let html = `<option value="auto">🎯 Auto-Detect Active Screen (Where Mouse Clicks)</option>`;
+                    monList.filter(m => m.index > 0).forEach(m => {
+                        const lbl = m.label || m.name || `Screen ${m.index}`;
+                        html += `<option value="${m.index}">🖥️ ${lbl}</option>`;
+                    });
+                    html += `<option value="all">🌐 All Displays Combined (${monList.length > 1 ? monList.length - 1 : monList.length} Screens)</option>`;
+                    screenSelect.innerHTML = html;
+                }
+            }
+        } catch (_) {}
+    };
+
+    if (openBtn) openBtn.onclick = openModal;
     if (closeBtn) closeBtn.onclick = closeModal;
     if (cancelBtn) cancelBtn.onclick = closeModal;
 
     if (startBtn) {
         startBtn.onclick = async () => {
             const title = titleInput?.value?.trim() || "Native Windows Desktop Workflow";
+            const target_monitor = $("desktopRecScreenSelect")?.value || "auto";
+            const auto_click_capture = $("chkDesktopAutoClickCapture") ? $("chkDesktopAutoClickCapture").checked : true;
+
             startBtn.disabled = true;
             startBtn.innerHTML = `<span>⏳</span> Launching Hook...`;
 
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
+
                 const res = await fetch(`${API_BASE}/desktop-recorder/start`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ title })
+                    body: JSON.stringify({
+                        title,
+                        target_monitor,
+                        auto_click_capture
+                    }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
 
                 if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || "Failed to start desktop recorder");
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || `Server returned ${res.status}`);
                 }
 
                 const data = await res.json();
                 showToast("🔴 Native Desktop Recording Active! Click anywhere on your desktop.", 5000);
-
-                if (preStart) preStart.classList.add("hidden");
-                if (activeHud) activeHud.classList.remove("hidden");
-                if (startBtn) startBtn.classList.add("hidden");
-                if (stopBtn) stopBtn.classList.remove("hidden");
-
-                // Start polling step count
-                pollInterval = setInterval(async () => {
-                    try {
-                        const sRes = await fetch(`${API_BASE}/desktop-recorder/status`);
-                        if (sRes.ok) {
-                            const sData = await sRes.json();
-                            if (liveStepCount) {
-                                liveStepCount.textContent = `${sData.stepCount || 0} Steps Captured`;
-                            }
-                            if (!sData.isRecording && pollInterval) {
-                                // Stopped via hotkey
-                                clearInterval(pollInterval);
-                                pollInterval = null;
-                                window.location.href = `dashboard.html?session_id=${encodeURIComponent(sData.sessionId)}`;
-                            }
-                        }
-                    } catch (e) {
-                        console.debug("Status poll notice:", e);
-                    }
-                }, 800);
+                showActiveHudState(0);
             } catch (e) {
                 console.error("Desktop recorder start error:", e);
-                showToast("Desktop recorder error: " + e.message);
-                startBtn.disabled = false;
-                startBtn.innerHTML = `🚀 Start Desktop Capture`;
+                showToast("Desktop recorder start notice: " + (e.name === "AbortError" ? "Backend connection timed out" : e.message), 4000);
+                showPreStartState();
+            }
+        };
+    }
+
+    const captureStepBtn = $("btnCaptureDesktopStepNow");
+    if (captureStepBtn) {
+        captureStepBtn.onclick = async () => {
+            const orig = captureStepBtn.innerHTML;
+            captureStepBtn.disabled = true;
+            captureStepBtn.innerHTML = `<span>📸</span> Capturing...`;
+            try {
+                const res = await fetch(`${API_BASE}/desktop-recorder/capture-step`, { method: "POST" });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (liveStepCount) {
+                        liveStepCount.textContent = `${data.stepCount} Steps Captured`;
+                    }
+                    showToast(`📸 Step ${data.stepCount} captured!`, 2000);
+                } else {
+                    throw new Error("Capture failed");
+                }
+            } catch (e) {
+                console.error("Desktop capture step error:", e);
+                showToast("Desktop capture notice: " + e.message);
+            } finally {
+                captureStepBtn.disabled = false;
+                captureStepBtn.innerHTML = orig;
             }
         };
     }
@@ -9738,15 +10316,57 @@ function initDesktopRecorderModal() {
                 showToast(`🎉 Desktop workflow saved with ${data.stepCount} steps! Loading...`, 4000);
                 setTimeout(() => {
                     window.location.href = `dashboard.html?session_id=${encodeURIComponent(data.sessionId)}`;
-                }, 1000);
+                }, 800);
             } catch (e) {
                 console.error("Desktop recorder stop error:", e);
-                showToast("Failed to stop recording: " + e.message);
+                showToast("Failed to stop recording: " + e.message, 4000);
                 stopBtn.disabled = false;
-                stopBtn.innerHTML = `⏹ Stop & Open Studio`;
+                stopBtn.innerHTML = `⏹ Stop &amp; Open Studio`;
             }
         };
     }
+}
+
+// Quick Library Sidebar Pinning Feature
+function initLibraryPinning() {
+    const pinBtn = $("btnPinLibrary");
+    const sidebar = document.querySelector(".sidebar") || $("sidebarLibrary");
+    const icon = $("pinLibraryIcon");
+    const label = $("pinLibraryLabel");
+    if (!pinBtn || !sidebar) return;
+
+    let isPinned = localStorage.getItem("sidebar_pinned") === "true";
+
+    const applyPinState = (pinned) => {
+        if (pinned) {
+            sidebar.classList.add("pinned");
+            sidebar.classList.remove("collapsed");
+            pinBtn.classList.add("btn-primary");
+            pinBtn.classList.remove("btn-secondary");
+            if (icon) icon.textContent = "📌";
+            if (label) label.textContent = "Pinned";
+            pinBtn.title = "Quick Library is pinned open. Click to unpin.";
+            localStorage.setItem("sidebar_pinned", "true");
+            localStorage.setItem("sidebar_collapsed", "false");
+        } else {
+            sidebar.classList.remove("pinned");
+            pinBtn.classList.remove("btn-primary");
+            pinBtn.classList.add("btn-secondary");
+            if (icon) icon.textContent = "📍";
+            if (label) label.textContent = "Pin";
+            pinBtn.title = "Click to pin Quick Library drawer open";
+            localStorage.setItem("sidebar_pinned", "false");
+        }
+    };
+
+    applyPinState(isPinned);
+
+    pinBtn.onclick = (e) => {
+        e.stopPropagation();
+        isPinned = !isPinned;
+        applyPinState(isPinned);
+        showToast(isPinned ? "📌 Quick Library drawer pinned open" : "📍 Quick Library drawer unpinned", 2000);
+    };
 }
 
 // =========================================================
@@ -10543,7 +11163,609 @@ try { initStepListFilterAndBulkActions(); } catch (e) { console.warn("Step list 
 try { initSlideshowAutoPlayAndFullscreen(); } catch (e) { console.warn("Slideshow init error:", e); }
 try { initPrintSopPdf(); } catch (e) { console.warn("Print PDF init error:", e); }
 try { initDesktopRecorderModal(); } catch (e) { console.warn("Desktop recorder init error:", e); }
+try { initLibraryPinning(); } catch (e) { console.warn("Library pinning init error:", e); }
+try { initFeedbackModal(); } catch (e) { console.warn("Feedback modal init error:", e); }
 try { bpmnEngine.init(); } catch (e) { console.warn("BPMN engine init error:", e); }
+
+// =========================================================
+// 💬 USER FEEDBACK & SUPPORT (Vickykalam34@gmail.com)
+// =========================================================
+function initFeedbackModal() {
+    const openBtn = $("btnOpenFeedbackModal");
+    const modal = $("feedbackModal");
+    if (!modal) return;
+
+    let selectedType = "feature_request";
+
+    window.openFeedbackModal = () => {
+        modal.style.display = "block";
+        const msg = $("feedbackMessageInput");
+        if (msg) msg.focus();
+    };
+
+    window.closeFeedbackModal = () => {
+        modal.style.display = "none";
+    };
+
+    if (openBtn) {
+        openBtn.onclick = window.openFeedbackModal;
+    }
+
+    // Category button selection
+    document.querySelectorAll(".feedback-type-btn").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll(".feedback-type-btn").forEach(b => {
+                b.classList.remove("active");
+                b.style.background = "transparent";
+                b.style.color = "var(--text-main, #fff)";
+                b.style.border = "1px solid var(--border-color, rgba(255,255,255,0.15))";
+            });
+            btn.classList.add("active");
+            btn.style.background = "#6366f1";
+            btn.style.color = "#fff";
+            btn.style.border = "none";
+            selectedType = btn.dataset.type || "feedback";
+            updateMailtoLink();
+        };
+    });
+
+    const updateMailtoLink = () => {
+        const mailtoBtn = $("btnMailtoFeedback");
+        if (!mailtoBtn) return;
+        const subj = $("feedbackSubjectInput")?.value || `ProcSnap ${selectedType} Feedback`;
+        const body = $("feedbackMessageInput")?.value || "";
+        const email = "Vickykalam34@gmail.com";
+        mailtoBtn.href = `mailto:${email}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body + "\n\n---\nSent from ProcSnap Studio")}`;
+    };
+
+    const subjInput = $("feedbackSubjectInput");
+    const msgInput = $("feedbackMessageInput");
+    if (subjInput) subjInput.addEventListener("input", updateMailtoLink);
+    if (msgInput) msgInput.addEventListener("input", updateMailtoLink);
+
+    // Direct submit button
+    const submitBtn = $("btnSubmitFeedbackDirect");
+    if (submitBtn) {
+        submitBtn.onclick = async () => {
+            const message = msgInput?.value?.trim();
+            if (!message) {
+                showToast("Please enter your message or feedback first.", 2500);
+                if (msgInput) msgInput.focus();
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = "<span>⏳</span> Submitting...";
+
+            try {
+                const res = await fetch(`${API_BASE}/feedback`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        email: "Vickykalam34@gmail.com",
+                        feedback_type: selectedType,
+                        subject: subjInput?.value?.trim() || "ProcSnap User Feedback",
+                        message: message,
+                        system_diagnostics: {
+                            userAgent: navigator.userAgent,
+                            platform: navigator.platform,
+                            timestamp: new Date().toISOString(),
+                            workflowId: workflow?.id || null
+                        }
+                    })
+                });
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                showToast("🎉 Thank you! Your feedback was sent directly to Vickykalam34@gmail.com", 5000);
+                if (msgInput) msgInput.value = "";
+                if (subjInput) subjInput.value = "";
+                window.closeFeedbackModal();
+            } catch (e) {
+                console.error("Feedback submit error:", e);
+                showToast("Opening email client fallback to Vickykalam34@gmail.com...", 3000);
+                updateMailtoLink();
+                $("btnMailtoFeedback")?.click();
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "<span>🚀</span> Submit Feedback";
+            }
+        };
+    }
+}
+
+/* =========================================================
+   ⚡ POWER-USER SHORTCUTS, AUTO-POLISH & PERFORMANCE ENGINE
+========================================================= */
+
+let undoToastTimeout = null;
+let lastDeletedStepBackup = null;
+
+function showUndoToast(text, undoCallback) {
+    const toast = $("undoToast");
+    const toastText = $("undoToastText");
+    const toastBtn = $("btnUndoToastAction");
+    if (!toast) return;
+
+    if (toastText) toastText.textContent = text;
+    toast.style.display = "flex";
+    toast.classList.remove("hidden");
+
+    if (undoToastTimeout) clearTimeout(undoToastTimeout);
+
+    if (toastBtn) {
+        toastBtn.onclick = () => {
+            toast.style.display = "none";
+            toast.classList.add("hidden");
+            if (undoCallback) undoCallback();
+        };
+    }
+
+    undoToastTimeout = setTimeout(() => {
+        toast.style.display = "none";
+        toast.classList.add("hidden");
+    }, 4500);
+}
+
+// 0ms Latency Image Preloader
+const screenshotMemoryCache = new Map();
+
+function preloadAdjacentScreenshots(currentIndex) {
+    if (!steps || !steps.length) return;
+    const indicesToPreload = [currentIndex - 1, currentIndex + 1, currentIndex + 2];
+    
+    for (const idx of indicesToPreload) {
+        if (idx >= 0 && idx < steps.length) {
+            const step = steps[idx];
+            if (step && step.screenshot_path) {
+                const url = `${API_BASE}/${step.screenshot_path}`;
+                if (!screenshotMemoryCache.has(url)) {
+                    const img = new Image();
+                    img.decoding = "async";
+                    img.src = url;
+                    screenshotMemoryCache.set(url, img);
+                }
+            }
+        }
+    }
+}
+
+// 1-Click Auto-Polish SOP Engine
+async function triggerAutoPolishSOP() {
+    if (!workflow || !workflow.id || !steps || !steps.length) {
+        showToast("No active workflow steps to polish.", 2500);
+        return;
+    }
+
+    const polishBtn = $("btnAutoPolishHeader");
+    if (polishBtn) {
+        polishBtn.disabled = true;
+        polishBtn.innerHTML = "<span>⏳</span> Polishing...";
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/sessions/${workflow.id}/suggestions`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        let updatedCount = 0;
+        if (data.title_suggestions) {
+            for (const step of steps) {
+                if (data.title_suggestions[step.id]) {
+                    step.edited_title = data.title_suggestions[step.id];
+                    updatedCount++;
+                }
+                if (data.description_suggestions && data.description_suggestions[step.id]) {
+                    step.edited_description = data.description_suggestions[step.id];
+                }
+            }
+        }
+
+        renderStepList();
+        if (typeof currentStepIndex === "number" && steps[currentStepIndex]) {
+            renderCurrentStep();
+        }
+
+        showToast(`✨ Auto-polished ${updatedCount || steps.length} steps with professional SOP titles!`, 4000);
+    } catch (err) {
+        console.error("Auto polish error:", err);
+        showToast("Auto-polish notice: Applying local verb-first templates...", 3000);
+        
+        // Local rule-based fallback
+        for (const step of steps) {
+            const act = (step.action || "Click").toLowerCase();
+            const rawTitle = step.title || step.edited_title || "";
+            if (rawTitle.startsWith("Click") || rawTitle.startsWith("type") || !rawTitle) {
+                if (act.includes("input") || act.includes("type")) {
+                    step.edited_title = `Enter information in ${rawTitle.replace(/click|type/gi, '').trim() || 'field'}`;
+                } else if (rawTitle.toLowerCase().includes("save") || rawTitle.toLowerCase().includes("submit")) {
+                    step.edited_title = "Submit and save changes";
+                } else {
+                    step.edited_title = `Click ${rawTitle.replace(/click/gi, '').trim() || 'the selected item'}`;
+                }
+            }
+        }
+        renderStepList();
+        if (typeof currentStepIndex === "number" && steps[currentStepIndex]) {
+            renderCurrentStep();
+        }
+    } finally {
+        if (polishBtn) {
+            polishBtn.disabled = false;
+            polishBtn.innerHTML = "<span>✨</span> Auto-Polish SOP";
+        }
+    }
+}
+
+// Power-User Keyboard Navigation & Shortcuts
+function initPowerUserShortcuts() {
+    // 1-Click Auto Polish Click
+    const polishBtn = $("btnAutoPolishHeader");
+    if (polishBtn) polishBtn.onclick = triggerAutoPolishSOP;
+
+    document.addEventListener("keydown", (e) => {
+        const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+        const isEditable = document.activeElement ? document.activeElement.isContentEditable : false;
+
+        // Ignore when typing inside input fields or textareas
+        if (tag === "input" || tag === "textarea" || tag === "select" || isEditable) {
+            // Save on Ctrl+S even inside inputs
+            if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                e.preventDefault();
+                showToast("✓ Changes saved automatically", 1500);
+            }
+            return;
+        }
+
+        // Only active when viewing Studio workspace
+        const studioView = $("studioView");
+        if (!studioView || studioView.classList.contains("hidden")) return;
+        if (!steps || !steps.length) return;
+
+        // J or ArrowDown -> Next Step
+        if (e.key === "j" || e.key === "J" || e.key === "ArrowDown") {
+            e.preventDefault();
+            if (currentStepIndex < steps.length - 1) {
+                selectStep(currentStepIndex + 1);
+                preloadAdjacentScreenshots(currentStepIndex + 1);
+            }
+            return;
+        }
+
+        // K or ArrowUp -> Previous Step
+        if (e.key === "k" || e.key === "K" || e.key === "ArrowUp") {
+            e.preventDefault();
+            if (currentStepIndex > 0) {
+                selectStep(currentStepIndex - 1);
+                preloadAdjacentScreenshots(currentStepIndex - 1);
+            }
+            return;
+        }
+
+        // E -> Edit Step Title
+        if (e.key === "e" || e.key === "E") {
+            e.preventDefault();
+            const titleEl = $("guideStepTitle");
+            if (titleEl) {
+                titleEl.focus();
+                // Select all text inside title
+                const range = document.createRange();
+                range.selectNodeContents(titleEl);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+            return;
+        }
+
+        // H -> Toggle Hide Step
+        if (e.key === "h" || e.key === "H") {
+            e.preventDefault();
+            const curr = steps[currentStepIndex];
+            if (curr) {
+                curr.hidden = !curr.hidden;
+                renderStepList();
+                renderCurrentStep();
+                showToast(curr.hidden ? "👁️ Step hidden from public SOP" : "👁️ Step visible in SOP", 1800);
+            }
+            return;
+        }
+
+        // Spacebar -> Open Slideshow Walkthrough
+        if (e.key === " ") {
+            e.preventDefault();
+            const playTab = document.querySelector('.tab[data-tab="play"]');
+            if (playTab) playTab.click();
+            return;
+        }
+
+        // Delete or Backspace -> Delete Step with Undo Toast
+        if (e.key === "Delete" || e.key === "Backspace") {
+            e.preventDefault();
+            const curr = steps[currentStepIndex];
+            if (curr) {
+                lastDeletedStepBackup = { step: { ...curr }, index: currentStepIndex };
+                steps.splice(currentStepIndex, 1);
+                if (currentStepIndex >= steps.length) currentStepIndex = Math.max(0, steps.length - 1);
+                renderStepList();
+                if (steps.length > 0) renderCurrentStep();
+
+                showUndoToast(`Step ${lastDeletedStepBackup.index + 1} deleted`, () => {
+                    if (lastDeletedStepBackup) {
+                        steps.splice(lastDeletedStepBackup.index, 0, lastDeletedStepBackup.step);
+                        currentStepIndex = lastDeletedStepBackup.index;
+                        renderStepList();
+                        renderCurrentStep();
+                        showToast("↺ Step restored!", 2000);
+                    }
+                });
+            }
+            return;
+        }
+    });
+}
+
+// ── Enterprise Process Flowchart Viewer ──────────────────────────────────
+async function openFlowchartModal() {
+    if (!workflow || !workflow.id) return showToast("No active workflow to generate flowchart.");
+    const modal = $("flowchartModal");
+    const codeArea = $("flowchartCodeArea");
+    if (!modal || !codeArea) return;
+
+    modal.style.display = "block";
+    modal.classList.remove("hidden");
+    codeArea.textContent = "⏳ Generating Mermaid process flowchart...";
+
+    try {
+        const res = await fetch(`${API_BASE}/sessions/${workflow.id}/flowchart`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        codeArea.textContent = data.mermaid;
+
+        const copyBtn = $("btnCopyMermaidCode");
+        if (copyBtn) {
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(data.mermaid);
+                showToast("📋 Copied Mermaid flowchart syntax to clipboard!", 2500);
+            };
+        }
+    } catch (err) {
+        codeArea.textContent = `Error generating flowchart: ${err.message}`;
+    }
+}
+
+// ── Enterprise Local PII Scanner ─────────────────────────────────────────
+async function openPiiScannerModal() {
+    if (!workflow || !workflow.id) return showToast("No active workflow to scan.");
+    const modal = $("piiScannerModal");
+    const listEl = $("piiFindingsList");
+    const summaryEl = $("piiAuditSummary");
+    if (!modal || !listEl) return;
+
+    modal.style.display = "block";
+    modal.classList.remove("hidden");
+    listEl.innerHTML = "<div style='color:#a5b4fc; padding:20px; text-align:center;'>⏳ Scanning steps for PII, emails, tokens, and passwords...</div>";
+
+    try {
+        const res = await fetch(`${API_BASE}/sessions/${workflow.id}/scan-pii`, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const report = await res.json();
+
+        if (summaryEl) {
+            summaryEl.textContent = `${report.total_findings} sensitive entities detected across ${report.affected_steps_count} steps.`;
+        }
+
+        if (report.total_findings === 0) {
+            listEl.innerHTML = `
+                <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:20px; text-align:center; color:#10b981;">
+                    <div style="font-size:24px; margin-bottom:6px;">✅</div>
+                    <div style="font-weight:800; font-size:14px;">100% Clean! No Sensitive PII Found.</div>
+                    <div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">No emails, credit cards, SSNs, or API keys were detected in step text.</div>
+                </div>
+            `;
+        } else {
+            listEl.innerHTML = report.findings.map((f, i) => `
+                <div style="background:rgba(0,0,0,0.25); border:1px solid rgba(239,68,68,0.25); border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="badge" style="background:#ef4444; color:#fff; font-size:9.5px; font-weight:800; text-transform:uppercase; padding:2px 6px; border-radius:4px;">${f.type}</span>
+                            <span style="font-size:12px; font-weight:700; color:#fff;">Step ID #${f.step_id || 'N/A'} — ${f.field}</span>
+                        </div>
+                        <div style="font-family:monospace; font-size:11px; color:#f87171; margin-top:4px;">"${f.matched_text}"</div>
+                    </div>
+                    <span style="font-size:10px; color:var(--text-muted);">${f.confidence}% confidence</span>
+                </div>
+            `).join("");
+        }
+
+        const redactBtn = $("btnApplyPiiRedactAll");
+        if (redactBtn) {
+            redactBtn.onclick = () => triggerAutoRedactPii();
+        }
+    } catch (err) {
+        listEl.innerHTML = `<div style="color:#ef4444; padding:20px;">Scan failed: ${err.message}</div>`;
+    }
+}
+
+async function triggerAutoRedactPii() {
+    if (!workflow || !workflow.id) return;
+    try {
+        const res = await fetch(`${API_BASE}/sessions/${workflow.id}/auto-redact-pii`, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        showToast(`🔒 ${data.message}`, 4000);
+        $("piiScannerModal")?.classList.add("hidden");
+        if ($("piiScannerModal")) $("piiScannerModal").style.display = "none";
+        await loadWorkflow(workflow.id);
+    } catch (err) {
+        showToast(`Auto-redact failed: ${err.message}`, 3000);
+    }
+}
+
+// ── Portable Package (.procsnap.zip) Import Handler ──────────────────────
+const importPkgInput = $("importPackageFileInput");
+if (importPkgInput) {
+    importPkgInput.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        showToast("⏳ Unpacking and restoring .procsnap.zip package...", 5000);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch(`${API_BASE}/sessions/import-package`, {
+                method: "POST",
+                body: formData
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            showToast(`🎉 Imported "${data.name}" (${data.steps_imported} steps)!`, 4000);
+            await fetchWorkflows();
+            if (data.workflow_id) await loadWorkflow(data.workflow_id);
+        } catch (err) {
+            console.error("Import package error:", err);
+            showToast(`Import failed: ${err.message}`, 4000);
+        } finally {
+            importPkgInput.value = "";
+        }
+    };
+}
+
+// ── Master Settings, Profile & Persona Mode Engine ──────────────────────────
+function initModeSwitcher() {
+    const settingsModal = $("settingsModal");
+    const openSettingsBtn = $("btnOpenSettingsModal");
+    const closeSettingsBtn = $("btnCloseSettingsModal");
+    const saveSettingsBtn = $("btnSettingsSaveAll");
+    const themeBtn = $("btnSettingsThemeToggle");
+    const diagBtn = $("btnSettingsDiagnostics");
+
+    // Load saved settings
+    const defaultMode = localStorage.getItem("procsnap_default_mode") || "simple";
+    let currentMode = localStorage.getItem("procsnap_ux_mode") || defaultMode;
+
+    const authorInput = $("settingDefaultAuthor");
+    const deptInput = $("settingDefaultDept");
+    const reviewerInput = $("settingDefaultReviewer");
+    const approverInput = $("settingDefaultApprover");
+    const autoPiiCb = $("settingAutoPiiRedact");
+    const autoAiCb = $("settingAutoAiTitles");
+    const persistModeCb = $("cbPersistDefaultMode");
+
+    if (authorInput) authorInput.value = localStorage.getItem("procsnap_default_author") || "";
+    if (deptInput) deptInput.value = localStorage.getItem("procsnap_default_dept") || "";
+    if (reviewerInput) reviewerInput.value = localStorage.getItem("procsnap_default_reviewer") || "";
+    if (approverInput) approverInput.value = localStorage.getItem("procsnap_default_approver") || "";
+    if (autoPiiCb) autoPiiCb.checked = localStorage.getItem("procsnap_auto_pii") === "true";
+    if (autoAiCb) autoAiCb.checked = localStorage.getItem("procsnap_auto_ai") !== "false";
+
+    function applyMode(mode, saveAsDefault = false) {
+        currentMode = mode;
+        localStorage.setItem("procsnap_ux_mode", mode);
+        if (saveAsDefault || (persistModeCb && persistModeCb.checked)) {
+            localStorage.setItem("procsnap_default_mode", mode);
+        }
+
+        // Update Persona cards in modal
+        document.querySelectorAll(".settings-persona-card").forEach(card => {
+            const isMatch = card.dataset.mode === mode;
+            const badge = card.querySelector(".persona-active-badge");
+            if (badge) badge.style.display = isMatch ? "inline-block" : "none";
+            if (isMatch) {
+                if (mode === "simple") {
+                    card.style.borderColor = "#10b981";
+                    card.style.background = "rgba(16,185,129,0.08)";
+                } else if (mode === "advanced") {
+                    card.style.borderColor = "#6366f1";
+                    card.style.background = "rgba(99,102,241,0.08)";
+                } else if (mode === "enterprise") {
+                    card.style.borderColor = "#8b5cf6";
+                    card.style.background = "rgba(139,92,246,0.08)";
+                }
+            } else {
+                card.style.borderColor = "var(--border-subtle, rgba(255,255,255,0.1))";
+                card.style.background = "rgba(0,0,0,0.15)";
+            }
+        });
+
+        // Dynamic workspace visibility according to mode
+        const isSimple = mode === "simple";
+        const metaPaneBtn = document.querySelector('.drawer-seg-btn[data-view="meta"]');
+        if (metaPaneBtn) metaPaneBtn.style.display = isSimple ? "none" : "flex";
+
+        const branchPaneBtn = document.querySelector('.drawer-seg-btn[data-view="branch"]');
+        if (branchPaneBtn) branchPaneBtn.style.display = isSimple ? "none" : "flex";
+
+        const notesPaneBtn = document.querySelector('.drawer-seg-btn[data-view="notes"]');
+        if (notesPaneBtn) notesPaneBtn.style.display = isSimple ? "none" : "flex";
+
+        const hotspotPaneBtn = document.querySelector('.drawer-seg-btn[data-view="hotspot"]');
+        if (hotspotPaneBtn && isSimple) hotspotPaneBtn.click();
+    }
+
+    // Bind Persona Card clicks
+    document.querySelectorAll(".settings-persona-card").forEach(card => {
+        card.onclick = () => {
+            applyMode(card.dataset.mode);
+            showToast(`Switched to ${card.dataset.mode.toUpperCase()} Mode`, 2000);
+        };
+    });
+
+    // Open/Close Modal
+    if (openSettingsBtn && settingsModal) {
+        openSettingsBtn.onclick = () => {
+            settingsModal.style.display = "block";
+            settingsModal.classList.remove("hidden");
+        };
+    }
+    if (closeSettingsBtn && settingsModal) {
+        closeSettingsBtn.onclick = () => {
+            settingsModal.style.display = "none";
+            settingsModal.classList.add("hidden");
+        };
+    }
+
+    // Save All Settings
+    if (saveSettingsBtn) {
+        saveSettingsBtn.onclick = () => {
+            if (authorInput) localStorage.setItem("procsnap_default_author", authorInput.value.trim());
+            if (deptInput) localStorage.setItem("procsnap_default_dept", deptInput.value.trim());
+            if (reviewerInput) localStorage.setItem("procsnap_default_reviewer", reviewerInput.value.trim());
+            if (approverInput) localStorage.setItem("procsnap_default_approver", approverInput.value.trim());
+            if (autoPiiCb) localStorage.setItem("procsnap_auto_pii", autoPiiCb.checked ? "true" : "false");
+            if (autoAiCb) localStorage.setItem("procsnap_auto_ai", autoAiCb.checked ? "true" : "false");
+            if (persistModeCb && persistModeCb.checked) {
+                localStorage.setItem("procsnap_default_mode", currentMode);
+            }
+            if (settingsModal) {
+                settingsModal.style.display = "none";
+                settingsModal.classList.add("hidden");
+            }
+            showToast("✓ Settings & Profile saved successfully!", 2500);
+        };
+    }
+
+    // Theme Toggle inside Settings
+    if (themeBtn) {
+        themeBtn.onclick = () => {
+            const topThemeBtn = $("themeToggleBtn");
+            if (topThemeBtn) topThemeBtn.click();
+        };
+    }
+
+    // Diagnostics Shortcut inside Settings
+    if (diagBtn) {
+        diagBtn.onclick = () => {
+            if (settingsModal) {
+                settingsModal.style.display = "none";
+                settingsModal.classList.add("hidden");
+            }
+            openSystemRequirementsModal();
+        };
+    }
+
+    applyMode(currentMode);
+}
 
 // Global Escape Key Modal Closer
 document.addEventListener("keydown", (e) => {
@@ -10558,14 +11780,25 @@ document.addEventListener("keydown", (e) => {
         $("workflowGraphModal")?.classList.add("hidden");
         $("mergeWorkflowsModal")?.classList.add("hidden");
         $("desktopRecorderModal")?.classList.add("hidden");
+        $("flowchartModal")?.classList.add("hidden");
+        if ($("flowchartModal")) $("flowchartModal").style.display = "none";
+        $("piiScannerModal")?.classList.add("hidden");
+        if ($("piiScannerModal")) $("piiScannerModal").style.display = "none";
+        $("settingsModal")?.classList.add("hidden");
+        if ($("settingsModal")) $("settingsModal").style.display = "none";
+        window.closeFeedbackModal?.();
     }
 });
 
 // Boot Application
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => init());
+    document.addEventListener("DOMContentLoaded", () => {
+        init();
+        initPowerUserShortcuts();
+    });
 } else {
     init();
+    initPowerUserShortcuts();
 }
 
 

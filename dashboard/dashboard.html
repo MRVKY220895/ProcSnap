@@ -8,81 +8,105 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="assets/icon.png">
-    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="dashboard.css?v=20260828_breadcrumb_fix_v17">
 </head>
 <body>
     <div class="app-layout">
-        <!-- Top Navigation Bar -->
+        <!-- Top Navigation Bar (Linear / Modern SaaS Minimalist Design) -->
         <header class="topbar">
+            <!-- Left: Identity & Breadcrumbs -->
             <div class="brand">
-                <button id="toggleSidebarBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 14px; margin-right: 6px; height: 32px; display: inline-flex; align-items: center; gap: 4px;" title="Toggle Quick Sidebar">
+                <button id="toggleSidebarBtn" class="topbar-icon-btn" title="Toggle Quick Sidebar (⌘B)">
                     <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
                 </button>
-                <img src="assets/icon.png" class="brand-mark-img" id="brandLogoHome" style="width: 32px; height: 32px; border-radius: 8px; cursor: pointer; object-fit: contain; box-shadow: 0 2px 8px rgba(99,102,241,0.35); margin-right: 6px;" title="Back to Workflow Hub">
-                <div id="brandTitleGroup" style="cursor: pointer;" title="Back to Workflow Hub">
-                    <h1 class="brand-name">ProcSnap</h1>
-                    <div class="brand-subtitle">Workflow Studio</div>
+                <div class="brand-clickable" id="brandTitleGroup" title="Back to Workflow Hub">
+                    <img src="assets/icon.png" class="brand-logo" id="brandLogoHome" alt="ProcSnap">
+                    <div class="brand-text">
+                        <span class="brand-title">ProcSnap</span>
+                        <span class="brand-badge">PRO</span>
+                    </div>
                 </div>
                 <!-- Breadcrumb Navigation for Studio Mode -->
-                <div id="topBreadcrumb" class="top-breadcrumb hidden" style="display: flex; align-items: center; gap: 6px; margin-left: 10px;">
-                    <span style="color: var(--text-muted); font-size: 13px;">/</span>
-                    <button id="btnBackToHub" class="btn btn-secondary btn-xs" style="padding: 4px 10px; font-size: 11.5px; font-weight: 700; color: #818cf8; border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Return to Workflow Hub gallery">
-                        📚 SOP Library
+                <div id="topBreadcrumb" class="top-breadcrumb hidden">
+                    <span class="breadcrumb-slash">/</span>
+                    <button id="btnBackToHub" class="breadcrumb-btn" title="Return to Workflow Hub gallery">
+                        <span>📚</span> SOP Library
                     </button>
                 </div>
-                <div class="developer-signature" title="ProcSnap Engine — Designed & Developed by MRV">Developed by <strong>MRV</strong></div>
             </div>
-            <div class="top-actions" style="display: flex; align-items: center; gap: 8px;">
-                <div class="status-cluster" style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); border-radius: 999px; padding: 3px 10px;" title="ProcSnap Engine: 127.0.0.1:8000">
-                    <span id="apiStatus" class="api-status online" style="background: transparent; color: #10b981; font-size: 11.5px; font-weight: 700; padding: 0;">🟢 Online</span>
-                    <span id="aiStatus" class="api-status online hidden" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">AI Ready</span>
+
+            <!-- Center: Interactive Command Palette & Global Search -->
+            <div class="topbar-center">
+                <div class="topbar-search-bar" id="topbarSearchWrap">
+                    <svg class="search-icon" viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input id="topbarSearchInput" type="search" placeholder="Search workflows or steps..." class="topbar-search-field">
+                    <span class="search-kbd">Ctrl+K</span>
+                    <div id="topbarSearchResults" class="topbar-search-results hidden"></div>
                 </div>
+            </div>
+
+            <!-- Right: Action Hub & Utilities -->
+            <div class="top-actions">
+                <!-- Dual Connection Status: Localhost & AI Engine -->
+                <div class="dual-status-cluster" style="display: flex; align-items: center; gap: 6px;">
+                    <!-- Localhost Server Status -->
+                    <div class="engine-status-pill online" id="localhostStatusPill" title="Localhost Server Engine: 127.0.0.1:8000">
+                        <span class="status-pulse-dot dot-localhost"></span>
+                        <span class="status-icon" style="font-size: 11px;">🖥️</span>
+                        <span id="apiStatus" class="status-label">Localhost</span>
+                    </div>
+
+                    <!-- AI Copilot Status -->
+                    <div class="engine-status-pill offline" id="aiStatusPill" title="Local AI Engine: Ollama / Moondream">
+                        <span class="status-pulse-dot dot-ai"></span>
+                        <span class="status-icon" style="font-size: 11px;">🤖</span>
+                        <span id="aiStatus" class="status-label">AI</span>
+                    </div>
+                </div>
+
                 <div id="aiErrorBanner" class="ai-error-banner hidden">
                     <span id="aiErrorText"></span>
                     <button id="dismissAiErrorBtn" class="dismiss-btn" title="Dismiss error">✕</button>
                 </div>
 
-                <!-- Unified Record CTA Dropdown -->
-                <div class="record-dropdown-wrap" id="topRecordDropdownWrap" style="position: relative;">
-                    <button id="btnUnifiedRecord" class="btn btn-primary btn-sm" style="padding: 5px 13px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35); display: inline-flex; align-items: center; gap: 6px;">
-                        <span>🔴</span> Record SOP
+                <!-- Primary Record SOP Hero Action Dropdown -->
+                <div class="record-dropdown-wrap" id="topRecordDropdownWrap">
+                    <button id="btnUnifiedRecord" class="btn-record-hero">
+                        <span class="record-live-dot"></span>
+                        <span>Record SOP</span>
                         <svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
                     </button>
-                    <div id="topRecordMenu" class="export-quick-menu hidden" style="position: absolute; right: 0; top: calc(100% + 8px); width: 230px; z-index: 10000; background: var(--bg-surface-elevated, #182234); border: 1px solid var(--border-subtle, rgba(255,255,255,0.12)); border-radius: 12px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); padding: 6px; display: flex; flex-direction: column; gap: 4px;">
-                        <button id="startExtensionTopbarBtn" class="export-quick-item" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; color: var(--text-main, #fff); cursor: pointer; text-align: left; transition: all 0.15s ease;">
-                            <span style="font-size: 18px;">🌐</span>
-                            <div>
-                                <div style="font-weight: 700; font-size: 12.5px;">Web Application</div>
-                                <div style="font-size: 10.5px; color: var(--text-muted, #94a3b8);">Chrome Extension</div>
+                    <div id="topRecordMenu" class="export-quick-menu hidden">
+                        <button id="startExtensionTopbarBtn" class="export-quick-item">
+                            <span class="menu-item-icon">🌐</span>
+                            <div class="menu-item-text">
+                                <div class="menu-item-title">Web Application</div>
+                                <div class="menu-item-desc">Chrome Extension Capture</div>
                             </div>
                         </button>
-                        <button id="btnRecordDesktopApp" class="export-quick-item" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; color: var(--text-main, #fff); cursor: pointer; text-align: left; transition: all 0.15s ease;">
-                            <span style="font-size: 18px;">🖥️</span>
-                            <div>
-                                <div style="font-weight: 700; font-size: 12.5px;">Desktop Application</div>
-                                <div style="font-size: 10.5px; color: var(--text-muted, #94a3b8);">Excel, SAP, Windows OS</div>
+                        <button id="btnRecordDesktopApp" class="export-quick-item">
+                            <span class="menu-item-icon">🖥️</span>
+                            <div class="menu-item-text">
+                                <div class="menu-item-title">Desktop Application</div>
+                                <div class="menu-item-desc">Native Windows Recorder</div>
                             </div>
                         </button>
                     </div>
                 </div>
 
-                <!-- Deep Search Pill -->
-                <button id="openCommandPaletteBtn" class="btn btn-secondary btn-sm cmd-palette-trigger-btn" style="padding: 5px 12px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-color: var(--border-subtle, rgba(255,255,255,0.12)); border-radius: 8px;" title="Search workflows, steps, and elements (Ctrl+K)">
-                    <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                    <span>Search...</span>
-                    <kbd class="kbd-shortcut" style="background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 4px; font-size: 10px; font-family: monospace;">Ctrl K</kbd>
+                <!-- Sleek Settings & Profile Trigger -->
+                <button id="btnOpenSettingsModal" class="topbar-icon-btn topbar-btn-settings" title="Settings &amp; Persona Preferences">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
                 </button>
 
-                <!-- Quick Utility Buttons -->
-                <button id="donateBtn" class="btn btn-secondary btn-sm donate-topbar-btn" style="padding: 4px 8px; font-size: 12px; font-weight: 700; color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.08); display: inline-flex; align-items: center; gap: 4px;" title="Support ProcSnap development">
-                    ☕ Support
+                <!-- Theme Toggle Button -->
+                <button id="themeToggleBtn" class="topbar-icon-btn" title="Toggle Light / Dark Mode">
+                    <span class="theme-icon">☀️</span>
                 </button>
-                <button id="systemRequirementsBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" title="View all installed requirements and repair tools">
-                    🛠️
-                </button>
-                <button id="themeToggleBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 13px; min-width: 32px;" title="Toggle Light/Dark Theme">☀️</button>
-                <button id="refreshBtn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 13px;" title="Refresh library">
-                    <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+
+                <!-- Refresh Library Button -->
+                <button id="refreshBtn" class="topbar-icon-btn" title="Refresh library">
+                    <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
                 </button>
             </div>
         </header>
@@ -91,8 +115,11 @@
             <!-- Left Sidebar Library (Quick Switcher) -->
             <aside class="sidebar" id="sidebarLibrary">
                 <div class="sidebar-header">
-                    <div class="sidebar-header-title-row">
+                    <div class="sidebar-header-title-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                         <div class="eyebrow" style="font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted);">Quick Library</div>
+                        <button id="btnPinLibrary" class="btn btn-secondary btn-xs" style="padding: 2px 7px; font-size: 11px; font-weight: 700; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" title="Lock Quick Library Open">
+                            <span id="pinLibraryIcon">🔒</span> <span id="pinLibraryLabel">Lock Open</span>
+                        </button>
                     </div>
                     <div class="sidebar-header-actions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                         <button id="btnOpenVideoImportModal" class="btn btn-secondary btn-xs" style="padding: 6px 8px; font-size: 11px; font-weight: 700; color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08); display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;" title="Convert Loom, MP4, WebM, or GIF into step-by-step SOP">
@@ -159,6 +186,14 @@
                                     <div class="hub-action-desc">Full screen capture for native apps</div>
                                 </div>
                             </div>
+                            <label class="hub-action-card" style="cursor: pointer;">
+                                <div class="hub-action-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">📦</div>
+                                <div class="hub-action-content">
+                                    <div class="hub-action-title">Import Package</div>
+                                    <div class="hub-action-desc">Restore .procsnap.zip archive</div>
+                                </div>
+                                <input type="file" onclick="document.getElementById('importPackageFileInput').click(); return false;" style="display: none;">
+                            </label>
                             <label class="hub-action-card" style="cursor: pointer;">
                                 <div class="hub-action-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">📥</div>
                                 <div class="hub-action-content">
@@ -251,10 +286,15 @@
                             </div>
                         </div>
                         <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
+                            <!-- 1-Click Auto-Polish SOP -->
+                            <button id="btnAutoPolishHeader" class="btn btn-secondary btn-sm" style="padding: 6px 13px; font-size: 12px; font-weight: 700; color: #a855f7; border-color: rgba(168, 85, 247, 0.35); background: rgba(168, 85, 247, 0.08); display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;" title="1-Click Auto-Polish: Uses NLP & Semantic Rules to generate clean titles & descriptions for all steps!">
+                                <span>✨</span> Auto-Polish SOP
+                            </button>
+
                             <!-- AI Copilot Dropdown -->
                             <div class="export-quick-wrap" id="aiCopilotWrap" style="position: relative;">
                                 <button id="aiCopilotBtn" class="btn btn-secondary btn-sm" style="padding: 6px 13px; font-size: 12.5px; font-weight: 700; color: #a5b4fc; border-color: rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.08); display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;" title="AI Automation & SOP Intelligence Tools">
-                                    <span>✨</span> AI Copilot
+                                    <span>🤖</span> AI Tools
                                     <svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
                                 </button>
                                 <div id="aiCopilotMenu" class="export-quick-menu hidden" style="min-width: 220px;">
@@ -273,9 +313,12 @@
                                     <span>🩺</span> Quality Audit
                                     <svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
                                 </button>
-                                <div id="qualityAuditMenu" class="export-quick-menu hidden" style="min-width: 220px;">
+                                <div id="qualityAuditMenu" class="export-quick-menu hidden" style="min-width: 230px;">
                                     <button class="export-quick-item" id="menuHealthAudit"><span>🩺</span> 100-Point Health Audit</button>
-                                    <button class="export-quick-item" id="menuPrivacyScan"><span>🛡️</span> PII &amp; Privacy Scanner</button>
+                                    <button class="export-quick-item" id="menuPrivacyScan"><span>🛡️</span> Local PII Scanner</button>
+                                    <button class="export-quick-item" id="menuAutoRedact"><span>🔒</span> 1-Click Auto-Redact</button>
+                                    <button class="export-quick-item" id="menuFlowchart"><span>📊</span> View Process Flowchart</button>
+                                    <div class="export-quick-divider"></div>
                                     <button class="export-quick-item" id="menuSopTemplates"><span>📋</span> Templates &amp; {{Variables}}</button>
                                     <button class="export-quick-item" id="menuBranchAudit"><span>🔀</span> Decision Branch Audit</button>
                                 </div>
@@ -290,12 +333,14 @@
                                     ⬇ Export SOP
                                     <svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
                                 </button>
-                                <div id="exportQuickMenu" class="export-quick-menu hidden">
+                                <div id="exportQuickMenu" class="export-quick-menu hidden" style="min-width: 220px;">
+                                    <button class="export-quick-item" data-export="package">📦 Portable Package (.zip)</button>
                                     <button class="export-quick-item" data-export="interactive">🎯 Interactive Walkthrough</button>
                                     <button class="export-quick-item" data-export="pptx">📊 PowerPoint (.pptx)</button>
                                     <button class="export-quick-item" data-export="docx">📄 Word (.docx)</button>
                                     <button class="export-quick-item" data-export="html">📁 Self-Contained HTML</button>
-                                    <button class="export-quick-item" data-export="markdown">📝 Markdown</button>
+                                    <button class="export-quick-item" data-export="markdown">📝 Markdown Document</button>
+                                    <button class="export-quick-item" data-export="qa-csv">🧪 QA Test Matrix (.csv)</button>
                                     <button class="export-quick-item" data-export="pdf">🖨️ Print / PDF</button>
                                     <div class="export-quick-divider"></div>
                                     <button class="export-quick-item" data-export="json">💾 JSON Backup</button>
@@ -312,7 +357,7 @@
                     <nav class="tabs">
                         <button class="tab active" data-tab="guide">Guide &amp; Annotations</button>
                         <button class="tab" data-tab="steps">Step List Editor</button>
-                        <button class="tab" data-tab="play">Slideshow Playback</button>
+                        <button class="tab" data-tab="play">📖 Reader &amp; Playback</button>
                         <button class="tab" data-tab="export">Export SOP</button>
                     </nav>
 
@@ -496,10 +541,10 @@
                                 <!-- DUAL CONTROL MASTER SWITCHER -->
                                 <div class="inspector-master-header" style="padding: 10px 14px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08)); background: var(--bg-surface-elevated, #182234);">
                                     <div class="inspector-master-tabs" style="display: flex; gap: 4px; background: rgba(0,0,0,0.25); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-                                        <button id="tabMasterStep" class="inspector-master-tab active" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11.5px; font-weight: 800; padding: 7px 6px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease;">
+                                        <button id="tabMasterStep" class="inspector-master-tab active" style="flex: 1; border: none; font-size: 11.5px; font-weight: 800; padding: 7px 6px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease;">
                                             <span>🎯</span> Step Inspector
                                         </button>
-                                        <button id="tabMasterGlobal" class="inspector-master-tab" style="flex: 1; border: none; background: transparent; color: var(--text-muted, #94a3b8); font-size: 11.5px; font-weight: 800; padding: 7px 6px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease;">
+                                        <button id="tabMasterGlobal" class="inspector-master-tab" style="flex: 1; border: none; font-size: 11.5px; font-weight: 800; padding: 7px 6px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease;">
                                             <span>🌐</span> Global (All Steps)
                                         </button>
                                     </div>
@@ -516,7 +561,7 @@
                                                 </label>
                                             </div>
                                             <div style="display: flex; align-items: center; gap: 4px;">
-                                                <button id="btnRefreshGuideStep" class="btn btn-secondary btn-xs" title="Refresh step from server" style="padding: 3px 7px; font-size: 11px;">🔄</button>
+                                                <button id="btnReRecordActiveStep" class="btn btn-secondary btn-xs" title="Re-record ONLY this step" style="padding: 3px 7px; font-size: 11px; font-weight: 700; color: #10b981; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08);">🔄 Re-record</button>
                                                 <button id="btnToggleHideActiveStep" class="btn btn-secondary btn-xs" title="Hide/Unhide this step" style="padding: 3px 7px; font-size: 11px;">👁️</button>
                                                 <button id="btnDeleteActiveStep" class="btn btn-danger btn-xs" title="Delete this step" style="padding: 3px 7px; font-size: 11px;">🗑️</button>
                                                 <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Step Details Panel" style="padding: 3px 7px; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(255,255,255,0.06); cursor: pointer; color: var(--text-main, #fff); font-size: 11px; font-weight: 700;">
@@ -532,16 +577,16 @@
                                         
                                         <!-- 4 Direct Segmented Tabs -->
                                         <div class="drawer-segmented-tabs" style="display: flex; gap: 4px; background: rgba(0,0,0,0.25); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-                                            <button class="drawer-seg-btn active" data-view="hotspot" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
+                                            <button class="drawer-seg-btn active" data-view="hotspot" style="flex: 1; border: none; font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
                                                 <span>🎯</span> Hotspot
                                             </button>
-                                            <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted, #94a3b8); font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
+                                            <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
                                                 <span>💡</span> Notes
                                             </button>
-                                            <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted, #94a3b8); font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
+                                            <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
                                                 <span>🔀</span> Branching
                                             </button>
-                                            <button class="drawer-seg-btn" data-view="meta" style="flex: 1; border: none; background: transparent; color: var(--text-muted, #94a3b8); font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
+                                            <button class="drawer-seg-btn" data-view="meta" style="flex: 1; border: none; font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
                                                 <span>🔍</span> Details
                                             </button>
                                         </div>
@@ -551,6 +596,25 @@
                                     
                                     <!-- TAB PANE 1: HOTSPOT & FOCUS -->
                                     <div id="drawerPaneHotspot" class="drawer-content-pane" style="display: flex; flex-direction: column; gap: 10px;">
+                                        
+                                        <!-- Step Intelligence & Why Captured Card -->
+                                        <div id="stepIntelligenceCard" style="background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
+                                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span style="font-size: 14px;">🧠</span>
+                                                    <span style="font-size: 11.5px; font-weight: 800; color: #a5b4fc;">Step Intelligence</span>
+                                                </div>
+                                                <span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px;">AI 96%</span>
+                                            </div>
+                                            <div style="font-size: 11px; color: var(--text-muted, #94a3b8); line-height: 1.35;">
+                                                <strong>Why captured:</strong> <span id="intelWhyCaptured">Significant screen change &amp; direct user click detected.</span>
+                                            </div>
+                                            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.06); padding-top: 4px; margin-top: 2px;">
+                                                <span>Privacy: <strong id="intelPrivacyStatus" style="color: #10b981;">✓ Clean (0 PII)</strong></span>
+                                                <span>Intent: <strong id="intelSemanticClass" style="color: #818cf8;">Selection</strong></span>
+                                            </div>
+                                        </div>
+
                                         <!-- Element Focus & Spotlight Toggle Card -->
                                         <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.12)); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px;">
                                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -631,18 +695,51 @@
 
                                     <!-- TAB PANE 2: NOTES & AUDIO -->
                                     <div id="drawerPaneNotes" class="drawer-content-pane hidden" style="display: flex; flex-direction: column; gap: 10px;">
-                                        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
-                                            <div class="field-group" style="margin-bottom: 8px;">
-                                                <label style="font-size: 11px; font-weight: 700; color: #10b981;">✓ Expected Result</label>
-                                                <textarea id="guideStepExpected" placeholder="What should happen after this step?" style="width: 100%; min-height: 50px; font-size: 12px;"></textarea>
+                                        <div class="inspector-card-pane" style="border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+                                            <!-- Step Caution / Disclaimer / Alert Box -->
+                                            <div class="field-group step-alert-setting-box" style="background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 10px;">
+                                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px;">
+                                                    <label style="font-size: 11px; font-weight: 800; color: #f59e0b; display: flex; align-items: center; gap: 5px; margin: 0; white-space: nowrap;">
+                                                        <span>⚠️</span> Caution / Alert Box
+                                                    </label>
+                                                    <select id="guideStepAlertType" class="form-control" style="width: auto; font-size: 11.5px; font-weight: 700; padding: 4px 24px 4px 8px; min-height: 32px; height: 32px; border-radius: 6px;">
+                                                        <option value="none">None</option>
+                                                        <option value="caution">⚠️ Caution / Warning</option>
+                                                        <option value="disclaimer">🚨 Legal Disclaimer</option>
+                                                        <option value="tip">💡 Pro-Tip &amp; Best Practice</option>
+                                                        <option value="security">🔒 Security &amp; Compliance</option>
+                                                    </select>
+                                                </div>
+                                                <textarea id="guideStepAlertMsg" placeholder="Important caution or disclaimer message for this step..." style="width: 100%; min-height: 44px; font-size: 11.5px; margin: 0;"></textarea>
                                             </div>
-                                            <div class="field-group" style="margin-bottom: 8px;">
-                                                <label style="font-size: 11px; font-weight: 700; color: #f59e0b;">💡 Instructor / Operator Notes</label>
-                                                <textarea id="guideStepNote" placeholder="Additional hints, security warnings, tips..." style="width: 100%; min-height: 50px; font-size: 12px;"></textarea>
-                                            </div>
+
+                                            <!-- Step Expected Result -->
                                             <div class="field-group">
-                                                <label style="font-size: 11px; font-weight: 700; color: #818cf8;">🎙️ Voiceover Narration</label>
-                                                <textarea id="guideStepVoiceover" placeholder="Custom text to speak during presentation mode..." style="width: 100%; min-height: 50px; font-size: 12px;"></textarea>
+                                                <label style="font-size: 11px; font-weight: 700; color: #10b981;">✓ Expected Result</label>
+                                                <textarea id="guideStepExpected" placeholder="What should happen after this step?" style="width: 100%; min-height: 44px; font-size: 12px;"></textarea>
+                                            </div>
+
+                                            <!-- Step Notes & Role / Duration -->
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                                <div class="field-group">
+                                                    <label style="font-size: 10.5px; font-weight: 700; color: var(--text-muted);">👤 Assigned Role</label>
+                                                    <input type="text" id="guideStepRole" placeholder="e.g. Process Operator" class="form-control" style="font-size: 11px; padding: 4px 6px;">
+                                                </div>
+                                                <div class="field-group">
+                                                    <label style="font-size: 10.5px; font-weight: 700; color: var(--text-muted);">⏱️ Est. Duration</label>
+                                                    <input type="text" id="guideStepDuration" placeholder="e.g. 15s or 1m" class="form-control" style="font-size: 11px; padding: 4px 6px;">
+                                                </div>
+                                            </div>
+
+                                            <div class="field-group">
+                                                <label style="font-size: 11px; font-weight: 700; color: #818cf8;">💡 General Instructions &amp; Hints</label>
+                                                <textarea id="guideStepNote" placeholder="Additional operational hints, guidelines..." style="width: 100%; min-height: 40px; font-size: 12px;"></textarea>
+                                            </div>
+
+                                            <!-- Voiceover Narration -->
+                                            <div class="field-group">
+                                                <label style="font-size: 11px; font-weight: 700; color: #a5b4fc;">🎙️ Voiceover Narration</label>
+                                                <textarea id="guideStepVoiceover" placeholder="Custom text to speak during presentation mode..." style="width: 100%; min-height: 44px; font-size: 12px;"></textarea>
                                                 <div style="display: flex; gap: 6px; margin-top: 6px;">
                                                     <button id="btnPlayStepVoiceover" class="btn btn-secondary btn-xs" style="flex: 1; font-weight: 700; color: #818cf8; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
                                                         <span>▶️</span> Listen
@@ -748,7 +845,7 @@
                                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
                                         <div style="display: flex; align-items: center; gap: 6px;">
                                             <span style="font-size: 15px;">🌐</span>
-                                            <h3 style="margin: 0; font-size: 14px; font-weight: 800; color: #fff;">Global Workflow Styles</h3>
+                                            <h3 class="global-panel-title" style="margin: 0; font-size: 14px; font-weight: 800;">Global Workflow Styles</h3>
                                         </div>
                                         <span class="badge" style="background: rgba(99,102,241,0.15); color: #818cf8; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px;">ALL STEPS</span>
                                     </div>
@@ -760,9 +857,9 @@
                                 <div class="global-panel-body" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; flex: 1;">
                                     
                                     <!-- Card 1: Theme & Pin Color -->
-                                    <div class="global-card" style="background: rgba(0,0,0,0.18); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
+                                    <div class="global-card" style="border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
                                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                            <label style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                                            <label style="font-size: 11.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin: 0;">
                                                 <span>🎨</span> Accent &amp; Pin Color
                                             </label>
                                             <span id="globalColorLabel" style="font-size: 10.5px; font-weight: 700; color: #818cf8;">#ef4444</span>
@@ -786,9 +883,9 @@
                                     </div>
 
                                     <!-- Card 2: Global Spotlight & Background Dimming -->
-                                    <div class="global-card" style="background: rgba(0,0,0,0.18); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
+                                    <div class="global-card" style="border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
                                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                                            <label style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                                            <label style="font-size: 11.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin: 0;">
                                                 <span>🎯</span> Background Dimming
                                             </label>
                                             <span id="globalDimValueLabel" style="font-size: 11px; font-weight: 800; color: #10b981;">40%</span>
@@ -812,7 +909,7 @@
                                     <!-- Card 3: Global Micro-Demo GIF Settings -->
                                     <div class="global-card" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 12px;">
                                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                            <label style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                                            <label style="font-size: 11.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin: 0;">
                                                 <span>🎬</span> Micro-Demo Cursor &amp; Speed
                                             </label>
                                             <span style="font-size: 10px; color: #818cf8; font-weight: 700;">14-FRAME GIF</span>
@@ -820,7 +917,7 @@
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
                                             <div class="field-group">
                                                 <label style="font-size: 10px; color: var(--text-muted);">Cursor Style</label>
-                                                <select id="globalCursorTypeSelect" class="form-control" style="font-size: 11px; padding: 4px 6px;">
+                                                <select id="globalCursorTypeSelect" class="form-control" style="font-size: 11px; padding: 4px 6px; min-height: 28px; line-height: 1.3;">
                                                     <option value="arrow">↖ Sleek Arrow (~16px)</option>
                                                     <option value="pointer">👆 Hand Pointer</option>
                                                     <option value="dot">● Focus Reticle</option>
@@ -828,7 +925,7 @@
                                             </div>
                                             <div class="field-group">
                                                 <label style="font-size: 10px; color: var(--text-muted);">Trajectory Speed</label>
-                                                <select id="globalDemoSpeedSelect" class="form-control" style="font-size: 11px; padding: 4px 6px;">
+                                                <select id="globalDemoSpeedSelect" class="form-control" style="font-size: 11px; padding: 4px 6px; min-height: 28px; line-height: 1.3;">
                                                     <option value="fast">⚡ Fast (0.8s)</option>
                                                     <option value="smooth" selected>🚀 Smooth (1.2s)</option>
                                                     <option value="slow">🐢 Deliberate (1.8s)</option>
@@ -841,16 +938,55 @@
                                         </div>
                                     </div>
 
-                                    <!-- Card 4: Global Privacy & Redaction Defaults -->
-                                    <div class="global-card" style="background: rgba(0,0,0,0.18); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
-                                        <label style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                                            <span>🛡️</span> Default Redaction Style
-                                        </label>
-                                        <div style="display: flex; gap: 6px;">
-                                            <button class="btn btn-secondary btn-xs global-blur-style-btn active" data-blur="frosted" style="flex: 1; font-weight: 700; padding: 5px 6px; font-size: 10.5px; background: rgba(99,102,241,0.2); border-color: #6366f1; color: #fff;">🌫️ Frosted Blur</button>
-                                            <button class="btn btn-secondary btn-xs global-blur-style-btn" data-blur="blackout" style="flex: 1; font-weight: 700; padding: 5px 6px; font-size: 10.5px;">⬛ Blackout Box</button>
-                                            <button class="btn btn-secondary btn-xs global-blur-style-btn" data-blur="pixelate" style="flex: 1; font-weight: 700; padding: 5px 6px; font-size: 10.5px;">▦ Pixelate</button>
+                                    <!-- Card 4: Watermark & Compliance Branding -->
+                                    <div class="global-card" style="border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                                            <label style="font-size: 11.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin: 0;">
+                                                <span>🏷️</span> Screenshot Watermark
+                                            </label>
+                                            <button id="btnGlobalWatermarkToggle" class="btn btn-secondary btn-xs" style="font-size: 10.5px; font-weight: 800; padding: 2px 8px; color: #f87171; border-color: rgba(239,68,68,0.35);">DISABLED</button>
                                         </div>
+                                        <input type="text" id="globalWatermarkTextInput" placeholder="e.g. CONFIDENTIAL / INTERNAL ONLY" class="form-control" value="CONFIDENTIAL" style="font-size: 11.5px; padding: 5px 8px;">
+                                        <!-- Quick Presets -->
+                                        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                            <button class="btn btn-secondary btn-xs watermark-preset-btn" data-text="CONFIDENTIAL" style="font-size: 9.5px; padding: 2px 6px;">CONFIDENTIAL</button>
+                                            <button class="btn btn-secondary btn-xs watermark-preset-btn" data-text="INTERNAL USE ONLY" style="font-size: 9.5px; padding: 2px 6px;">INTERNAL ONLY</button>
+                                            <button class="btn btn-secondary btn-xs watermark-preset-btn" data-text="DRAFT" style="font-size: 9.5px; padding: 2px 6px;">DRAFT</button>
+                                            <button class="btn btn-secondary btn-xs watermark-preset-btn" data-text="FOR TRAINING ONLY" style="font-size: 9.5px; padding: 2px 6px;">TRAINING ONLY</button>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px;">
+                                            <div>
+                                                <label style="font-size: 10px; color: var(--text-muted);">Position</label>
+                                                <select id="globalWatermarkPosSelect" class="form-control" style="font-size: 10.5px; padding: 3px 5px; min-height: 26px; line-height: 1.3;">
+                                                    <option value="diagonal" selected>Diagonal 45°</option>
+                                                    <option value="bottom-right">Bottom Right</option>
+                                                    <option value="tile">Repeating Tiled</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted);">
+                                                    <span>Opacity</span>
+                                                    <span id="globalWatermarkOpacityLabel">25%</span>
+                                                </div>
+                                                <input type="range" id="globalWatermarkOpacitySlider" min="10" max="70" step="5" value="25" style="width: 100%; accent-color: #6366f1; cursor: pointer; margin-top: 4px;">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Card 5: Executive Disclaimer & Classification -->
+                                    <div class="global-card" style="border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                            <label style="font-size: 11.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin: 0; white-space: nowrap;">
+                                                <span>📋</span> Executive SOP Disclaimer
+                                            </label>
+                                            <select id="globalSopClassificationSelect" class="form-control" style="width: auto; font-size: 11.5px; font-weight: 700; padding: 4px 24px 4px 8px; min-height: 32px; height: 32px; border-radius: 6px;">
+                                                <option value="Internal Only" selected>🟡 Internal Only</option>
+                                                <option value="Confidential">🟠 Confidential</option>
+                                                <option value="Restricted">🔴 Restricted</option>
+                                                <option value="Public">🟢 Public</option>
+                                            </select>
+                                        </div>
+                                        <textarea id="globalSopDisclaimerText" placeholder="Legal disclaimer and compliance policy to include across exports..." style="width: 100%; min-height: 48px; font-size: 11px; margin: 0;">This standard operating procedure contains proprietary and confidential information. Unauthorized distribution or reproduction is strictly prohibited.</textarea>
                                     </div>
 
                                 </div>
@@ -1085,7 +1221,11 @@
                                         <div class="playback-badge" id="playStepBadge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 2px 8px rgba(99,102,241,0.4);">1</div>
                                         <div>
                                             <h2 id="playStepTitle" style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-main, #fff);">Step Title</h2>
-                                            <div id="playStepMetaSub" style="font-size: 11px; color: var(--text-muted, #94a3b8); margin-top: 2px;">Action Execution Slide</div>
+                                            <div id="playStepMetaSub" style="font-size: 11px; color: var(--text-muted, #94a3b8); margin-top: 2px; display: flex; align-items: center; gap: 8px;">
+                                                <span id="playStepActionLabel">Action Execution Slide</span>
+                                                <span id="playStepRoleBadge" class="badge hidden" style="background: rgba(99,102,241,0.15); color: #818cf8; font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">👤 Operator</span>
+                                                <span id="playStepDurationBadge" class="badge hidden" style="background: rgba(16,185,129,0.12); color: #10b981; font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">⏱️ 30s</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -1104,6 +1244,9 @@
                                         <button id="btnTogglePracticeMode" class="btn btn-secondary btn-xs" style="font-weight: 700; height: 28px; padding: 0 8px; display: inline-flex; align-items: center; gap: 5px;" title="Require learners to click the actual target hotspot before advancing">
                                             <span id="practiceDot" style="width: 7px; height: 7px; border-radius: 50%; background: #94a3b8;"></span>
                                             <span id="practiceLabel">Practice: OFF</span>
+                                        </button>
+                                        <button id="btnTogglePlayZoom" class="btn btn-secondary btn-xs" style="font-weight: 700; height: 28px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;" title="Zoom in 200% on the active target hotspot">
+                                            <span>🔍</span> <span id="playZoomLabel">Zoom Hotspot</span>
                                         </button>
                                         <button id="btnToggleTeleprompter" class="btn btn-secondary btn-xs" style="font-weight: 700; height: 28px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;" title="Open presenter teleprompter notes & stopwatch HUD">
                                             📜 Notes
@@ -1152,6 +1295,15 @@
                                     <textarea id="playVoiceText" placeholder="Custom voiceover narration text for this slide..." style="width: 100%; height: 42px; font-size: 11.5px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); background: rgba(0,0,0,0.2); color: var(--text-main, #fff); resize: none;"></textarea>
                                 </div>
 
+                                <!-- Step Caution / Disclaimer Alert Callout in Slideshow -->
+                                <div id="playStepAlertBox" class="playback-alert-banner hidden" style="border-radius: 8px; padding: 8px 12px; font-size: 12px; display: flex; align-items: flex-start; gap: 8px;">
+                                    <span id="playStepAlertIcon" style="font-size: 15px;">⚠️</span>
+                                    <div>
+                                        <strong id="playStepAlertLabel" style="font-size: 11.5px; text-transform: uppercase;">Caution:</strong>
+                                        <span id="playStepAlertMsg" style="margin-left: 4px;"></span>
+                                    </div>
+                                </div>
+
                                 <!-- Step Instruction Text & Notes -->
                                 <p id="playStepDesc" class="playback-desc" style="font-size: 13.5px; line-height: 1.5; color: var(--text-main, #e2e8f0); margin: 4px 0 0 0;">Step description details...</p>
                                 <div id="playStepNotesBox" class="playback-notes hidden" style="background: rgba(245,158,11,0.08); border-left: 4px solid #f59e0b; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #fbbf24;">
@@ -1159,8 +1311,26 @@
                                 </div>
 
                                 <!-- Interactive Screenshot Cinema Screen -->
-                                <div class="playback-image-container" style="background: #0f172a; border-radius: 12px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); overflow: hidden; position: relative; min-height: 320px; max-height: 500px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
-                                    <img id="playImg" src="" alt="SOP Slideshow image" style="max-width: 100%; max-height: 500px; object-fit: contain;">
+                                <div class="playback-image-container" id="playImgContainer" style="background: #0b0f19; border-radius: 12px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); overflow: hidden; position: relative; min-height: 320px; max-height: 520px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 2px 14px rgba(0,0,0,0.6);">
+                                    <!-- Auto-Play Smooth Progress Countdown Line -->
+                                    <div id="playAutoProgressBar" class="play-auto-progress-bar" style="position: absolute; top: 0; left: 0; height: 3.5px; width: 0%; background: linear-gradient(90deg, #6366f1, #10b981); z-index: 20; transition: width linear;"></div>
+                                    
+                                    <!-- Interactive Stage Image with Pan/Zoom wrapper -->
+                                    <div id="playStageWrapper" class="play-stage-wrapper" style="position: relative; display: inline-block; transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center center;">
+                                        <img id="playImg" src="" alt="SOP Slideshow image" style="max-width: 100%; max-height: 500px; object-fit: contain; display: block;">
+                                        
+                                        <!-- Target Clickable Hotspot Pin & Hitbox for Practice Mode -->
+                                        <div id="playHotspotReticle" class="play-hotspot-reticle" style="position: absolute; transform: translate(-50%, -50%); z-index: 15; cursor: pointer; display: none;">
+                                            <div class="play-reticle-ring"></div>
+                                            <div class="play-reticle-dot"></div>
+                                            <div id="playHotspotTooltip" class="play-hotspot-tooltip">Click Here 🎯</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Practice Mode Live Feedback Flash -->
+                                    <div id="playPracticeFeedbackBadge" class="play-feedback-badge hidden" style="position: absolute; bottom: 16px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(99,102,241,0.5); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; z-index: 25; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,0.4);">
+                                        🎯 Practice Mode: Click the highlighted target on the slide
+                                    </div>
                                 </div>
 
                                 <!-- Bottom Navigation Bar -->
@@ -1972,28 +2142,51 @@
 
             <!-- Body -->
             <div style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
-                <div id="desktopRecPreStart">
+                <div id="desktopRecPreStart" style="display: block;">
                     <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted, #94a3b8); margin-bottom: 6px; display: block;">Procedure Name</label>
                     <input type="text" id="desktopRecTitleInput" placeholder="e.g. Excel Financial Model Update &amp; SAP Post" class="form-control" style="font-size: 13.5px; padding: 10px 14px; border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 14px;">
                     
+                    <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <label style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted, #94a3b8); margin-bottom: 6px; display: block;">Target Display / Screen</label>
+                            <select id="desktopRecScreenSelect" class="form-control" style="font-size: 12px; padding: 9px 10px; border-radius: 8px; width: 100%; box-sizing: border-box; background: var(--bg-surface, #1e293b); color: #fff; border: 1px solid var(--border-subtle, rgba(255,255,255,0.12));">
+                                <option value="auto">🎯 Auto-Detect Screen (Where Mouse Clicks)</option>
+                                <option value="1">🖥️ Screen 1 (Primary)</option>
+                                <option value="all">🌐 All Displays Combined</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #38bdf8; cursor: pointer; padding: 8px 10px; background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.25); border-radius: 8px; user-select: none;">
+                                <input type="checkbox" id="chkDesktopAutoClickCapture" checked style="accent-color: #38bdf8; cursor: pointer; width: 16px; height: 16px;">
+                                <span>⚡ Auto-Capture on Click</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text-main, #e2e8f0);">
                         <div style="font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
-                            💡 How Desktop Recording Works:
+                            💡 Multi-Screen &amp; Auto-Capture Features:
                         </div>
-                        <div>1. Click <strong>"Start Desktop Capture"</strong> below.</div>
-                        <div>2. Switch to Excel, SAP, File Explorer, or any Windows application and perform your workflow normally.</div>
-                        <div>3. Every mouse click automatically captures a full-resolution screenshot with the active window title.</div>
-                        <div>4. Press <kbd style="background: rgba(255,255,255,0.15); padding: 1px 5px; border-radius: 4px; font-family: monospace;">Ctrl+Shift+Q</kbd> or click <strong>Stop Recording</strong> when done!</div>
+                        <div>1. <strong>Multi-Monitor Ready:</strong> When <em>Auto-Detect</em> is selected, clicks on any monitor capture that screen automatically.</div>
+                        <div>2. <strong>Auto-Capture Active:</strong> Every left-click in Excel, SAP, or File Explorer creates an annotated step in real time.</div>
+                        <div>3. Press <kbd style="background: rgba(255,255,255,0.15); padding: 1px 5px; border-radius: 4px; font-family: monospace;">Ctrl+Shift+D</kbd> for instant manual capture, or <kbd style="background: rgba(255,255,255,0.15); padding: 1px 5px; border-radius: 4px; font-family: monospace;">Ctrl+Shift+Q</kbd> to finish.</div>
                     </div>
                 </div>
 
-                <div id="desktopRecActiveHud" class="hidden" style="display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px 0;">
+                <div id="desktopRecActiveHud" style="display: none; flex-direction: column; align-items: center; gap: 16px; padding: 14px 0;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="width: 14px; height: 14px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 16px #ef4444; animation: pulse 1.2s infinite;"></span>
                         <span style="font-size: 16px; font-weight: 800; color: #fff;">RECORDING DESKTOP WORKFLOW</span>
                     </div>
-                    <div style="font-size: 32px; font-weight: 900; color: #38bdf8;" id="desktopLiveStepCount">0 Steps Captured</div>
-                    <div style="font-size: 12px; color: var(--text-muted, #94a3b8);">Click anywhere on your computer. Press <kbd style="background: rgba(255,255,255,0.15); padding: 1px 5px; border-radius: 4px; font-family: monospace;">Ctrl+Shift+Q</kbd> or click below to finish.</div>
+                    <div style="font-size: 34px; font-weight: 900; color: #38bdf8;" id="desktopLiveStepCount">0 Steps Captured</div>
+                    
+                    <button id="btnCaptureDesktopStepNow" class="btn btn-secondary btn-sm" style="padding: 7px 16px; font-weight: 700; font-size: 13px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1); display: inline-flex; align-items: center; gap: 8px; border-radius: 8px;" title="Manually capture the current screen right now">
+                        📸 Click to Capture Current Desktop Step <kbd style="background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-family: monospace;">Ctrl+Shift+D</kbd>
+                    </button>
+
+                    <div style="font-size: 12px; color: var(--text-muted, #94a3b8); text-align: center; max-width: 440px;">
+                        ✨ <strong>Auto-Capture Active:</strong> Mouse clicks in any Windows app (Excel, SAP, File Explorer) are captured automatically.
+                    </div>
                 </div>
             </div>
 
@@ -2003,7 +2196,7 @@
                 <button id="btnStartDesktopRecAction" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #0284c7, #38bdf8); border: none; font-weight: 700; padding: 8px 18px; box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);">
                     🚀 Start Desktop Capture
                 </button>
-                <button id="btnStopDesktopRecAction" class="btn btn-danger btn-sm hidden" style="font-weight: 700; padding: 8px 20px; box-shadow: 0 4px 14px rgba(239,68,68,0.4);">
+                <button id="btnStopDesktopRecAction" class="btn btn-danger btn-sm" style="display: none; font-weight: 700; padding: 8px 20px; box-shadow: 0 4px 14px rgba(239,68,68,0.4);">
                     ⏹ Stop &amp; Open Studio
                 </button>
             </div>
@@ -2550,7 +2743,236 @@
         </div>
     </div>
 
-    <script src="dashboard.js?v=20260827_light_dark_perfect"></script>
+    <!-- ============================================================ -->
+    <!-- CONTACT US / SEND FEEDBACK TO VICKYKALAM34@GMAIL.COM MODAL  -->
+    <!-- ============================================================ -->
+    <div id="feedbackModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9980; backdrop-filter:blur(6px);" onclick="if(event.target===this)closeFeedbackModal()">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--bg-surface-elevated, #182234); border-radius:18px; border:1px solid rgba(99,102,241,0.3); padding:24px 28px; min-width:540px; max-width:640px; box-shadow:0 32px 80px rgba(0,0,0,0.75);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="font-size:24px;">💬</div>
+                    <div>
+                        <div style="font-size:17px; font-weight:800; color:var(--text-main,#fff);">Contact Us &amp; Send Feedback</div>
+                        <div style="font-size:12px; color:var(--text-muted,#94a3b8);">Direct to Developer: <strong style="color:#818cf8;">Vickykalam34@gmail.com</strong></div>
+                    </div>
+                </div>
+                <button onclick="closeFeedbackModal()" style="background:rgba(255,255,255,0.08); border:none; color:var(--text-main,#fff); border-radius:8px; padding:5px 10px; cursor:pointer; font-size:13px; font-weight:700;">✕</button>
+            </div>
+
+            <!-- Feedback Category Selector -->
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11.5px; font-weight:700; color:var(--text-muted,#94a3b8); margin-bottom:6px; display:block;">Category</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px;" id="feedbackTypeGroup">
+                    <button class="btn btn-secondary btn-xs feedback-type-btn active" data-type="feature_request" style="font-weight:700; padding:6px 4px; border-radius:6px; background:#6366f1; color:#fff; border:none;">💡 Feature</button>
+                    <button class="btn btn-secondary btn-xs feedback-type-btn" data-type="bug_report" style="font-weight:700; padding:6px 4px; border-radius:6px;">🐞 Bug Report</button>
+                    <button class="btn btn-secondary btn-xs feedback-type-btn" data-type="question" style="font-weight:700; padding:6px 4px; border-radius:6px;">❓ Question</button>
+                    <button class="btn btn-secondary btn-xs feedback-type-btn" data-type="feedback" style="font-weight:700; padding:6px 4px; border-radius:6px;">⭐ Review</button>
+                </div>
+            </div>
+
+            <!-- Subject Input -->
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11.5px; font-weight:700; color:var(--text-muted,#94a3b8); margin-bottom:4px; display:block;">Subject</label>
+                <input type="text" id="feedbackSubjectInput" class="form-control" placeholder="e.g. Feature idea: Auto-blur sensitive fields" style="width:100%; font-size:12.5px; padding:7px 10px; border-radius:8px;">
+            </div>
+
+            <!-- Message Textarea -->
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11.5px; font-weight:700; color:var(--text-muted,#94a3b8); margin-bottom:4px; display:block;">Your Message / Feedback</label>
+                <textarea id="feedbackMessageInput" class="form-control" rows="4" placeholder="Tell us how we can make ProcSnap better, report an issue, or ask a question..." style="width:100%; font-size:12.5px; padding:8px 10px; border-radius:8px; resize:vertical;"></textarea>
+            </div>
+
+            <!-- Pre-fill diagnostics info notice -->
+            <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:8px 12px; margin-bottom:16px;">
+                <div style="font-size:11px; color:#a5b4fc; display:flex; align-items:center; gap:6px;">
+                    <span>🛡️</span> Includes non-sensitive local engine diagnostics for faster support
+                </div>
+                <label style="font-size:11px; font-weight:700; color:#818cf8; display:inline-flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="checkbox" id="includeDiagnosticsCheck" checked style="cursor:pointer;"> Include Logs
+                </label>
+            </div>
+
+            <!-- Modal Action Footer -->
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <a id="btnMailtoFeedback" href="mailto:Vickykalam34@gmail.com?subject=ProcSnap%20Feedback" target="_blank" class="btn btn-secondary btn-sm" style="font-weight:700; display:inline-flex; align-items:center; gap:6px;">
+                    <span>📧</span> Open in Email Client
+                </a>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="closeFeedbackModal()" class="btn btn-secondary btn-sm">Cancel</button>
+                    <button id="btnSubmitFeedbackDirect" class="btn btn-primary btn-sm" style="background:linear-gradient(135deg, #10b981, #059669); border:none; font-weight:700; padding:6px 18px;">
+                        <span>🚀</span> Submit Feedback
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Process Flowchart Modal -->
+    <div id="flowchartModal" class="modal-backdrop hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 99999; backdrop-filter: blur(8px); display: none;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-surface-elevated, #182234); border: 1px solid rgba(99,102,241,0.3); border-radius: 16px; padding: 24px; width: 85vw; max-width: 960px; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 30px 80px rgba(0,0,0,0.8);">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">📊</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #fff;">Process Flowchart &amp; Decision Graph</h3>
+                        <div style="font-size: 11px; color: var(--text-muted, #94a3b8);">Auto-generated from workflow steps and decision branches</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btnCopyMermaidCode" class="btn btn-secondary btn-xs">📋 Copy Mermaid Code</button>
+                    <button onclick="document.getElementById('flowchartModal').classList.add('hidden'); document.getElementById('flowchartModal').style.display='none';" class="btn btn-secondary btn-xs">✕ Close</button>
+                </div>
+            </div>
+            <div style="flex: 1; overflow: auto; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 16px; font-family: monospace; font-size: 12px; color: #a5b4fc; white-space: pre-wrap;" id="flowchartCodeArea">
+                Generating flowchart...
+            </div>
+        </div>
+    </div>
+
+    <!-- PII Scanner Results Modal -->
+    <div id="piiScannerModal" class="modal-backdrop hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 99999; backdrop-filter: blur(8px); display: none;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-surface-elevated, #182234); border: 1px solid rgba(16,185,129,0.3); border-radius: 16px; padding: 24px; width: 90vw; max-width: 720px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 30px 80px rgba(0,0,0,0.8);">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">🛡️</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #fff;">Local Privacy &amp; PII Scanner Audit</h3>
+                        <div style="font-size: 11px; color: #34d399;">100% Offline Pattern Detection</div>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('piiScannerModal').classList.add('hidden'); document.getElementById('piiScannerModal').style.display='none';" class="btn btn-secondary btn-xs">✕ Close</button>
+            </div>
+            <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;" id="piiFindingsList">
+                Scanning workflow steps...
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; margin-top: 14px;">
+                <span id="piiAuditSummary" style="font-size: 12px; color: var(--text-muted);">0 sensitive entities detected</span>
+                <button id="btnApplyPiiRedactAll" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700;">
+                    🔒 Auto-Redact All PII
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ProcSnap Master Settings, Profile & Preferences Modal -->
+    <div id="settingsModal" class="modal-backdrop hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 99999; backdrop-filter: blur(8px); display: none;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-surface-elevated, #182234); border: 1px solid var(--border-subtle, rgba(255,255,255,0.12)); border-radius: 16px; padding: 24px; width: 90vw; max-width: 620px; max-height: 88vh; overflow-y: auto; box-shadow: 0 30px 80px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 18px;">
+            <!-- Header -->
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 22px;">⚙️</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: var(--text-main, #fff);">Settings &amp; Author Profile</h3>
+                        <div style="font-size: 11.5px; color: var(--text-muted, #94a3b8);">Configure your default persona, governance identity, and capture engine</div>
+                    </div>
+                </div>
+                <button id="btnCloseSettingsModal" class="btn btn-secondary btn-xs" style="font-weight: 700; border-radius: 6px;">✕ Close</button>
+            </div>
+
+            <!-- 1. Experience & Default Startup Mode -->
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <label style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #94a3b8);">1. Authoring Persona Mode</label>
+                    <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: #818cf8; cursor: pointer;">
+                        <input type="checkbox" id="cbPersistDefaultMode" checked style="accent-color: #6366f1; cursor: pointer;"> Set as default on startup
+                    </label>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Simple Mode Card -->
+                    <div class="settings-persona-card mode-switch-btn" data-mode="simple" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 10px; border: 1.5px solid rgba(16,185,129,0.3); background: rgba(16,185,129,0.05); cursor: pointer; transition: all 0.15s ease;">
+                        <span style="font-size: 22px; line-height: 1;">🟢</span>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <strong style="font-size: 13px; color: var(--text-main, #fff);">Simple Mode</strong>
+                                <span class="persona-active-badge badge-simple" style="font-size: 10px; font-weight: 800; background: #10b981; color: #fff; padding: 2px 8px; border-radius: 999px;">ACTIVE</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--text-muted, #94a3b8); margin-top: 2px;">Streamlined 5-step workflow (Record &rarr; Review &rarr; Auto-Polish &rarr; Redact &rarr; Export). Hides technical coordinates.</div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Mode Card -->
+                    <div class="settings-persona-card mode-switch-btn" data-mode="advanced" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-subtle, rgba(255,255,255,0.1)); background: rgba(0,0,0,0.15); cursor: pointer; transition: all 0.15s ease;">
+                        <span style="font-size: 22px; line-height: 1;">🔵</span>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <strong style="font-size: 13px; color: var(--text-main, #fff);">Advanced Mode</strong>
+                                <span class="persona-active-badge badge-advanced" style="display: none; font-size: 10px; font-weight: 800; background: #6366f1; color: #fff; padding: 2px 8px; border-radius: 999px;">ACTIVE</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--text-muted, #94a3b8); margin-top: 2px;">Full studio with annotation creative dock, precision hotspots, BPMN flowcharts, and decision branching.</div>
+                        </div>
+                    </div>
+
+                    <!-- Enterprise Mode Card -->
+                    <div class="settings-persona-card mode-switch-btn" data-mode="enterprise" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-subtle, rgba(255,255,255,0.1)); background: rgba(0,0,0,0.15); cursor: pointer; transition: all 0.15s ease;">
+                        <span style="font-size: 22px; line-height: 1;">🟣</span>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <strong style="font-size: 13px; color: var(--text-main, #fff);">Enterprise Mode</strong>
+                                <span class="persona-active-badge badge-enterprise" style="display: none; font-size: 10px; font-weight: 800; background: #8b5cf6; color: #fff; padding: 2px 8px; border-radius: 999px;">ACTIVE</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--text-muted, #94a3b8); margin-top: 2px;">Governance tracking (Owners, Approvers, Review cycles), 100-Point Quality Audits, and Offline PII Scanner.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Author Profile & Governance Defaults -->
+            <div style="border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding-top: 14px;">
+                <label style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #94a3b8); margin-bottom: 8px; display: block;">2. Default Author Profile &amp; Governance</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); margin-bottom: 4px; display: block;">Default Author / Owner</label>
+                        <input type="text" id="settingDefaultAuthor" class="form-control" placeholder="e.g. Alex Morgan" style="font-size: 12px; padding: 6px 10px; width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); margin-bottom: 4px; display: block;">Default Department</label>
+                        <input type="text" id="settingDefaultDept" class="form-control" placeholder="e.g. Operations, Finance, QA" style="font-size: 12px; padding: 6px 10px; width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); margin-bottom: 4px; display: block;">Default Reviewer</label>
+                        <input type="text" id="settingDefaultReviewer" class="form-control" placeholder="e.g. Lead Process Analyst" style="font-size: 12px; padding: 6px 10px; width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); margin-bottom: 4px; display: block;">Default Approver</label>
+                        <input type="text" id="settingDefaultApprover" class="form-control" placeholder="e.g. Head of Operations" style="font-size: 12px; padding: 6px 10px; width: 100%;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Capture Engine & Automation Defaults -->
+            <div style="border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding-top: 14px;">
+                <label style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #94a3b8); margin-bottom: 8px; display: block;">3. Capture &amp; Automation Engine</label>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <label style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main, #fff); cursor: pointer;">
+                        <span>🔒 <strong>Auto-Redact PII on Capture</strong> (Mask cards, emails, SSNs automatically)</span>
+                        <input type="checkbox" id="settingAutoPiiRedact" style="accent-color: #10b981; cursor: pointer;">
+                    </label>
+                    <label style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-main, #fff); cursor: pointer;">
+                        <span>✨ <strong>Auto-Generate Verb-First Titles &amp; Expected Results</strong></span>
+                        <input type="checkbox" id="settingAutoAiTitles" checked style="accent-color: #6366f1; cursor: pointer;">
+                    </label>
+                </div>
+            </div>
+
+            <!-- 4. System Diagnostics, Theme & Support Buttons -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding-top: 14px;">
+                <button id="btnSettingsThemeToggle" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: 700; font-size: 11.5px;">
+                    <span>☀️ / 🌙</span> Theme
+                </button>
+                <button id="btnSettingsDiagnostics" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: 700; font-size: 11.5px;">
+                    <span>🛠️</span> Diagnostics
+                </button>
+                <button id="btnSettingsSaveAll" class="btn btn-primary btn-sm" style="display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: 800; font-size: 11.5px; background: linear-gradient(135deg, #10b981, #059669); border: none;">
+                    <span>✓</span> Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Package File Input -->
+    <input type="file" id="importPackageFileInput" accept=".zip" style="display: none;">
+
+    <script src="dashboard.js?v=20260828_script_v18"></script>
 </body>
 
 </html>
