@@ -9205,6 +9205,37 @@ function initCopyRichSopToClipboard() {
     };
 }
 
+function initExportCategoryFilters() {
+    const filterBtns = document.querySelectorAll(".export-filter-btn");
+    const cards = document.querySelectorAll("#exportCardsGrid .export-card");
+    if (!filterBtns || filterBtns.length === 0) return;
+
+    filterBtns.forEach(btn => {
+        btn.onclick = () => {
+            filterBtns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const filter = btn.dataset.filter;
+
+            cards.forEach(card => {
+                if (filter === "all") {
+                    card.classList.remove("hidden");
+                    card.style.display = "";
+                } else {
+                    const cat = card.dataset.category;
+                    const matches = cat === filter || (filter === "docs" && (cat === "docs" || cat === "quick")) || (filter === "quick" && cat === "quick");
+                    if (matches) {
+                        card.classList.remove("hidden");
+                        card.style.display = "";
+                    } else {
+                        card.classList.add("hidden");
+                        card.style.display = "none";
+                    }
+                }
+            });
+        };
+    });
+}
+
 
 // =========================================================
 // 🔗 SESSION STITCHER (MERGE WORKFLOWS MODAL)
@@ -10455,6 +10486,7 @@ try { initWorkflowGraphModal(); } catch (e) { console.warn("Graph modal init err
 try { initSlideshowPracticeAndTeleprompter(); } catch (e) { console.warn("Slideshow practice init error:", e); }
 try { initScormExport(); } catch (e) { console.warn("SCORM init error:", e); }
 try { initCopyRichSopToClipboard(); } catch (e) { console.warn("Copy SOP init error:", e); }
+try { initExportCategoryFilters(); } catch (e) { console.warn("Export filters init error:", e); }
 try { initWorkflowMergeModal(); } catch (e) { console.warn("Merge modal init error:", e); }
 try { initStepListFilterAndBulkActions(); } catch (e) { console.warn("Step list init error:", e); }
 try { initSlideshowAutoPlayAndFullscreen(); } catch (e) { console.warn("Slideshow init error:", e); }

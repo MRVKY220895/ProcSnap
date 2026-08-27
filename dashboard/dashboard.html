@@ -1064,11 +1064,11 @@
                         </div>
                     </section>
 
-                    <!-- 3. Playback Tab (PPT Presenter Deck View) -->
+                    <!-- 3. Playback Tab (Presenter Deck & Interactive Training Theater) -->
                     <section id="tab-play" class="tab-panel hidden">
                         <div class="ppt-presenter-layout">
                             <!-- Left: Previous Slide Preview Card -->
-                            <div id="pptPrevCard" class="ppt-side-card ppt-prev-card" title="Click to go to Previous Slide">
+                            <div id="pptPrevCard" class="ppt-side-card ppt-prev-card" title="Click to go to Previous Slide (← Left Arrow)">
                                 <div class="ppt-card-label">◀ Previous Slide</div>
                                 <div class="ppt-thumb-frame">
                                     <img id="pptPrevImg" src="" alt="Previous Slide">
@@ -1077,16 +1077,21 @@
                                 <div id="pptPrevTitle" class="ppt-card-title">—</div>
                             </div>
 
-                            <!-- Center: Current Main Active Slide -->
+                            <!-- Center: Current Main Active Slide Theater -->
                             <div class="playback-card">
-                                <div class="playback-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                <!-- Presenter HUD Header -->
+                                <div class="playback-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding-bottom: 12px;">
                                     <div style="display: flex; align-items: center; gap: 10px;">
-                                        <div class="playback-badge" id="playStepBadge">1</div>
-                                        <h2 id="playStepTitle" style="margin: 0;">Step Title</h2>
+                                        <div class="playback-badge" id="playStepBadge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 2px 8px rgba(99,102,241,0.4);">1</div>
+                                        <div>
+                                            <h2 id="playStepTitle" style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-main, #fff);">Step Title</h2>
+                                            <div id="playStepMetaSub" style="font-size: 11px; color: var(--text-muted, #94a3b8); margin-top: 2px;">Action Execution Slide</div>
+                                        </div>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                        <div style="display: inline-flex; align-items: center; background: var(--bg-surface, rgba(255,255,255,0.05)); border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); border-radius: 8px; padding: 2px 6px; gap: 4px;">
-                                            <button id="btnToggleAutoPlay" class="btn btn-secondary btn-xs" style="font-weight: 700; border: none; background: transparent; color: #10b981; display: inline-flex; align-items: center; gap: 4px;" title="Auto-advance slides automatically">
+                                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                        <!-- Auto-Play Controls Group -->
+                                        <div style="display: inline-flex; align-items: center; background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); border-radius: 8px; padding: 2px 6px; gap: 4px;">
+                                            <button id="btnToggleAutoPlay" class="btn btn-secondary btn-xs" style="font-weight: 800; border: none; background: transparent; color: #10b981; display: inline-flex; align-items: center; gap: 4px;" title="Auto-advance slides automatically">
                                                 <span>▶</span> Auto-Play
                                             </button>
                                             <select id="autoPlaySpeedSelect" class="form-control" style="width: auto; padding: 1px 4px; font-size: 11px; height: 24px; font-weight: 600; border: none; background: transparent;" title="Auto-Play Speed">
@@ -1096,82 +1101,84 @@
                                                 <option value="audio">🎙️ Voice-Synced</option>
                                             </select>
                                         </div>
-                                        <button id="btnToggleFullscreenPlay" class="btn btn-secondary btn-sm" style="font-weight: 700; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;" title="Full screen slideshow presentation">
-                                            ⛶ Fullscreen
-                                        </button>
-                                        <button id="btnTogglePracticeMode" class="btn btn-secondary btn-sm" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; height: 30px;" title="Require learners to click the actual target hotspot on each slide before advancing">
-                                            <span id="practiceDot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
+                                        <button id="btnTogglePracticeMode" class="btn btn-secondary btn-xs" style="font-weight: 700; height: 28px; padding: 0 8px; display: inline-flex; align-items: center; gap: 5px;" title="Require learners to click the actual target hotspot before advancing">
+                                            <span id="practiceDot" style="width: 7px; height: 7px; border-radius: 50%; background: #94a3b8;"></span>
                                             <span id="practiceLabel">Practice: OFF</span>
                                         </button>
-                                        <button id="btnToggleTeleprompter" class="btn btn-secondary btn-sm" style="font-weight: 700; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;" title="Open presenter teleprompter notes & stopwatch HUD">
-                                            📜 Teleprompter
+                                        <button id="btnToggleTeleprompter" class="btn btn-secondary btn-xs" style="font-weight: 700; height: 28px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;" title="Open presenter teleprompter notes & stopwatch HUD">
+                                            📜 Notes
                                         </button>
-                                        <button id="btnTogglePlayPinTarget" class="btn btn-secondary btn-sm" style="font-weight: 700; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 5px;" title="Show or hide red target hotspot circle on slide">
-                                            <span>🎯 Pin:</span> <span id="playPinLabel" style="color: #10b981;">ON</span>
+                                        <button id="btnTogglePlayPinTarget" class="btn btn-secondary btn-xs" style="font-weight: 700; height: 28px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;" title="Show or hide target hotspot on slide">
+                                            <span>🎯 Pin:</span> <span id="playPinLabel" style="color: #10b981; font-weight: 800;">ON</span>
+                                        </button>
+                                        <button id="btnToggleFullscreenPlay" class="btn btn-primary btn-xs" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; height: 28px; padding: 0 10px; display: inline-flex; align-items: center; gap: 4px;" title="Full screen slideshow presentation">
+                                            ⛶ Fullscreen
                                         </button>
                                     </div>
                                 </div>
-                                <div class="voice-over-controls" style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.02); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--light-border);">
+
+                                <!-- Narration Audio Equalizer Bar -->
+                                <div class="voice-over-controls" style="display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.15); padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));">
                                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
                                         <div style="display: flex; align-items: center; gap: 8px;">
-                                            <button id="playVoiceBtn" class="btn btn-primary btn-sm" style="display:flex; align-items:center; gap:6px;">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-                                                Play Voiceover
+                                            <button id="playVoiceBtn" class="btn btn-primary btn-xs" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; display: flex; align-items: center; gap: 6px; padding: 5px 12px;">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                                <span>Play Voiceover</span>
                                             </button>
-                                            <select id="narrationSpeedSelect" class="form-control" style="width: auto; padding: 2px 8px; font-size: 11.5px; height: 28px; font-weight: 600;" title="Narration Playback Speed">
+                                            <select id="narrationSpeedSelect" class="form-control" style="width: auto; padding: 2px 6px; font-size: 11px; height: 26px; font-weight: 600;" title="Narration Playback Speed">
                                                 <option value="1">1.0x Speed</option>
                                                 <option value="1.25">1.25x</option>
                                                 <option value="1.5">1.5x</option>
                                                 <option value="0.75">0.75x</option>
                                             </select>
-                                            <select id="voiceSelect" class="form-control" style="width: auto; padding: 4px; font-size: 12px; height: 28px;">
+                                            <select id="voiceSelect" class="form-control" style="width: auto; padding: 2px 6px; font-size: 11px; height: 26px;">
                                                 <optgroup label="🇺🇸 American English">
                                                     <option value="en-US-AriaNeural">Aria (Female, Warm)</option>
                                                     <option value="en-US-JennyNeural">Jenny (Female, Friendly)</option>
-                                                    <option value="en-US-MichelleNeural">Michelle (Female, Clear)</option>
-                                                    <option value="en-US-GuyNeural">Guy (Male, Authoritative)</option>
-                                                    <option value="en-US-DavisNeural">Davis (Male, Casual)</option>
-                                                    <option value="en-US-ChristopherNeural">Christopher (Male, News)</option>
+                                                    <option value="en-US-GuyNeural">Guy (Male, Clear)</option>
                                                 </optgroup>
                                                 <optgroup label="🇬🇧 British English">
                                                     <option value="en-GB-SoniaNeural">Sonia (Female, British)</option>
-                                                    <option value="en-GB-LibbyNeural">Libby (Female, Bright)</option>
                                                     <option value="en-GB-RyanNeural">Ryan (Male, British)</option>
-                                                </optgroup>
-                                                <optgroup label="🇦🇺 Australian English">
-                                                    <option value="en-AU-NatashaNeural">Natasha (Female, Australian)</option>
-                                                    <option value="en-AU-WilliamNeural">William (Male, Australian)</option>
                                                 </optgroup>
                                                 <optgroup label="🇮🇳 Indian English">
                                                     <option value="en-IN-NeerjaNeural">Neerja (Female, Indian)</option>
                                                     <option value="en-IN-PrabhatNeural">Prabhat (Male, Indian)</option>
                                                 </optgroup>
-                                                <optgroup label="🇨🇦 Canadian English">
-                                                    <option value="en-CA-ClaraNeural">Clara (Female, Canadian)</option>
-                                                    <option value="en-CA-LiamNeural">Liam (Male, Canadian)</option>
-                                                </optgroup>
                                             </select>
                                         </div>
                                         <audio id="ttsAudioPlayer" style="display: none;"></audio>
                                     </div>
-                                    <textarea id="playVoiceText" placeholder="Custom voiceover text for this slide..." style="width: 100%; height: 50px; font-size: 12px; padding: 6px; border-radius: var(--radius-sm); border: 1px solid var(--light-border); resize: vertical;"></textarea>
+                                    <textarea id="playVoiceText" placeholder="Custom voiceover narration text for this slide..." style="width: 100%; height: 42px; font-size: 11.5px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); background: rgba(0,0,0,0.2); color: var(--text-main, #fff); resize: none;"></textarea>
                                 </div>
-                                <p id="playStepDesc" class="playback-desc">Step description details...</p>
-                                <div id="playStepNotesBox" class="playback-notes hidden">
-                                    <strong>Important Note:</strong> <span id="playStepNoteText"></span>
+
+                                <!-- Step Instruction Text & Notes -->
+                                <p id="playStepDesc" class="playback-desc" style="font-size: 13.5px; line-height: 1.5; color: var(--text-main, #e2e8f0); margin: 4px 0 0 0;">Step description details...</p>
+                                <div id="playStepNotesBox" class="playback-notes hidden" style="background: rgba(245,158,11,0.08); border-left: 4px solid #f59e0b; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #fbbf24;">
+                                    <strong>💡 Instructor Note:</strong> <span id="playStepNoteText"></span>
                                 </div>
-                                <div class="playback-image-container">
-                                    <img id="playImg" src="" alt="SOP Slideshow image">
+
+                                <!-- Interactive Screenshot Cinema Screen -->
+                                <div class="playback-image-container" style="background: #0f172a; border-radius: 12px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); overflow: hidden; position: relative; min-height: 320px; max-height: 500px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
+                                    <img id="playImg" src="" alt="SOP Slideshow image" style="max-width: 100%; max-height: 500px; object-fit: contain;">
                                 </div>
-                                <div class="playback-controls">
-                                    <button id="playPrevBtn" class="btn btn-secondary">← Previous</button>
-                                    <span id="playProgress" class="playback-progress">Step 1 of 1</span>
-                                    <button id="playNextBtn" class="btn btn-primary">Next →</button>
+
+                                <!-- Bottom Navigation Bar -->
+                                <div class="playback-controls" style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); padding-top: 14px;">
+                                    <button id="playPrevBtn" class="btn btn-secondary btn-sm" style="font-weight: 700; padding: 6px 16px; display: inline-flex; align-items: center; gap: 6px;">
+                                        <span>◀</span> Previous (←)
+                                    </button>
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                        <span id="playProgress" class="playback-progress" style="font-size: 12.5px; font-weight: 800; color: #818cf8;">Step 1 of 1</span>
+                                    </div>
+                                    <button id="playNextBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; padding: 6px 18px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(99,102,241,0.35);">
+                                        <span>Next (→ / Space)</span> <span>▶</span>
+                                    </button>
                                 </div>
                             </div>
 
                             <!-- Right: Next Slide Preview Card -->
-                            <div id="pptNextCard" class="ppt-side-card ppt-next-card" title="Click to go to Next Slide">
+                            <div id="pptNextCard" class="ppt-side-card ppt-next-card" title="Click to go to Next Slide (→ Right Arrow / Space)">
                                 <div class="ppt-card-label">Next Slide ▶</div>
                                 <div class="ppt-thumb-frame">
                                     <img id="pptNextImg" src="" alt="Next Slide">
@@ -1183,131 +1190,194 @@
                         <div id="pptDeckFilmstrip" class="ppt-deck-filmstrip"></div>
                     </section>
 
-                    <!-- 4. Export Tab -->
+                    <!-- 4. Export Hub (Enterprise Document & LMS Center) -->
                     <section id="tab-export" class="tab-panel hidden">
-                        <!-- Corporate SOP Template Uploader & Page Selector Banner -->
-                        <div class="template-manager-banner" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.18)); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 12px; padding: 18px 22px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);">
+                        <!-- Corporate SOP Template Manager Banner -->
+                        <div class="template-manager-banner" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.18)); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 14px; padding: 18px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
                             <div style="display: flex; align-items: center; gap: 16px;">
-                                <div style="width: 48px; height: 48px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);">📄</div>
+                                <div style="width: 50px; height: 50px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);">📄</div>
                                 <div>
                                     <div style="display: flex; align-items: center; gap: 8px;">
-                                        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main, #fff); margin: 0;">Corporate SOP Template &amp; Page Selector</h3>
-                                        <span class="badge" style="background: #10b981; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">NEW</span>
+                                        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main, #fff); margin: 0;">Enterprise SOP Template &amp; Page Selector</h3>
+                                        <span class="badge" style="background: #10b981; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;">SMART THEMES</span>
                                     </div>
-                                    <p style="font-size: 12.5px; color: var(--text-muted, #94a3b8); margin: 3px 0 0 0;">Upload your enterprise Word/PPTX template, select specific pages/sections, and update or reformat the active SOP automatically.</p>
+                                    <p style="font-size: 12.5px; color: var(--text-muted, #94a3b8); margin: 3px 0 0 0;">Upload your corporate Word/PPTX template, choose specific cover &amp; procedure pages, and reformat active SOPs automatically.</p>
                                 </div>
                             </div>
-                            <button id="btnOpenTemplateModal" class="btn btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; padding: 10px 18px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);">
+                            <button id="btnOpenTemplateModal" class="btn btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 800; padding: 10px 20px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);">
                                 <span>📄</span> Upload Template &amp; Select Pages
                             </button>
                         </div>
 
-                        <div class="export-grid">
-                            <div class="export-card featured-card" style="border: 2px solid #6366f1; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.12));">
-                                <div class="export-card-icon">📋</div>
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <h3 style="margin: 0;">Copy to Slack, Teams &amp; Docs</h3>
-                                    <span class="badge" style="background: #10b981; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">FAST</span>
-                                </div>
-                                <p>Copy formatted rich text with step titles, instructions, and screenshots directly to your clipboard. Paste (Ctrl+V) directly into Slack, Gmail, Google Docs, Notion, or MS Teams!</p>
-                                <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button id="btnCopyRichSopClipboard" class="btn btn-primary btn-sm" style="flex: 1; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; padding: 8px 14px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);">
+                        <!-- Export Category Filter Chips -->
+                        <div class="export-filter-bar" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; flex-wrap: wrap;">
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="exportFilterGroup">
+                                <button class="btn btn-secondary btn-xs export-filter-btn active" data-filter="all" style="font-weight: 800; padding: 5px 12px; border-radius: 999px; background: #6366f1; color: #fff; border: none;">🌟 All Formats (11)</button>
+                                <button class="btn btn-secondary btn-xs export-filter-btn" data-filter="docs" style="font-weight: 700; padding: 5px 12px; border-radius: 999px;">📑 Documents &amp; Slides</button>
+                                <button class="btn btn-secondary btn-xs export-filter-btn" data-filter="web" style="font-weight: 700; padding: 5px 12px; border-radius: 999px;">🌐 Web &amp; LMS</button>
+                                <button class="btn btn-secondary btn-xs export-filter-btn" data-filter="quick" style="font-weight: 700; padding: 5px 12px; border-radius: 999px;">⚡ Instant Copy &amp; Print</button>
+                            </div>
+                        </div>
+
+                        <!-- Modern Export Card Grid -->
+                        <div class="export-grid" id="exportCardsGrid">
+                            <!-- Hero Card: 1-Click Copy -->
+                            <div class="export-card featured-card" data-category="quick" style="grid-column: 1 / -1; border: 2px solid #6366f1; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.15)); padding: 18px 22px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                                    <div style="display: flex; align-items: center; gap: 14px;">
+                                        <div class="export-card-icon" style="font-size: 32px;">📋</div>
+                                        <div>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <h3 style="margin: 0; font-size: 16px; font-weight: 800;">1-Click Copy to Slack, Teams, Notion &amp; Google Docs</h3>
+                                                <span class="badge" style="background: #10b981; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px;">INSTANT</span>
+                                            </div>
+                                            <p style="margin: 4px 0 0 0; font-size: 12.5px; color: var(--text-muted, #94a3b8);">Copies rich formatted text, headers, instructions, callouts, and screenshots directly to your clipboard for direct pasting.</p>
+                                        </div>
+                                    </div>
+                                    <button id="btnCopyRichSopClipboard" class="btn btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 800; padding: 10px 22px; white-space: nowrap; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);">
                                         📋 Copy Entire SOP to Clipboard
                                     </button>
                                 </div>
                             </div>
-                            <div class="export-card featured-card" style="border: 2px solid #ef4444; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(244, 63, 94, 0.12));">
+
+                            <!-- PDF Print -->
+                            <div class="export-card featured-card" data-category="quick" style="border: 2px solid #ef4444; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(244, 63, 94, 0.12));">
                                 <div class="export-card-icon">🖨️</div>
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <h3 style="margin: 0;">Print / Save as PDF</h3>
-                                    <span class="badge" style="background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">PDF</span>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">Print / Save as PDF</h3>
+                                    <span class="badge" style="background: #ef4444; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">PDF</span>
                                 </div>
-                                <p>Render a beautiful, print-ready document formatted with high-contrast steps, notes, and full-bleed screenshots. Opens browser print dialog directly for instant PDF saving.</p>
+                                <p style="font-size: 12px; color: var(--text-muted);">Render a beautiful, print-ready document formatted with high-contrast steps, notes, and full-bleed screenshots.</p>
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="pdf" style="flex: 1; font-weight: 600;">👁️ Preview</button>
-                                    <button id="btnPrintSopPdf" class="btn btn-primary btn-sm" style="flex: 2; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; font-weight: 700; padding: 8px 14px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);">
-                                        🖨️ Print / Save as PDF
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="pdf" style="flex: 1; font-weight: 700;">👁️ Preview</button>
+                                    <button id="btnPrintSopPdf" class="btn btn-primary btn-sm" style="flex: 2; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; font-weight: 800; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);">
+                                        🖨️ Print / PDF
                                     </button>
                                 </div>
                             </div>
-                            <div class="export-card featured-card">
-                                <div class="export-card-icon">🎯</div>
-                                <h3>Interactive Walkthrough (.html)</h3>
-                                <p>Export a self-contained interactive "Guide Me" simulation where learners click the highlighted target area to proceed with sound effects, hint animations, and confetti.</p>
-                                <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="interactive" style="flex: 1; font-weight: 600;">👁️ Preview</button>
-                                    <button id="exportInteractiveBtn" class="btn btn-primary btn-sm" style="flex: 2; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700;">Download (.html)</button>
-                                </div>
-                            </div>
-                            <div class="export-card featured-card">
-                                <div class="export-card-icon">🎓</div>
-                                <h3>SCORM 1.2 LMS Course (.zip)</h3>
-                                <p>Export a certified SCORM e-learning course package ready to upload to Cornerstone, Moodle, SAP SuccessFactors, or any enterprise LMS.</p>
-                                <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="scorm" style="flex: 1; font-weight: 600;">👁️ Preview</button>
-                                    <button id="exportScormBtn" class="btn btn-primary btn-sm" style="flex: 2; background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700;">Download SCORM (.zip)</button>
-                                </div>
-                            </div>
-                            <div class="export-card featured-card">
+
+                            <!-- Microsoft Word -->
+                            <div class="export-card" data-category="docs">
                                 <div class="export-card-icon">📄</div>
-                                <h3>Microsoft Word (.docx)</h3>
-                                <p>Export a formatted Word document with custom step headers, descriptions, callout note boxes, expected results, and embedded high-res screenshots.</p>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">Microsoft Word (.docx)</h3>
+                                    <span class="badge" style="background: #2563eb; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">DOCX</span>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-muted);">Formatted Word document with custom step headers, descriptions, callout note boxes, and high-res screenshots.</p>
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="docx" style="flex: 1; font-weight: 600;">👁️ Preview</button>
-                                    <button id="exportDocxBtn" class="btn btn-primary btn-sm" style="flex: 2; background: #2563eb; font-weight: 700;">Download Word</button>
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="docx" style="flex: 1; font-weight: 700;">👁️ Preview</button>
+                                    <button id="exportDocxBtn" class="btn btn-primary btn-sm" style="flex: 2; background: #2563eb; border: none; font-weight: 800;">Download Word</button>
                                 </div>
                             </div>
-                            <div class="export-card featured-card">
+
+                            <!-- PowerPoint Presentation -->
+                            <div class="export-card" data-category="docs">
                                 <div class="export-card-icon">📊</div>
-                                <h3>PowerPoint Presentation (.pptx)</h3>
-                                <p>Export a widescreen 16:9 slide deck with custom cover slide, individual step slides, and full-resolution embedded screenshots.</p>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">PowerPoint Presentation (.pptx)</h3>
+                                    <span class="badge" style="background: #d97706; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">PPTX</span>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-muted);">Widescreen 16:9 slide deck with custom cover slide, individual step slides, and full-resolution embedded screenshots.</p>
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="pptx" style="flex: 1; font-weight: 600;">👁️ Preview</button>
-                                    <button id="exportPptxBtn" class="btn btn-primary btn-sm" style="flex: 2; background: #d97706; font-weight: 700;">Download PPTX</button>
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="pptx" style="flex: 1; font-weight: 700;">👁️ Preview</button>
+                                    <button id="exportPptxBtn" class="btn btn-primary btn-sm" style="flex: 2; background: #d97706; border: none; font-weight: 800;">Download PPTX</button>
                                 </div>
                             </div>
-                            <div class="export-card">
-                                <div class="export-card-icon">💾</div>
-                                <h3>JSON Portable Backup</h3>
-                                <p>Export a complete, self-contained JSON backup of the workflow with embedded base64 screenshots that can be restored on any machine.</p>
+
+                            <!-- Interactive Simulation Walkthrough -->
+                            <div class="export-card" data-category="web">
+                                <div class="export-card-icon">🎯</div>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">Interactive Walkthrough (.html)</h3>
+                                    <span class="badge" style="background: #8b5cf6; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">HTML5</span>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-muted);">Self-contained interactive simulation where learners click target hotspots to proceed with sound effects and confetti.</p>
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="json" style="flex: 1; font-weight: 600;">👁️ Preview</button>
-                                    <button id="exportJsonBtn" class="btn btn-secondary btn-sm" style="flex: 2; font-weight: 700;">Download JSON</button>
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="interactive" style="flex: 1; font-weight: 700;">👁️ Preview</button>
+                                    <button id="exportInteractiveBtn" class="btn btn-primary btn-sm" style="flex: 2; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 800;">Download (.html)</button>
                                 </div>
                             </div>
-                            <div class="export-card">
+
+                            <!-- SCORM LMS Course -->
+                            <div class="export-card" data-category="web">
+                                <div class="export-card-icon">🎓</div>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">SCORM 1.2 LMS Course (.zip)</h3>
+                                    <span class="badge" style="background: #10b981; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">LMS</span>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-muted);">Certified SCORM 1.2 e-learning course package ready to upload to Cornerstone, Moodle, SAP SuccessFactors, or any LMS.</p>
+                                <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="scorm" style="flex: 1; font-weight: 700;">👁️ Preview</button>
+                                    <button id="exportScormBtn" class="btn btn-primary btn-sm" style="flex: 2; background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 800;">Download SCORM</button>
+                                </div>
+                            </div>
+
+                            <!-- Self-Contained HTML -->
+                            <div class="export-card" data-category="web">
                                 <div class="export-card-icon">📁</div>
-                                <h3>Self-Contained HTML</h3>
-                                <p>Creates a single, highly readable SOP guide with all screenshots embedded as offline base64. Ideal for printing to PDF or sharing over email.</p>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">Offline Standalone HTML</h3>
+                                    <span class="badge" style="background: #64748b; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">OFFLINE</span>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-muted);">Single-file SOP document with all images embedded as offline base64. Ideal for offline reading and email sharing.</p>
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="html" style="flex: 1; font-weight: 600;">👁️ Preview</button>
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="html" style="flex: 1; font-weight: 700;">👁️ Preview</button>
                                     <button id="exportHtmlBtn" class="btn btn-secondary btn-sm" style="flex: 2; font-weight: 700;">Download HTML</button>
                                 </div>
                             </div>
-                            <div class="export-card">
+
+                            <!-- Markdown Document -->
+                            <div class="export-card" data-category="docs">
                                 <div class="export-card-icon">📝</div>
-                                <h3>Markdown Document</h3>
-                                <p>Export as clean Github Flavored Markdown. Perfect for copying directly into Confluence, Notion, Github, or your internal knowledge base.</p>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">GitHub Markdown (.md)</h3>
+                                    <span class="badge" style="background: #0f172a; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">GFM</span>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-muted);">Clean GitHub Flavored Markdown. Perfect for Notion, GitHub repositories, Obsidian, or internal knowledge bases.</p>
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="markdown" style="flex: 1; font-weight: 600;">👁️ Preview</button>
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="markdown" style="flex: 1; font-weight: 700;">👁️ Preview</button>
                                     <button id="exportMarkdownBtn" class="btn btn-secondary btn-sm" style="flex: 2; font-weight: 700;">Download MD</button>
                                 </div>
                             </div>
-                            <div class="export-card">
+
+                            <!-- Confluence Wiki -->
+                            <div class="export-card" data-category="docs">
                                 <div class="export-card-icon">⚡</div>
-                                <h3>Confluence Markup</h3>
-                                <p>Saves the SOP as Confluence wiki Storage Format markup for clean, formatted page templates on your wiki systems.</p>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">Confluence Wiki Storage</h3>
+                                    <span class="badge" style="background: #0284c7; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">WIKI</span>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-muted);">Saves the SOP as Confluence wiki Storage Format markup with standard Atlassian macros and table structures.</p>
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="confluence" style="flex: 1; font-weight: 600;">👁️ Preview</button>
-                                    <button id="exportConfluenceBtn" class="btn btn-secondary btn-sm" style="flex: 2; font-weight: 700;">Download Confluence</button>
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="confluence" style="flex: 1; font-weight: 700;">👁️ Preview</button>
+                                    <button id="exportConfluenceBtn" class="btn btn-secondary btn-sm" style="flex: 2; font-weight: 700;">Download Wiki</button>
                                 </div>
                             </div>
-                            <div class="export-card">
-                                <div class="export-card-icon">📊</div>
-                                <h3>Structured CSV</h3>
-                                <p>Export all actions, timings, values, selectors, and descriptions into a spreadsheet table format for audits or CSV logs.</p>
+
+                            <!-- JSON Portable Backup -->
+                            <div class="export-card" data-category="docs">
+                                <div class="export-card-icon">💾</div>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">JSON Portable Backup</h3>
+                                    <span class="badge" style="background: #6366f1; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">BACKUP</span>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-muted);">Complete self-contained JSON backup of the workflow with base64 screenshots that can be restored on any computer.</p>
                                 <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
-                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="csv" style="flex: 1; font-weight: 600;">👁️ Preview</button>
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="json" style="flex: 1; font-weight: 700;">👁️ Preview</button>
+                                    <button id="exportJsonBtn" class="btn btn-secondary btn-sm" style="flex: 2; font-weight: 700;">Download JSON</button>
+                                </div>
+                            </div>
+
+                            <!-- CSV Table -->
+                            <div class="export-card" data-category="docs">
+                                <div class="export-card-icon">📊</div>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h3 style="margin: 0; font-size: 15px; font-weight: 800;">Structured CSV Table</h3>
+                                    <span class="badge" style="background: #10b981; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">CSV</span>
+                                </div>
+                                <p style="font-size: 12px; color: var(--text-muted);">Export actions, timings, values, selectors, and descriptions into a spreadsheet table for compliance audits.</p>
+                                <div class="export-card-actions-row" style="display: flex; gap: 8px; margin-top: auto;">
+                                    <button class="btn btn-secondary btn-sm btn-preview-export" data-type="csv" style="flex: 1; font-weight: 700;">👁️ Preview</button>
                                     <button id="exportCsvBtn" class="btn btn-secondary btn-sm" style="flex: 2; font-weight: 700;">Download CSV</button>
                                 </div>
                             </div>
@@ -2480,7 +2550,7 @@
         </div>
     </div>
 
-    <script src="dashboard.js?v=20260827_zindex_lightmode"></script>
+    <script src="dashboard.js?v=20260827_playback_export_overhaul"></script>
 </body>
 
 </html>
