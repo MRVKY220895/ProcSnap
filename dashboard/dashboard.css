@@ -11,9 +11,10 @@
     --border-color: rgba(255, 255, 255, 0.09);
     --border-hover: rgba(99, 102, 241, 0.4);
     
+    --text-main: #f8fafc;
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-muted: #94a3b8;
     
     --input-bg: rgba(15, 23, 42, 0.7);
     --input-border: rgba(255, 255, 255, 0.12);
@@ -42,9 +43,14 @@
     --border-color: #e2e8f0;
     --border-hover: #6366f1;
     
+    --text-main: #0f172a;
     --text-primary: #0f172a;
     --text-secondary: #475569;
     --text-muted: #64748b;
+    
+    --light-surface: #ffffff;
+    --light-border: #e2e8f0;
+    --dark-main: #6366f1;
     
     --input-bg: #ffffff;
     --input-border: #cbd5e1;
@@ -4906,13 +4912,22 @@ textarea {
 }
 
 [data-theme="light"] .step-chip-btn {
-    border-color: #e2e8f0 !important;
-    color: #64748b !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+}
+
+[data-theme="light"] .step-chip-btn:hover:not(.active) {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
 }
 
 [data-theme="light"] .step-chip-btn.active {
     background: #6366f1 !important;
     color: #ffffff !important;
+    border-color: #6366f1 !important;
+    font-weight: 800 !important;
 }
 
 [data-theme="light"] .step-bulk-action-bar {
@@ -6237,5 +6252,164 @@ textarea {
 [data-theme="light"] .step-branch-card {
     background: #f8fafc !important;
     border-color: #e2e8f0 !important;
+}
+
+/* Step List Editor Light Mode */
+[data-theme="light"] .editor-step-row {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .editor-step-row:hover {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .editor-step-row.is-selected-row {
+    background: #eef2ff !important;
+    border-color: #6366f1 !important;
+}
+
+[data-theme="light"] .editor-step-row.is-deleted {
+    background: #fef2f2 !important;
+    border: 1.5px dashed #f87171 !important;
+}
+
+[data-theme="light"] .row-badge {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+}
+
+[data-theme="light"] .row-badge.is-approved-badge {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="light"] .row-title,
+[data-theme="light"] .inline-editable-title {
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .row-desc,
+[data-theme="light"] .inline-editable-desc {
+    color: #475569 !important;
+}
+
+[data-theme="light"] .drag-handle {
+    color: #94a3b8 !important;
+}
+
+[data-theme="light"] .editor-step-row-actions .btn-secondary {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+}
+
+[data-theme="light"] .editor-step-row-actions .btn-secondary:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+}
+
+/* Template Manager Banner Light Mode */
+[data-theme="light"] .template-manager-banner {
+    background: linear-gradient(135deg, #eef2ff, #f5f3ff) !important;
+    border: 1px solid #c7d2fe !important;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08) !important;
+}
+
+[data-theme="light"] .template-manager-banner h3 {
+    color: #1e1b4b !important;
+}
+
+[data-theme="light"] .template-manager-banner p {
+    color: #475569 !important;
+}
+
+/* Export Tab & Cards Light Mode */
+[data-theme="light"] .export-filter-btn {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .export-filter-btn:hover:not(.active) {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .export-filter-btn.active {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+[data-theme="light"] .export-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .export-card:hover {
+    border-color: #6366f1 !important;
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.12) !important;
+}
+
+[data-theme="light"] .export-card h3,
+[data-theme="light"] .export-card-title {
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .export-card p,
+[data-theme="light"] .export-card-desc {
+    color: #475569 !important;
+}
+
+[data-theme="light"] .export-card.featured-card {
+    background: linear-gradient(135deg, #eef2ff, #faf5ff) !important;
+    border: 2px solid #6366f1 !important;
+}
+
+[data-theme="light"] .export-card.featured-card div {
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .export-card .btn-secondary {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+}
+
+[data-theme="light"] .export-card .btn-secondary:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+}
+
+/* Playback Tab Light Mode */
+[data-theme="light"] .playback-hud {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .playback-stage-card {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .playback-narrator-bar {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+[data-theme="light"] .teleprompter-script {
+    color: #1e293b !important;
+}
+
+/* Disable unwanted bottom hover zoom preview */
+.step-hover-preview {
+    display: none !important;
 }
 

@@ -3510,10 +3510,6 @@ function renderStepThumbnails() {
     document.querySelectorAll(".thumb-card").forEach(card => {
         const idx = parseInt(card.dataset.index);
         const s = steps[idx];
-        if (s && s.screenshotUrl) {
-            card.addEventListener("mouseenter", (e) => showHoverPreview(API_BASE + s.screenshotUrl, s.title || getDefaultTitle(s), e));
-            card.addEventListener("mouseleave", hideHoverPreview);
-        }
 
         // Drag & drop reordering
         card.addEventListener("dragstart", (e) => {
@@ -3613,37 +3609,8 @@ async function toggleActiveStepHidden() {
 }
 
 
-/* =========================================================
-   STEP HOVER PREVIEW HELPER
-========================================================= */
-
-let hoverPreviewEl = null;
-
-function showHoverPreview(url, title, e) {
-    if (!url) return;
-    if (!hoverPreviewEl) {
-        hoverPreviewEl = document.createElement("div");
-        hoverPreviewEl.className = "step-hover-preview";
-        document.body.appendChild(hoverPreviewEl);
-    }
-    hoverPreviewEl.innerHTML = `
-        <img src="${esc(url)}" alt="Preview">
-        <div class="step-hover-preview-label">${esc(title || "Step Preview")}</div>
-    `;
-    const target = e.currentTarget || e.target;
-    const rect = target.getBoundingClientRect();
-    const x = Math.min(window.innerWidth - 280, Math.max(10, rect.left));
-    const y = rect.top - 200 > 10 ? rect.top - 190 : rect.bottom + 10;
-    hoverPreviewEl.style.left = `${x}px`;
-    hoverPreviewEl.style.top = `${y}px`;
-    hoverPreviewEl.style.display = "block";
-}
-
-function hideHoverPreview() {
-    if (hoverPreviewEl) {
-        hoverPreviewEl.style.display = "none";
-    }
-}
+function showHoverPreview() {}
+function hideHoverPreview() {}
 
 /* =========================================================
    STEP LIST EDITOR LOGIC (Tab 2)
@@ -3700,20 +3667,22 @@ function renderStepsTab() {
 
         return `
         <div class="editor-step-row ${s.hidden ? 'is-deleted' : ''} ${isSelected ? 'is-selected-row' : ''}" data-id="${s.id}" data-index="${originalIndex}">
-            <div class="editor-step-row-left" style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+        return `
+        <div class="editor-step-row ${s.hidden ? 'is-deleted' : ''} ${isSelected ? 'is-selected-row' : ''}" data-id="${s.id}" data-index="${originalIndex}">
+            <div class="editor-step-row-left" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
                 <input type="checkbox" class="step-select-cb" data-id="${s.id}" ${isSelected ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: #6366f1; flex-shrink: 0;">
-                <span class="drag-handle" style="cursor: grab; color: var(--text-muted);">☰</span>
-                <div class="row-badge" style="${s.approved ? 'background: linear-gradient(135deg, #10b981, #059669);' : ''}">${s.sequence}</div>
+                <span class="drag-handle" style="cursor: grab; color: var(--text-muted); font-size: 14px; user-select: none;">☰</span>
+                <div class="row-badge ${s.approved ? 'is-approved-badge' : ''}">${s.sequence}</div>
                 <div class="editor-step-thumb ${s.hidden ? 'is-deleted-thumb' : ''}" data-thumb-url="${s.screenshotUrl ? esc(API_BASE + s.screenshotUrl) : ''}" data-thumb-title="${esc(s.title || getDefaultTitle(s))}">
                     ${s.screenshotUrl ? `<img src="${esc(API_BASE + s.screenshotUrl)}" alt="Step ${s.sequence}">` : '<div class="no-thumb">No img</div>'}
                 </div>
-                <div class="row-info" style="flex: 1; min-width: 0;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
+                <div class="row-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <div class="row-title inline-editable-title" contenteditable="true" data-id="${s.id}" title="Click to edit step title inline" style="font-weight: 700; color: var(--text-main, #fff); outline: none; border-bottom: 1px dashed transparent; transition: all 0.15s ease;">
                             ${esc(s.title || getDefaultTitle(s))}
                         </div>
-                        ${s.approved ? '<span class="badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 9.5px; padding: 1px 6px;">APPROVED</span>' : ''}
-                        ${s.hidden ? '<span class="deleted-badge" style="font-size: 10px;">👁️ HIDDEN</span>' : ''}
+                        ${s.approved ? '<span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px; flex-shrink: 0;">✓ APPROVED</span>' : ''}
+                        ${s.hidden ? '<span class="deleted-badge" style="font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px; flex-shrink: 0;">👁️ HIDDEN</span>' : ''}
                     </div>
                     <div class="row-desc inline-editable-desc" contenteditable="true" data-id="${s.id}" title="Click to edit description inline" style="font-size: 12px; color: var(--text-muted, #94a3b8); outline: none; line-height: 1.35;">
                         ${esc(s.description || getDefaultDescription(s))}
@@ -3721,14 +3690,16 @@ function renderStepsTab() {
                 </div>
             </div>
             <div class="editor-step-row-actions" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                <button class="btn btn-secondary btn-xs btn-approve-step" data-id="${s.id}" title="${s.approved ? 'Approved' : 'Mark as Approved'}" style="${s.approved ? 'color: #10b981;' : ''}">
-                    ${s.approved ? '✓' : 'Approve'}
+                <button class="btn btn-secondary btn-xs btn-approve-step" data-id="${s.id}" title="${s.approved ? 'Approved' : 'Mark as Approved'}" style="font-weight: 700; ${s.approved ? 'color: #10b981; border-color: rgba(16,185,129,0.35);' : ''}">
+                    ${s.approved ? '✓ Approved' : 'Approve'}
                 </button>
-                <button class="btn btn-secondary btn-xs btn-dup-step" data-id="${s.id}" title="Duplicate this step">📋 Duplicate</button>
-                <button class="btn btn-secondary btn-xs btn-up" ${originalIndex === 0 ? "disabled" : ""} title="Move Up">▲</button>
-                <button class="btn btn-secondary btn-xs btn-down" ${originalIndex === allSteps.length - 1 ? "disabled" : ""} title="Move Down">▼</button>
-                <button class="btn btn-secondary btn-xs btn-hide-step" title="${s.hidden ? 'Restore' : 'Hide'}">${s.hidden ? '👁️ Restore' : 'Hide'}</button>
-                <button class="btn btn-danger btn-xs btn-perm-del" title="Permanently delete from database">✖</button>
+                <button class="btn btn-secondary btn-xs btn-dup-step" data-id="${s.id}" title="Duplicate this step">📋 Dup</button>
+                <div style="display: flex; gap: 2px;">
+                    <button class="btn btn-secondary btn-xs btn-up" ${originalIndex === 0 ? "disabled" : ""} title="Move Up" style="padding: 3px 6px;">▲</button>
+                    <button class="btn btn-secondary btn-xs btn-down" ${originalIndex === allSteps.length - 1 ? "disabled" : ""} title="Move Down" style="padding: 3px 6px;">▼</button>
+                </div>
+                <button class="btn btn-secondary btn-xs btn-hide-step" title="${s.hidden ? 'Restore step' : 'Hide step'}" style="font-weight: 700; ${s.hidden ? 'color: #10b981; border-color: rgba(16,185,129,0.35);' : ''}">${s.hidden ? '👁️ Restore' : 'Hide'}</button>
+                <button class="btn btn-danger btn-xs btn-perm-del" title="Permanently delete from database" style="padding: 3px 8px;">✖</button>
             </div>
         </div>
         `;
