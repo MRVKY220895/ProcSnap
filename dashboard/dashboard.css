@@ -6070,3 +6070,91 @@ textarea {
     color: #ffffff !important;
     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
+
+/* =========================================================
+   Z-INDEX & STACKING CONTEXT RESOLUTION FOR DROPDOWNS
+========================================================= */
+.workflow-header {
+    position: relative !important;
+    z-index: 10000 !important;
+}
+
+.export-quick-wrap {
+    position: relative !important;
+    z-index: 10001 !important;
+}
+
+.export-quick-menu {
+    z-index: 99999 !important;
+}
+
+/* =========================================================
+   LIGHT THEME (data-theme="light") REFINEMENTS
+========================================================= */
+[data-theme="light"] .export-quick-menu {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .export-quick-item {
+    color: #1e293b !important;
+}
+
+[data-theme="light"] .export-quick-item:hover {
+    background: #f1f5f9 !important;
+    color: #4338ca !important;
+}
+
+[data-theme="light"] .export-quick-divider {
+    background: #e2e8f0 !important;
+}
+
+[data-theme="light"] .inspector-master-header {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .inspector-master-tabs {
+    background: #e2e8f0 !important;
+    border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .inspector-master-tab {
+    color: #64748b !important;
+}
+
+[data-theme="light"] .inspector-master-tab:hover:not(.active) {
+    color: #0f172a !important;
+    background: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .inspector-master-tab.active {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="light"] .drawer-segmented-tabs {
+    background: #e2e8f0 !important;
+    border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .drawer-seg-btn {
+    color: #64748b !important;
+}
+
+[data-theme="light"] .drawer-seg-btn:hover:not(.active) {
+    color: #0f172a !important;
+    background: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .drawer-seg-btn.active {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="light"] .step-branch-card {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+

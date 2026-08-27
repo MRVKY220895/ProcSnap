@@ -8374,14 +8374,8 @@ function initDrawerVoiceoverAndAiDiff() {
     // Segmented Drawer Tab Switcher
     document.querySelectorAll(".drawer-seg-btn").forEach(btn => {
         btn.onclick = () => {
-            document.querySelectorAll(".drawer-seg-btn").forEach(b => {
-                b.classList.remove("active");
-                b.style.background = "transparent";
-                b.style.color = "var(--text-muted)";
-            });
+            document.querySelectorAll(".drawer-seg-btn").forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
-            btn.style.background = "#6366f1";
-            btn.style.color = "#ffffff";
 
             const view = btn.dataset.view;
             const paneHotspot = $("drawerPaneHotspot");
@@ -8522,12 +8516,7 @@ function initDualControlPanel() {
     if (tabMasterStep && tabMasterGlobal) {
         tabMasterStep.onclick = () => {
             tabMasterStep.classList.add("active");
-            tabMasterStep.style.background = "#6366f1";
-            tabMasterStep.style.color = "#ffffff";
-
             tabMasterGlobal.classList.remove("active");
-            tabMasterGlobal.style.background = "transparent";
-            tabMasterGlobal.style.color = "var(--text-muted, #94a3b8)";
 
             if (drawerRootStep) {
                 drawerRootStep.classList.remove("hidden");
@@ -8541,12 +8530,7 @@ function initDualControlPanel() {
 
         tabMasterGlobal.onclick = () => {
             tabMasterGlobal.classList.add("active");
-            tabMasterGlobal.style.background = "#6366f1";
-            tabMasterGlobal.style.color = "#ffffff";
-
             tabMasterStep.classList.remove("active");
-            tabMasterStep.style.background = "transparent";
-            tabMasterStep.style.color = "var(--text-muted, #94a3b8)";
 
             if (drawerRootGlobal) {
                 drawerRootGlobal.classList.remove("hidden");
