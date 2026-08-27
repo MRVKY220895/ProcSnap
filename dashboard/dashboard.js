@@ -5332,9 +5332,14 @@ function renderExportTab() {
     });
 
     // Preview modal actions
-    setOnclick("btnCloseExportPreview", () => {
-        $("exportPreviewModal")?.classList.add("hidden");
-    });
+    const closePreview = () => {
+        const modal = $("exportPreviewModal");
+        if (modal) modal.classList.add("hidden");
+        const iframe = $("previewIframe");
+        if (iframe) iframe.srcdoc = "";
+    };
+
+    setOnclick("btnCloseExportPreview", closePreview);
     
     setOnclick("btnDownloadFromPreview", () => {
         if (typeof currentExportDownloadAction === "function") {
@@ -5358,9 +5363,15 @@ function renderExportTab() {
     const exportModal = $("exportPreviewModal");
     if (exportModal) {
         exportModal.onclick = (e) => {
-            if (e.target === exportModal) exportModal.classList.add("hidden");
+            if (e.target === exportModal) closePreview();
         };
     }
+
+    window.addEventListener("message", (e) => {
+        if (e.data && (e.data.action === "closeExportPreview" || e.data.action === "closePreview")) {
+            closePreview();
+        }
+    });
 
     // Direct Export triggers
     setOnclick("exportInteractiveBtn", async () => {
@@ -6224,6 +6235,9 @@ async function generateInteractiveWalkthroughHtml() {
             </button>
             <button id="fullscreenBtn" class="btn-icon" title="Toggle Fullscreen">
                 ⛶ Fullscreen
+            </button>
+            <button id="exitPreviewBtn" onclick="if(window.parent) window.parent.postMessage({action:'closeExportPreview'}, '*');" class="btn-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: rgba(239, 68, 68, 0.4); font-weight: 700; cursor: pointer;" title="Exit Walkthrough">
+                ✕ Exit
             </button>
         </div>
     </header>
@@ -8227,6 +8241,16 @@ function initCanvasFileDrop() {
 
 let activeTemplateData = null;
 
+function openTemplateModal() {
+    const modal = $("sopTemplateModal");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    if (!activeTemplateData) {
+        loadDefaultTemplatePages();
+    }
+}
+window.openTemplateModal = openTemplateModal;
+
 function initSopTemplateManager() {
     const modal = $("sopTemplateModal");
     const dropzone = $("templateDropzone");
@@ -8243,13 +8267,14 @@ function initSopTemplateManager() {
     if (!modal) return;
 
     const toggleModal = (show) => {
-        modal.classList.toggle("hidden", !show);
-        if (show && !activeTemplateData) {
-            loadDefaultTemplatePages();
+        if (show) {
+            openTemplateModal();
+        } else {
+            modal.classList.add("hidden");
         }
     };
 
-    if (openBtn) openBtn.onclick = () => toggleModal(true);
+    if (openBtn) openBtn.onclick = () => openTemplateModal();
     if (closeBtn) closeBtn.onclick = () => toggleModal(false);
     if (cancelBtn) cancelBtn.onclick = () => toggleModal(false);
 
@@ -10550,6 +10575,22 @@ try { initSlideshowAutoPlayAndFullscreen(); } catch (e) { console.warn("Slidesho
 try { initPrintSopPdf(); } catch (e) { console.warn("Print PDF init error:", e); }
 try { initDesktopRecorderModal(); } catch (e) { console.warn("Desktop recorder init error:", e); }
 try { bpmnEngine.init(); } catch (e) { console.warn("BPMN engine init error:", e); }
+
+// Global Escape Key Modal Closer
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        const previewModal = $("exportPreviewModal");
+        if (previewModal && !previewModal.classList.contains("hidden")) {
+            previewModal.classList.add("hidden");
+            const iframe = $("previewIframe");
+            if (iframe) iframe.srcdoc = "";
+        }
+        $("sopTemplateModal")?.classList.add("hidden");
+        $("workflowGraphModal")?.classList.add("hidden");
+        $("mergeWorkflowsModal")?.classList.add("hidden");
+        $("desktopRecorderModal")?.classList.add("hidden");
+    }
+});
 
 // Boot Application
 if (document.readyState === "loading") {
