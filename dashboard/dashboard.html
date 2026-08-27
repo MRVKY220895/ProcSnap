@@ -507,39 +507,54 @@
                                 </button>
                             </div>
 
-                            <!-- RIGHT SIDEBAR: STEP DETAILS INSPECTOR DRAWER -->
+                            <!-- RIGHT SIDEBAR: DUAL CONTROL PANEL (STEP INSPECTOR + GLOBAL WORKFLOW STYLES) -->
                             <div class="step-detail-drawer open" id="stepDetailDrawer">
-                                <div class="guide-card-header" style="padding: 14px 16px 10px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-                                    <div class="drawer-top-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span id="guideStepBadge" class="step-badge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 11px; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.5px;">STEP 1</span>
-                                            <label class="approve-checkbox-label" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #10b981; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
-                                                <input type="checkbox" id="guideStepApproved" style="cursor: pointer;"> APPROVED
-                                            </label>
-                                        </div>
-                                        <div style="display: flex; align-items: center; gap: 4px;">
-                                            <button id="btnRefreshGuideStep" class="btn btn-secondary btn-xs" title="Refresh step from server" style="padding: 3px 7px; font-size: 11px;">🔄</button>
-                                            <button id="btnToggleHideActiveStep" class="btn btn-secondary btn-xs" title="Hide/Unhide this step" style="padding: 3px 7px; font-size: 11px;">👁️</button>
-                                            <button id="btnDeleteActiveStep" class="btn btn-danger btn-xs" title="Delete this step" style="padding: 3px 7px; font-size: 11px;">🗑️</button>
-                                            <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Step Details Panel (Hide Sidebar)" style="padding: 3px 7px; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(255,255,255,0.06); cursor: pointer; color: var(--text-main, #fff); font-size: 11px; font-weight: 700;">
-                                                ⇥
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
-                                        <h3 id="guideStepTitle" class="guide-step-title" contenteditable="true" title="Click to edit title" style="flex: 1; margin: 0; font-size: 15px; font-weight: 700;">Step Title</h3>
-                                        <button id="btnCopyGuideTitle" class="btn btn-secondary btn-xs" style="padding: 2px 6px; font-size: 10px; flex-shrink: 0;" title="Copy title to clipboard">📋</button>
-                                    </div>
-                                    <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description" style="font-size: 12px; margin: 0 0 8px 0; color: var(--text-muted);">Step description will appear here...</p>
-                                    
-                                    <!-- 4 Direct Professional Segmented Tabs -->
-                                    <div class="drawer-segmented-tabs" style="display: flex; gap: 3px; background: rgba(0,0,0,0.18); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-                                        <button class="drawer-seg-btn active" data-view="hotspot" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🎯 Hotspot &amp; Focus</button>
-                                        <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">💡 Notes &amp; Audio</button>
-                                        <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔀 Branching</button>
-                                        <button class="drawer-seg-btn" data-view="meta" style="flex: 0.9; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔍 Details</button>
+                                
+                                <!-- DUAL CONTROL MASTER SWITCHER -->
+                                <div class="inspector-master-header" style="padding: 10px 14px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08)); background: var(--bg-surface-elevated, #182234);">
+                                    <div class="inspector-master-tabs" style="display: flex; gap: 4px; background: rgba(0,0,0,0.25); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                        <button id="tabMasterStep" class="inspector-master-tab active" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11.5px; font-weight: 800; padding: 7px 6px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease;">
+                                            <span>🎯</span> Step Inspector
+                                        </button>
+                                        <button id="tabMasterGlobal" class="inspector-master-tab" style="flex: 1; border: none; background: transparent; color: var(--text-muted, #94a3b8); font-size: 11.5px; font-weight: 800; padding: 7px 6px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease;">
+                                            <span>🌐</span> Global (All Steps)
+                                        </button>
                                     </div>
                                 </div>
+
+                                <!-- ROOT VIEW 1: STEP-SPECIFIC INSPECTOR -->
+                                <div id="drawerRootStep" class="drawer-root-view" style="display: flex; flex-direction: column; height: calc(100% - 48px);">
+                                    <div class="guide-card-header" style="padding: 12px 16px 10px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                        <div class="drawer-top-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span id="guideStepBadge" class="step-badge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 11px; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.5px;">STEP 1</span>
+                                                <label class="approve-checkbox-label" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #10b981; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
+                                                    <input type="checkbox" id="guideStepApproved" style="cursor: pointer;"> APPROVED
+                                                </label>
+                                            </div>
+                                            <div style="display: flex; align-items: center; gap: 4px;">
+                                                <button id="btnRefreshGuideStep" class="btn btn-secondary btn-xs" title="Refresh step from server" style="padding: 3px 7px; font-size: 11px;">🔄</button>
+                                                <button id="btnToggleHideActiveStep" class="btn btn-secondary btn-xs" title="Hide/Unhide this step" style="padding: 3px 7px; font-size: 11px;">👁️</button>
+                                                <button id="btnDeleteActiveStep" class="btn btn-danger btn-xs" title="Delete this step" style="padding: 3px 7px; font-size: 11px;">🗑️</button>
+                                                <button class="drawer-close-btn" id="drawerCloseBtn" title="Collapse Step Details Panel" style="padding: 3px 7px; border-radius: 6px; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); background: rgba(255,255,255,0.06); cursor: pointer; color: var(--text-main, #fff); font-size: 11px; font-weight: 700;">
+                                                    ⇥
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+                                            <h3 id="guideStepTitle" class="guide-step-title" contenteditable="true" title="Click to edit title" style="flex: 1; margin: 0; font-size: 14.5px; font-weight: 700;">Step Title</h3>
+                                            <button id="btnCopyGuideTitle" class="btn btn-secondary btn-xs" style="padding: 2px 6px; font-size: 10px; flex-shrink: 0;" title="Copy title to clipboard">📋</button>
+                                        </div>
+                                        <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description" style="font-size: 12px; margin: 0 0 8px 0; color: var(--text-muted);">Step description will appear here...</p>
+                                        
+                                        <!-- 4 Direct Segmented Tabs -->
+                                        <div class="drawer-segmented-tabs" style="display: flex; gap: 3px; background: rgba(0,0,0,0.18); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                            <button class="drawer-seg-btn active" data-view="hotspot" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🎯 Hotspot &amp; Focus</button>
+                                            <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">💡 Notes &amp; Audio</button>
+                                            <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔀 Branching</button>
+                                            <button class="drawer-seg-btn" data-view="meta" style="flex: 0.9; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔍 Details</button>
+                                        </div>
+                                    </div>
 
                                 <div class="guide-card-body" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto;">
                                     
@@ -711,6 +726,136 @@
                                     </label>
                                 </div>
                             </div>
+
+                            <!-- ROOT VIEW 2: GLOBAL WORKFLOW STYLES & BATCH CONTROLS -->
+                            <div id="drawerRootGlobal" class="drawer-root-view hidden" style="display: none; flex-direction: column; height: calc(100% - 48px); overflow-y: auto;">
+                                <div class="global-panel-header" style="padding: 14px 16px 10px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="font-size: 15px;">🌐</span>
+                                            <h3 style="margin: 0; font-size: 14px; font-weight: 800; color: #fff;">Global Workflow Styles</h3>
+                                        </div>
+                                        <span class="badge" style="background: rgba(99,102,241,0.15); color: #818cf8; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px;">ALL STEPS</span>
+                                    </div>
+                                    <p style="margin: 0; font-size: 11.5px; color: var(--text-muted, #94a3b8); line-height: 1.35;">
+                                        Configure design presets and batch-apply uniform styling across all screenshots in this guide.
+                                    </p>
+                                </div>
+
+                                <div class="global-panel-body" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; flex: 1;">
+                                    
+                                    <!-- Card 1: Theme & Pin Color -->
+                                    <div class="global-card" style="background: rgba(0,0,0,0.18); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                            <label style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                                                <span>🎨</span> Accent &amp; Pin Color
+                                            </label>
+                                            <span id="globalColorLabel" style="font-size: 10.5px; font-weight: 700; color: #818cf8;">#ef4444</span>
+                                        </div>
+                                        <div class="global-color-swatches" style="display: flex; gap: 6px; align-items: center; margin-bottom: 8px;">
+                                            <button class="global-color-btn active" data-color="#ef4444" style="background: #ef4444; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;" title="Crimson Red"></button>
+                                            <button class="global-color-btn" data-color="#6366f1" style="background: #6366f1; width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;" title="Electric Indigo"></button>
+                                            <button class="global-color-btn" data-color="#10b981" style="background: #10b981; width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;" title="Emerald Green"></button>
+                                            <button class="global-color-btn" data-color="#f59e0b" style="background: #f59e0b; width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;" title="Amber Gold"></button>
+                                            <button class="global-color-btn" data-color="#64748b" style="background: #64748b; width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;" title="Slate Gray"></button>
+                                            <div style="position: relative; width: 26px; height: 26px; border-radius: 50%; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);" title="Custom Color">
+                                                <input type="color" id="globalCustomColorInput" value="#ef4444" style="position: absolute; top: -10px; left: -10px; width: 50px; height: 50px; cursor: pointer; border: none; padding: 0;">
+                                            </div>
+                                        </div>
+                                        <!-- Reticle Badge Style Presets -->
+                                        <div style="display: flex; gap: 4px; margin-top: 6px;">
+                                            <button class="btn btn-secondary btn-xs global-badge-style-btn active" data-style="circle" style="flex: 1; font-weight: 700; padding: 5px 4px; font-size: 10.5px;">● 26px Pin</button>
+                                            <button class="btn btn-secondary btn-xs global-badge-style-btn" data-style="pill" style="flex: 1; font-weight: 700; padding: 5px 4px; font-size: 10.5px;">🏷️ Pill Badge</button>
+                                            <button class="btn btn-secondary btn-xs global-badge-style-btn" data-style="halo" style="flex: 1; font-weight: 700; padding: 5px 4px; font-size: 10.5px;">✨ Glow Ring</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Card 2: Global Spotlight & Background Dimming -->
+                                    <div class="global-card" style="background: rgba(0,0,0,0.18); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                            <label style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                                                <span>🎯</span> Background Dimming
+                                            </label>
+                                            <span id="globalDimValueLabel" style="font-size: 11px; font-weight: 800; color: #10b981;">40%</span>
+                                        </div>
+                                        <input type="range" id="globalDimSlider" min="0" max="85" step="5" value="40" style="width: 100%; accent-color: #6366f1; cursor: pointer;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-muted); margin-top: 2px;">
+                                            <span>0% (Clean)</span>
+                                            <span>40% (Standard)</span>
+                                            <span>85% (Theater)</span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 11px;">
+                                            <span style="color: var(--text-muted);">Focus Box Stroke:</span>
+                                            <div style="display: flex; gap: 4px;">
+                                                <button class="btn btn-secondary btn-xs global-stroke-btn" data-width="2" style="padding: 2px 7px; font-size: 10.5px;">2px</button>
+                                                <button class="btn btn-secondary btn-xs global-stroke-btn active" data-width="3" style="padding: 2px 7px; font-size: 10.5px; background: #6366f1; color: #fff;">3px</button>
+                                                <button class="btn btn-secondary btn-xs global-stroke-btn" data-width="4" style="padding: 2px 7px; font-size: 10.5px;">4px</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Card 3: Global Micro-Demo GIF Settings -->
+                                    <div class="global-card" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 12px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                            <label style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                                                <span>🎬</span> Micro-Demo Cursor &amp; Speed
+                                            </label>
+                                            <span style="font-size: 10px; color: #818cf8; font-weight: 700;">14-FRAME GIF</span>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+                                            <div class="field-group">
+                                                <label style="font-size: 10px; color: var(--text-muted);">Cursor Style</label>
+                                                <select id="globalCursorTypeSelect" class="form-control" style="font-size: 11px; padding: 4px 6px;">
+                                                    <option value="arrow">↖ Sleek Arrow (~16px)</option>
+                                                    <option value="pointer">👆 Hand Pointer</option>
+                                                    <option value="dot">● Focus Reticle</option>
+                                                </select>
+                                            </div>
+                                            <div class="field-group">
+                                                <label style="font-size: 10px; color: var(--text-muted);">Trajectory Speed</label>
+                                                <select id="globalDemoSpeedSelect" class="form-control" style="font-size: 11px; padding: 4px 6px;">
+                                                    <option value="fast">⚡ Fast (0.8s)</option>
+                                                    <option value="smooth" selected>🚀 Smooth (1.2s)</option>
+                                                    <option value="slow">🐢 Deliberate (1.8s)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-top: 4px;">
+                                            <span style="color: var(--text-muted);">Click Ripple Feedback:</span>
+                                            <button id="btnGlobalRippleToggle" class="btn btn-secondary btn-xs" style="font-size: 10.5px; font-weight: 800; padding: 2px 8px; color: #10b981;">ENABLED ✓</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Card 4: Global Privacy & Redaction Defaults -->
+                                    <div class="global-card" style="background: rgba(0,0,0,0.18); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
+                                        <label style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                                            <span>🛡️</span> Default Redaction Style
+                                        </label>
+                                        <div style="display: flex; gap: 6px;">
+                                            <button class="btn btn-secondary btn-xs global-blur-style-btn active" data-blur="frosted" style="flex: 1; font-weight: 700; padding: 5px 6px; font-size: 10.5px; background: rgba(99,102,241,0.2); border-color: #6366f1; color: #fff;">🌫️ Frosted Blur</button>
+                                            <button class="btn btn-secondary btn-xs global-blur-style-btn" data-blur="blackout" style="flex: 1; font-weight: 700; padding: 5px 6px; font-size: 10.5px;">⬛ Blackout Box</button>
+                                            <button class="btn btn-secondary btn-xs global-blur-style-btn" data-blur="pixelate" style="flex: 1; font-weight: 700; padding: 5px 6px; font-size: 10.5px;">▦ Pixelate</button>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- Global Panel Action Footer -->
+                                <div class="global-panel-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); background: var(--bg-surface-elevated, #182234); display: flex; flex-direction: column; gap: 8px;">
+                                    <button id="btnApplyGlobalToAll" class="btn btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 800; font-size: 12.5px; padding: 9px 12px; display: flex; align-items: center; justify-content: center; gap: 7px; box-shadow: 0 4px 14px rgba(99,102,241,0.35);">
+                                        <span>⚡</span> Apply Styles to All Steps
+                                    </button>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                        <button id="btnBatchGenerateAllDemos" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #818cf8; border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.08); padding: 6px 8px;" title="Render animated GIF demos for every step in the workflow">
+                                            <span>🎬</span> Batch Demo GIFs
+                                        </button>
+                                        <button id="btnBatchAiAutoTitles" class="btn btn-secondary btn-xs" style="font-weight: 700; color: #10b981; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); padding: 6px 8px;" title="Auto-generate verb-first SOP titles for all steps">
+                                            <span>🪄</span> AI Auto-Titles
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         </div>
                         <div class="steps-bottom-drawer" id="stepsBottomDrawer">
                             <div class="steps-drawer-header" id="stepsDrawerHeader">
@@ -2321,7 +2466,7 @@
         </div>
     </div>
 
-    <script src="dashboard.js?v=20260825_v10"></script>
+    <script src="dashboard.js?v=20260827_dual_control"></script>
 </body>
 
 </html>

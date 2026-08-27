@@ -8331,6 +8331,9 @@ function initDrawerVoiceoverAndAiDiff() {
         };
     });
 
+    // Initialize Dual Control Panel (Master Switcher: Step Inspector vs Global Styles)
+    initDualControlPanel();
+
     // ── Global Studio Toolbar Button Listeners ─────────────────────────────
     setOnclick("globalRefreshBtn", refreshActiveWorkflowSteps);
     setOnclick("globalInsertStepBtn", () => $("addNewStepBtn")?.click());
@@ -8435,6 +8438,250 @@ function initDrawerVoiceoverAndAiDiff() {
             if (closeBtn) closeBtn.onclick = () => modal && modal.classList.add("hidden");
         };
     }
+}
+
+// =========================================================
+// 🎛️ DUAL CONTROL PANEL: GLOBAL STYLES & STEP INSPECTOR
+// =========================================================
+
+const globalStudioStyle = {
+    pinColor: "#ef4444",
+    badgeStyle: "circle",
+    dimPercent: 40,
+    strokeWidth: 3,
+    cursorType: "arrow",
+    demoSpeed: "smooth",
+    clickRipple: true,
+    blurStyle: "frosted"
+};
+
+function initDualControlPanel() {
+    const tabMasterStep = $("tabMasterStep");
+    const tabMasterGlobal = $("tabMasterGlobal");
+    const drawerRootStep = $("drawerRootStep");
+    const drawerRootGlobal = $("drawerRootGlobal");
+
+    if (tabMasterStep && tabMasterGlobal) {
+        tabMasterStep.onclick = () => {
+            tabMasterStep.classList.add("active");
+            tabMasterStep.style.background = "#6366f1";
+            tabMasterStep.style.color = "#ffffff";
+
+            tabMasterGlobal.classList.remove("active");
+            tabMasterGlobal.style.background = "transparent";
+            tabMasterGlobal.style.color = "var(--text-muted, #94a3b8)";
+
+            if (drawerRootStep) {
+                drawerRootStep.classList.remove("hidden");
+                drawerRootStep.style.display = "flex";
+            }
+            if (drawerRootGlobal) {
+                drawerRootGlobal.classList.add("hidden");
+                drawerRootGlobal.style.display = "none";
+            }
+        };
+
+        tabMasterGlobal.onclick = () => {
+            tabMasterGlobal.classList.add("active");
+            tabMasterGlobal.style.background = "#6366f1";
+            tabMasterGlobal.style.color = "#ffffff";
+
+            tabMasterStep.classList.remove("active");
+            tabMasterStep.style.background = "transparent";
+            tabMasterStep.style.color = "var(--text-muted, #94a3b8)";
+
+            if (drawerRootGlobal) {
+                drawerRootGlobal.classList.remove("hidden");
+                drawerRootGlobal.style.display = "flex";
+            }
+            if (drawerRootStep) {
+                drawerRootStep.classList.add("hidden");
+                drawerRootStep.style.display = "none";
+            }
+        };
+    }
+
+    // Color Swatches
+    document.querySelectorAll(".global-color-btn").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll(".global-color-btn").forEach(b => {
+                b.classList.remove("active");
+                b.style.border = "2px solid transparent";
+            });
+            btn.classList.add("active");
+            btn.style.border = "2px solid #ffffff";
+            const col = btn.dataset.color || "#ef4444";
+            globalStudioStyle.pinColor = col;
+            const label = $("globalColorLabel");
+            if (label) {
+                label.textContent = col;
+                label.style.color = col;
+            }
+            const customInp = $("globalCustomColorInput");
+            if (customInp) customInp.value = col;
+            applyGlobalStyleLivePreview();
+        };
+    });
+
+    const customColorInp = $("globalCustomColorInput");
+    if (customColorInp) {
+        customColorInp.oninput = (e) => {
+            const col = e.target.value;
+            globalStudioStyle.pinColor = col;
+            const label = $("globalColorLabel");
+            if (label) {
+                label.textContent = col;
+                label.style.color = col;
+            }
+            document.querySelectorAll(".global-color-btn").forEach(b => {
+                b.classList.remove("active");
+                b.style.border = "2px solid transparent";
+            });
+            applyGlobalStyleLivePreview();
+        };
+    }
+
+    // Badge Style Buttons
+    document.querySelectorAll(".global-badge-style-btn").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll(".global-badge-style-btn").forEach(b => {
+                b.classList.remove("active");
+                b.style.background = "";
+                b.style.color = "";
+            });
+            btn.classList.add("active");
+            btn.style.background = "#6366f1";
+            btn.style.color = "#fff";
+            globalStudioStyle.badgeStyle = btn.dataset.style || "circle";
+            applyGlobalStyleLivePreview();
+        };
+    });
+
+    // Dim Slider
+    const dimSlider = $("globalDimSlider");
+    if (dimSlider) {
+        dimSlider.oninput = (e) => {
+            const val = parseInt(e.target.value, 10);
+            globalStudioStyle.dimPercent = val;
+            const label = $("globalDimValueLabel");
+            if (label) label.textContent = `${val}%`;
+            applyGlobalStyleLivePreview();
+        };
+    }
+
+    // Stroke Buttons
+    document.querySelectorAll(".global-stroke-btn").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll(".global-stroke-btn").forEach(b => {
+                b.classList.remove("active");
+                b.style.background = "";
+                b.style.color = "";
+            });
+            btn.classList.add("active");
+            btn.style.background = "#6366f1";
+            btn.style.color = "#fff";
+            globalStudioStyle.strokeWidth = parseInt(btn.dataset.width, 10) || 3;
+            applyGlobalStyleLivePreview();
+        };
+    });
+
+    // Ripple Toggle
+    const rippleBtn = $("btnGlobalRippleToggle");
+    if (rippleBtn) {
+        rippleBtn.onclick = () => {
+            globalStudioStyle.clickRipple = !globalStudioStyle.clickRipple;
+            if (globalStudioStyle.clickRipple) {
+                rippleBtn.textContent = "ENABLED ✓";
+                rippleBtn.style.color = "#10b981";
+            } else {
+                rippleBtn.textContent = "DISABLED ✕";
+                rippleBtn.style.color = "#94a3b8";
+            }
+        };
+    }
+
+    // Redaction Style Buttons
+    document.querySelectorAll(".global-blur-style-btn").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll(".global-blur-style-btn").forEach(b => {
+                b.classList.remove("active");
+                b.style.background = "";
+                b.style.borderColor = "";
+                b.style.color = "";
+            });
+            btn.classList.add("active");
+            btn.style.background = "rgba(99,102,241,0.2)";
+            btn.style.borderColor = "#6366f1";
+            btn.style.color = "#fff";
+            globalStudioStyle.blurStyle = btn.dataset.blur || "frosted";
+        };
+    });
+
+    // Apply to All Steps Button
+    setOnclick("btnApplyGlobalToAll", applyGlobalStylesToAllSteps);
+    setOnclick("btnBatchGenerateAllDemos", () => generateAndShowMicroDemos());
+    setOnclick("btnBatchAiAutoTitles", () => $("autoTitlesBtn")?.click());
+}
+
+function applyGlobalStyleLivePreview() {
+    const step = getCurrentStep();
+    if (!step) return;
+    
+    // Update live pin reticle
+    const core = document.querySelector(".reticle-pin-core");
+    if (core) {
+        core.style.background = globalStudioStyle.pinColor;
+        if (globalStudioStyle.badgeStyle === "pill") {
+            core.style.borderRadius = "12px";
+            core.style.padding = "2px 8px";
+            core.style.width = "auto";
+        } else {
+            core.style.borderRadius = "50%";
+            core.style.width = "26px";
+            core.style.padding = "0";
+        }
+    }
+
+    // Re-render canvas annotations
+    if (typeof renderAnnotations === "function") {
+        renderAnnotations();
+    }
+}
+
+async function applyGlobalStylesToAllSteps() {
+    if (!workflow || !Array.isArray(workflow.steps) || workflow.steps.length === 0) {
+        showToast("No steps in workflow to update.", 2000);
+        return;
+    }
+
+    const count = workflow.steps.length;
+    showToast(`⚡ Applying global styles across all ${count} steps...`, 2000);
+
+    for (let i = 0; i < workflow.steps.length; i++) {
+        const step = workflow.steps[i];
+        step.globalStyle = { ...globalStudioStyle };
+        
+        // Update any existing spotlight annotations to match global stroke and theme
+        if (Array.isArray(step.annotations)) {
+            step.annotations.forEach(ann => {
+                if (ann.type === "spotlight" || ann.type === "rect") {
+                    ann.color = globalStudioStyle.pinColor;
+                    ann.strokeWidth = globalStudioStyle.strokeWidth;
+                }
+            });
+        }
+    }
+
+    // Persist active step
+    await saveActiveStepEditsSilent();
+    
+    // Refresh canvas and UI
+    loadActiveStepDetails();
+    if (typeof renderStepThumbnails === "function") {
+        renderStepThumbnails();
+    }
+    
+    showToast(`✨ Success: Applied global styles to all ${count} steps!`, 3000);
 }
 
 // =========================================================
