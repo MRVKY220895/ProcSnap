@@ -12,9 +12,11 @@
                 <img src="icons/icon48.png" alt="ProcSnap" style="width: 24px; height: 24px; border-radius: 6px; object-fit: contain; box-shadow: 0 2px 6px rgba(99,102,241,0.35);">
                 <span class="logo-text">ProcSnap</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
                 <div id="api-status-pill" class="api-status offline" title="Click to test/reconnect API">API Offline</div>
-                <button id="btnToggleApiConnect" class="btn-icon-xs" title="Disconnect / Reconnect backend API">🔌</button>
+                <button id="btnToggleApiConnect" class="btn btn-xs btn-secondary" style="font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" title="Disconnect / Reconnect local backend server">
+                    <span id="toggleApiIcon">🔌</span> <span id="toggleApiText">Disconnect</span>
+                </button>
             </div>
         </header>
 

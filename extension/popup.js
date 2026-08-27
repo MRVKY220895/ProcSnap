@@ -58,24 +58,37 @@ function setApiStatus(online, port = "") {
     if (openStudioLink) {
         openStudioLink.href = `${cachedBackendUrl}/dashboard/dashboard.html`;
     }
+    const iconEl = document.getElementById("toggleApiIcon");
+    const textEl = document.getElementById("toggleApiText");
+
     if (online) {
         apiStatusPill.textContent = port ? `Online (Port ${port})` : "API Connected";
         apiStatusPill.className = "api-status online";
         startButton.disabled = false;
+        if (iconEl) iconEl.textContent = "🔌";
+        if (textEl) textEl.textContent = "Disconnect";
         if (btnToggleApiConnect) {
-            btnToggleApiConnect.textContent = "🔌";
-            btnToggleApiConnect.title = "Connected — Click to Disconnect API";
+            btnToggleApiConnect.title = "Connected to local backend. Click to disconnect.";
+            btnToggleApiConnect.style.color = "#ef4444";
         }
         if (apiOfflineBanner) apiOfflineBanner.classList.add("hidden");
     } else {
         apiStatusPill.textContent = manuallyDisconnected ? "Disconnected" : "API Offline";
         apiStatusPill.className = "api-status offline";
         startButton.disabled = true;
+        if (iconEl) iconEl.textContent = "⚡";
+        if (textEl) textEl.textContent = "Connect";
         if (btnToggleApiConnect) {
-            btnToggleApiConnect.textContent = "⚡";
-            btnToggleApiConnect.title = "Disconnected — Click to Start / Connect API";
+            btnToggleApiConnect.title = "Disconnected. Click to connect to local backend.";
+            btnToggleApiConnect.style.color = "#10b981";
         }
-        if (apiOfflineBanner) apiOfflineBanner.classList.remove("hidden");
+        if (apiOfflineBanner) {
+            if (manuallyDisconnected) {
+                apiOfflineBanner.classList.add("hidden");
+            } else {
+                apiOfflineBanner.classList.remove("hidden");
+            }
+        }
     }
 }
 
@@ -104,9 +117,11 @@ if (btnToggleApiConnect) {
     btnToggleApiConnect.onclick = async () => {
         if (!manuallyDisconnected) {
             manuallyDisconnected = true;
+            try { await chrome.storage.local.set({ server_disconnected: true }); } catch (_) {}
             setApiStatus(false);
         } else {
             manuallyDisconnected = false;
+            try { await chrome.storage.local.set({ server_disconnected: false }); } catch (_) {}
             await checkBackendHealth();
         }
     };
@@ -250,6 +265,14 @@ function startPollingState() {
 
 // Initial state load
 async function init() {
+    try {
+        const { server_disconnected = false } = await chrome.storage.local.get(["server_disconnected"]);
+        if (server_disconnected) {
+            manuallyDisconnected = true;
+            setApiStatus(false);
+        }
+    } catch (_) {}
+
     const isOnline = await checkBackendHealth();
     
     chrome.storage.local.get(["recording", "sessionId", "workflowName", "stepCount", "paused"], (result) => {

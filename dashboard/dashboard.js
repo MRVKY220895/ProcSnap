@@ -1090,7 +1090,11 @@ function renderWorkflowList() {
         return `
             <div class="workflow-card ${w.id === selectedWorkflowId ? 'selected' : ''}" data-id="${esc(w.id)}">
                 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;">
-                    <div class="workflow-name">${esc(w.name || "Untitled Workflow")}</div>
+                    <div class="workflow-name" style="flex: 1; word-break: break-word;">${esc(w.name || "Untitled Workflow")}</div>
+                    <div class="wf-card-actions" style="display: flex; align-items: center; gap: 2px; opacity: 0.7; transition: opacity 0.15s ease;">
+                        <button class="wf-btn-rename btn btn-secondary btn-xs" data-id="${esc(w.id)}" data-name="${esc(w.name || '')}" title="Rename Workflow" style="background: transparent; border: none; padding: 2px 4px; font-size: 11px; cursor: pointer; color: var(--text-muted, #94a3b8); border-radius: 4px;">✏️</button>
+                        <button class="wf-btn-delete btn btn-secondary btn-xs" data-id="${esc(w.id)}" data-name="${esc(w.name || '')}" title="Delete Workflow" style="background: transparent; border: none; padding: 2px 4px; font-size: 11px; cursor: pointer; color: #f87171; border-radius: 4px;">🗑️</button>
+                    </div>
                 </div>
                 <div class="workflow-meta" style="margin-top: 4px; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
                     <span>${w.stepCount || 0} step${w.stepCount === 1 ? "" : "s"} • <small style="color: var(--text-muted);">${timeStr}</small></span>
@@ -1102,7 +1106,60 @@ function renderWorkflowList() {
     }).join("");
 
     document.querySelectorAll(".workflow-card").forEach(card => {
-        card.onclick = () => openWorkflow(card.dataset.id);
+        card.onclick = (e) => {
+            if (e.target.closest(".wf-btn-rename") || e.target.closest(".wf-btn-delete")) return;
+            openWorkflow(card.dataset.id);
+        };
+    });
+
+    document.querySelectorAll(".wf-btn-rename").forEach(btn => {
+        btn.onclick = async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const currentName = btn.dataset.name || "Untitled Workflow";
+            const newName = prompt("Rename SOP Workflow:", currentName);
+            if (newName && newName.trim() && newName.trim() !== currentName) {
+                try {
+                    await api(`/sessions/${encodeURIComponent(id)}`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ name: newName.trim() })
+                    });
+                    const wf = workflows.find(w => w.id === id);
+                    if (wf) wf.name = newName.trim();
+                    if (workflow && workflow.id === id) {
+                        workflow.name = newName.trim();
+                        setText("workflowTitle", newName.trim());
+                    }
+                    renderWorkflowList();
+                    showToast("✓ Workflow renamed successfully!");
+                } catch (err) {
+                    showToast("Failed to rename workflow: " + err.message);
+                }
+            }
+        };
+    });
+
+    document.querySelectorAll(".wf-btn-delete").forEach(btn => {
+        btn.onclick = async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const name = btn.dataset.name || "this workflow";
+            if (confirm(`Are you sure you want to permanently delete '${name}'?`)) {
+                try {
+                    await api(`/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
+                    workflows = workflows.filter(w => w.id !== id);
+                    showToast("🗑️ Workflow deleted successfully.");
+                    if (selectedWorkflowId === id) {
+                        showLibraryHub();
+                    } else {
+                        renderWorkflowList();
+                    }
+                    updateSidebarCounts();
+                } catch (err) {
+                    showToast("Failed to delete workflow: " + err.message);
+                }
+            }
+        };
     });
 }
 

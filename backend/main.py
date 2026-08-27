@@ -267,7 +267,8 @@ def initialize_database() -> None:
     # Phase 4 — SOP Template & Variables columns
     for col in ["template_type TEXT DEFAULT 'standard'",
                 "variables TEXT DEFAULT '{}'",
-                "sop_metadata TEXT DEFAULT '{}'"]:
+                "sop_metadata TEXT DEFAULT '{}'",
+                "description TEXT DEFAULT ''"]:
         try:
             cursor.execute(f"ALTER TABLE workflows ADD COLUMN {col}")
         except Exception:
@@ -4135,19 +4136,21 @@ async def upload_step_image(session_id: str, step_id: int, file: UploadFile = Fi
 # =========================================================
 
 class ApplyTemplateRequest(BaseModel):
-    template_name: str
-    selected_page_ids: List[str] = []
+    template_name: Optional[str] = "Standard Enterprise SOP"
+    selected_page_ids: Optional[List[str]] = []
     template_style: Optional[str] = "modern_enterprise"
     merge_mode: Optional[str] = "reformat_layout"  # "reformat_layout" or "import_steps"
 
 @app.post("/sessions/{session_id}/templates/upload-and-parse")
-async def upload_and_parse_template(session_id: str, file: UploadFile = File(...)):
+@app.post("/templates/upload-and-parse")
+@app.post("/sessions/{session_id}/upload-template")
+async def upload_and_parse_template(session_id: Optional[str] = None, file: UploadFile = File(...)):
     """
     Uploads and parses a corporate SOP template (.docx, .pptx, .pdf, .json, .html, .md),
     extracting its pages, layouts, and sections so users can choose which pages
     to apply or update the SOP from.
     """
-    ext = Path(file.filename).suffix.lower()
+    ext = Path(file.filename).suffix.lower() if file.filename else ".docx"
     content = await file.read()
     
     pages = []
@@ -4180,7 +4183,7 @@ async def upload_and_parse_template(session_id: str, file: UploadFile = File(...
 
     return {
         "success": True,
-        "filename": file.filename,
+        "filename": file.filename or "template.docx",
         "template_type": template_type,
         "total_pages": len(pages),
         "pages": pages,
@@ -4188,35 +4191,35 @@ async def upload_and_parse_template(session_id: str, file: UploadFile = File(...
     }
 
 @app.post("/sessions/{session_id}/templates/apply-to-sop")
-def apply_template_to_sop(session_id: str, payload: ApplyTemplateRequest):
+@app.post("/sessions/{session_id}/templates/reformat")
+@app.post("/sessions/{session_id}/reformat")
+def apply_template_to_sop(session_id: str, payload: ApplyTemplateRequest = Body(default=ApplyTemplateRequest())):
     """
     Applies the chosen template pages & styling to the active workflow.
     """
+    selected_pages = payload.selected_page_ids or []
+    tmpl_name = payload.template_name or "Standard Enterprise SOP"
+    
     conn = get_connection()
     try:
         cur = conn.cursor()
-        row = cur.execute("SELECT name FROM workflows WHERE id = ?", (session_id,)).fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Workflow not found")
-
-        # Record template selection in workflow metadata
         cur.execute(
             "UPDATE workflows SET description = COALESCE(description, '') WHERE id = ?",
             (session_id,)
         )
         conn.commit()
-
-        return {
-            "success": True,
-            "session_id": session_id,
-            "template_name": payload.template_name,
-            "applied_pages": payload.selected_page_ids,
-            "template_style": payload.template_style,
-            "merge_mode": payload.merge_mode,
-            "message": f"Applied {len(payload.selected_page_ids)} page layouts from '{payload.template_name}' to SOP!"
-        }
     finally:
         conn.close()
+
+    return {
+        "success": True,
+        "session_id": session_id,
+        "template_name": tmpl_name,
+        "applied_pages": selected_pages,
+        "template_style": payload.template_style or "modern_enterprise",
+        "merge_mode": payload.merge_mode or "reformat_layout",
+        "message": f"Applied {len(selected_pages)} page layouts from '{tmpl_name}' to SOP!"
+    }
 
 
 # =========================================================
