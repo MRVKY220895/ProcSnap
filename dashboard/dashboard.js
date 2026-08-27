@@ -7234,26 +7234,32 @@ function renderStepBranches(step) {
     
     if (step.branches.length === 0) {
         listEl.innerHTML = `
-            <div style="font-size: 11px; color: var(--text-muted); font-style: italic; padding: 4px 0;">
-                No branch rules defined. Sequential playback (Step ${step.sequence} → ${Math.min(allSteps.length, step.sequence + 1)}).
+            <div style="font-size: 11px; color: var(--text-muted); padding: 8px 10px; background: rgba(0,0,0,0.12); border-radius: 8px; border: 1px dashed var(--border-color, rgba(255,255,255,0.1)); text-align: center;">
+                No branching rules set. Playback flows sequentially (Step ${step.sequence} ➡️ Step ${Math.min(allSteps.length, (step.sequence || 1) + 1)}).
             </div>
         `;
     } else {
+        const branchColors = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
         listEl.innerHTML = step.branches.map((b, i) => {
+            const color = branchColors[i % branchColors.length];
             const stepOptions = allSteps.map(s => `
                 <option value="${s.sequence}" ${s.sequence === b.target_sequence ? 'selected' : ''}>
-                    Step ${s.sequence} ${s.title ? '— ' + esc(s.title.substring(0, 14)) : ''}
+                    Step ${s.sequence}: ${(s.title || 'Step ' + s.sequence).substring(0, 18)}
                 </option>
             `).join("");
             
             return `
-                <div class="step-branch-item" data-index="${i}">
-                    <div class="step-branch-row">
-                        <input type="text" class="step-branch-input" value="${esc(b.label || '')}" placeholder="Choice label (e.g. If Admin)" data-index="${i}">
-                        <select class="step-branch-select" data-index="${i}">
+                <div class="step-branch-card" data-index="${i}" style="background: rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid ${color}; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 10px; font-weight: 800; color: ${color}; letter-spacing: 0.5px;">PATH ${i + 1}</span>
+                        <button class="btn-branch-delete" data-index="${i}" title="Remove this branch" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 4px; line-height: 1;">✕</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1.2fr 24px 1.4fr; align-items: center; gap: 6px;">
+                        <input type="text" class="step-branch-input form-control" value="${esc(b.label || '')}" placeholder="Choice / If Label" data-index="${i}" style="font-size: 11px; padding: 4px 6px; height: 26px;">
+                        <span style="color: var(--text-muted); text-align: center; font-size: 12px;">➔</span>
+                        <select class="step-branch-select form-control" data-index="${i}" style="font-size: 11px; padding: 4px 6px; height: 26px;">
                             ${stepOptions}
                         </select>
-                        <button class="btn-branch-delete" data-index="${i}" title="Remove branch">✕</button>
                     </div>
                 </div>
             `;
@@ -7266,7 +7272,7 @@ function renderStepBranches(step) {
             const idx = parseInt(e.target.dataset.index, 10);
             if (step.branches[idx]) {
                 step.branches[idx].label = e.target.value;
-                saveActiveStepEditsSilent();
+                scheduleAutoSave(400);
             }
         };
     });
@@ -7288,8 +7294,36 @@ function renderStepBranches(step) {
             renderStepBranches(step);
             saveActiveStepEditsSilent();
             renderStepThumbnails();
+            showToast("Branch removed.", 1500);
         };
     });
+}
+
+function addBranchPreset(type) {
+    const step = getCurrentStep();
+    if (!step) return showToast("Please select a step first.");
+    if (!step.branches || !Array.isArray(step.branches)) step.branches = [];
+
+    const allSteps = workflow ? (workflow.steps || []) : [];
+    const currSeq = step.sequence || 1;
+    const nextSeq = Math.min(allSteps.length, currSeq + 1);
+    const altSeq = Math.min(allSteps.length, currSeq + 2);
+
+    if (type === "yes_no") {
+        step.branches.push({ label: "Yes, Continue", target_sequence: nextSeq });
+        step.branches.push({ label: "No, Skip", target_sequence: altSeq });
+    } else if (type === "role") {
+        step.branches.push({ label: "Admin Role", target_sequence: nextSeq });
+        step.branches.push({ label: "Standard User", target_sequence: altSeq });
+    } else if (type === "error") {
+        step.branches.push({ label: "Success Path", target_sequence: nextSeq });
+        step.branches.push({ label: "On Error / Retry", target_sequence: currSeq });
+    }
+
+    renderStepBranches(step);
+    saveActiveStepEditsSilent();
+    renderStepThumbnails();
+    showToast(`Added ${type.replace('_', '/')} decision preset!`, 2000);
 }
 
 // Wire Add Branch Button
@@ -7305,17 +7339,14 @@ if (btnAddStepBranch) {
         const allSteps = workflow ? (workflow.steps || []) : [];
         const nextSeq = Math.min(allSteps.length, (step.sequence || 1) + 1);
         step.branches.push({
-            label: `Path ${step.branches.length + 1}`,
+            label: `Option ${step.branches.length + 1}`,
             target_sequence: nextSeq
         });
-        
-        // Auto expand accordion if collapsed
-        const content = $("drawerAccBranching");
-        if (content) content.classList.remove("hidden");
 
         renderStepBranches(step);
         saveActiveStepEditsSilent();
         renderStepThumbnails();
+        showToast("Added decision branch.", 1500);
     };
 }
 

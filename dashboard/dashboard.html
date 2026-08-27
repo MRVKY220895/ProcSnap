@@ -531,11 +531,19 @@
                                         <p id="guideStepDesc" class="guide-step-desc" contenteditable="true" title="Click to edit description" style="font-size: 12px; margin: 0 0 8px 0; color: var(--text-muted);">Step description will appear here...</p>
                                         
                                         <!-- 4 Direct Segmented Tabs -->
-                                        <div class="drawer-segmented-tabs" style="display: flex; gap: 3px; background: rgba(0,0,0,0.18); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
-                                            <button class="drawer-seg-btn active" data-view="hotspot" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🎯 Hotspot &amp; Focus</button>
-                                            <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">💡 Notes &amp; Audio</button>
-                                            <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔀 Branching</button>
-                                            <button class="drawer-seg-btn" data-view="meta" style="flex: 0.9; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 6px 3px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">🔍 Details</button>
+                                        <div class="drawer-segmented-tabs" style="display: flex; gap: 4px; background: rgba(0,0,0,0.25); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.08));">
+                                            <button class="drawer-seg-btn active" data-view="hotspot" style="flex: 1; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
+                                                <span>🎯</span> Hotspot
+                                            </button>
+                                            <button class="drawer-seg-btn" data-view="notes" style="flex: 1; border: none; background: transparent; color: var(--text-muted, #94a3b8); font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
+                                                <span>💡</span> Notes
+                                            </button>
+                                            <button class="drawer-seg-btn" data-view="branch" style="flex: 1; border: none; background: transparent; color: var(--text-muted, #94a3b8); font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
+                                                <span>🔀</span> Branching
+                                            </button>
+                                            <button class="drawer-seg-btn" data-view="meta" style="flex: 1; border: none; background: transparent; color: var(--text-muted, #94a3b8); font-size: 11px; font-weight: 700; padding: 7px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; transition: all 0.15s ease;">
+                                                <span>🔍</span> Details
+                                            </button>
                                         </div>
                                     </div>
 
@@ -647,15 +655,32 @@
                                         </div>
                                     </div>
 
-                                    <!-- TAB PANE 3: DECISION BRANCHING -->
+                                    <!-- TAB PANE 3: DECISION BRANCHING (ENHANCED) -->
                                     <div id="drawerPaneBranch" class="drawer-content-pane hidden" style="display: flex; flex-direction: column; gap: 10px;">
-                                        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
-                                            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.35;">
-                                                 Add conditional choice buttons (e.g., <em>"If Admin → Step 4"</em>, <em>"If Standard → Step 8"</em>) for interactive routing during Playback &amp; Guide Me modes.
+                                        <div style="background: rgba(0,0,0,0.18); border: 1px solid var(--border-color, rgba(255,255,255,0.08)); border-radius: 10px; padding: 12px;">
+                                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span style="font-size: 14px;">🔀</span>
+                                                    <span style="font-size: 12px; font-weight: 800; color: #fff;">Interactive Decision Paths</span>
+                                                </div>
+                                                <span class="badge" style="background: rgba(99,102,241,0.15); color: #818cf8; font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 999px;">FLOW ROUTING</span>
+                                            </div>
+                                            <p style="font-size: 11px; color: var(--text-muted, #94a3b8); margin: 0 0 10px 0; line-height: 1.35;">
+                                                Define choice buttons to dynamically route users to different steps during live execution and playback.
                                             </p>
-                                            <div id="stepBranchList" class="step-branch-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;"></div>
-                                            <button id="btnAddStepBranch" class="btn btn-secondary btn-xs" style="width: 100%; justify-content: center; font-weight: 700; color: #818cf8; border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.08); padding: 6px 10px;">
-                                                + Add Decision Branch
+
+                                            <!-- Quick Presets -->
+                                            <div style="display: flex; gap: 4px; margin-bottom: 10px;">
+                                                <button class="btn btn-secondary btn-xs" onclick="addBranchPreset('yes_no')" style="flex: 1; font-size: 10px; font-weight: 700; padding: 4px 6px;">+ Yes / No</button>
+                                                <button class="btn btn-secondary btn-xs" onclick="addBranchPreset('role')" style="flex: 1; font-size: 10px; font-weight: 700; padding: 4px 6px;">+ Role Split</button>
+                                                <button class="btn btn-secondary btn-xs" onclick="addBranchPreset('error')" style="flex: 1; font-size: 10px; font-weight: 700; padding: 4px 6px;">+ Fallback</button>
+                                            </div>
+
+                                            <!-- Visual Branch List Container -->
+                                            <div id="stepBranchList" class="step-branch-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;"></div>
+
+                                            <button id="btnAddStepBranch" class="btn btn-primary btn-sm" style="width: 100%; justify-content: center; font-weight: 800; font-size: 11.5px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; padding: 7px 10px; box-shadow: 0 2px 8px rgba(99,102,241,0.25);">
+                                                <span>➕</span> Add Custom Decision Path
                                             </button>
                                         </div>
                                     </div>
@@ -693,20 +718,27 @@
                                     </div>
 
                                 </div>
-                                <div class="guide-card-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--bg-surface-elevated, #182234);">
-                                    <button id="saveEditsBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 700; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
-                                        ✓ Save Details
-                                    </button>
-                                    <button id="aiEnhanceStepBtn" class="btn btn-secondary btn-sm" style="font-weight: 700; color: #818cf8; border-color: rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.06);" title="AI Auto-write titles/descriptions">
-                                        ✨ AI Enhance
-                                    </button>
-                                    <button id="hideStepBtn" class="btn btn-secondary btn-sm" style="font-weight: 700; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.06);">
-                                        👁️ Hide Step
-                                    </button>
-                                    <label class="btn btn-secondary btn-sm" style="cursor: pointer; margin: 0; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-                                        📷 Replace Image
-                                        <input type="file" id="replaceScreenshotInput" accept="image/*" style="display: none;">
-                                    </label>
+                                <div class="guide-card-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); display: flex; flex-direction: column; gap: 8px; background: var(--bg-surface-elevated, #182234);">
+                                    <!-- Primary Row: Save Details + AI Polish -->
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                        <button id="saveEditsBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; font-weight: 800; font-size: 11.5px; padding: 8px 10px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);">
+                                            <span>💾</span> Save Changes
+                                        </button>
+                                        <button id="aiEnhanceStepBtn" class="btn btn-secondary btn-sm" style="font-weight: 800; font-size: 11.5px; padding: 8px 10px; color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.12); display: flex; align-items: center; justify-content: center; gap: 6px;" title="AI Auto-write titles and descriptions">
+                                            <span>✨</span> AI Polish Step
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Secondary Row: Replace Image + Hide Step -->
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                        <label class="btn btn-secondary btn-xs" style="cursor: pointer; margin: 0; font-weight: 700; font-size: 11px; padding: 6px 8px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: var(--text-main, #fff); border: 1px solid var(--border-color, rgba(255,255,255,0.12)); background: rgba(255,255,255,0.04);">
+                                            <span>📷</span> Replace Image
+                                            <input type="file" id="replaceScreenshotInput" accept="image/*" style="display: none;">
+                                        </label>
+                                        <button id="hideStepBtn" class="btn btn-secondary btn-xs" style="font-weight: 700; font-size: 11px; padding: 6px 8px; color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); background: rgba(239, 68, 68, 0.06); display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+                                            <span>👁️</span> Hide Step
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -2448,7 +2480,7 @@
         </div>
     </div>
 
-    <script src="dashboard.js?v=20260827_dual_control"></script>
+    <script src="dashboard.js?v=20260827_branch_footer"></script>
 </body>
 
 </html>
