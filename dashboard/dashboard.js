@@ -13241,7 +13241,7 @@ function initProcBotRunner() {
     }
 
     // ── Helper to dispatch execution to Chrome Extension / Target Tab ────────
-    function dispatchStepToTargetTab(step, targetVal, options = {}) {
+    function executeStepInBrowser(step, targetVal, options = {}) {
         return new Promise((resolve) => {
             const correlationId = `pb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             let resolved = false;
