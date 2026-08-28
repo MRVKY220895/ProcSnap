@@ -11829,6 +11829,12 @@ function initProcBotRunner() {
     const liveOverlay = $("procbotLiveOverlay");
     const hubProcBotBtn = $("hubActionProcBot");
     const hubCreateBotBtn = $("hubActionCreateBot");
+    const aiPromptBtn = $("btnProcbotAIPrompt");
+    const aiPromptModal = $("procbotAIPromptModal");
+    const aiPromptInput = $("procbotAIPromptInput");
+    const closeAiPromptBtn = $("btnCloseProcbotAIPromptModal");
+    const cancelAiPromptBtn = $("btnCancelProcbotAIPrompt");
+    const submitAiPromptBtn = $("btnSubmitProcbotAIPrompt");
 
     // Batch Tab Elements
     const batchCsvInput = $("procbotBatchCsvInput");
@@ -12050,6 +12056,7 @@ function initProcBotRunner() {
                             ${hostLabel ? `<span style="font-size: 10px; font-weight: 700; color: #64748b; background: #1e293b; padding: 2px 6px; border-radius: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🌐 ${hostLabel}</span>` : ''}
                             
                             <button class="procbot-test-step-btn" data-step-idx="${idx}" style="background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); border-radius: 5px; color: #38bdf8; padding: 2px 6px; font-size: 10px; font-weight: 700; cursor: pointer;" title="Dry-run this single step in browser">⚡ Test</button>
+                            <button class="procbot-pick-selector-btn" data-step-idx="${idx}" style="background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); border-radius: 5px; height: 22px; cursor: pointer; padding: 0 6px; font-size: 10px; font-weight: 700; color: #38bdf8; display: inline-flex; align-items: center; gap: 3px;" title="Interactive Point-and-Click Selector Picker on live page">🎯 Pick</button>
                             <button class="procbot-resilience-btn" data-step-idx="${idx}" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; padding: 2px 6px; font-size: 10px; font-weight: 700; cursor: pointer; color: #34d399;" title="Resilience & Retry Policy">🛡️ ${retryCount > 1 ? `${retryCount}x` : '1x'}</button>
                             <button class="procbot-breakpoint-btn" data-bp-idx="${idx}" style="background: ${step._breakpoint ? '#ef4444' : 'rgba(255,255,255,0.06)'}; border: 1px solid ${step._breakpoint ? '#ef4444' : 'rgba(255,255,255,0.12)'}; border-radius: 5px; width: 22px; height: 22px; cursor: pointer; padding: 0; font-size: 10px; color: ${step._breakpoint ? '#fff' : '#64748b'};" title="Toggle Breakpoint">●</button>
                             <button class="procbot-manual-pause-btn" data-mp-idx="${idx}" style="background: ${isManualTask ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.06)'}; border: 1px solid ${isManualTask ? '#fbbf24' : 'rgba(255,255,255,0.12)'}; border-radius: 5px; width: 22px; height: 22px; cursor: pointer; padding: 0; font-size: 11px; color: ${isManualTask ? '#fbbf24' : '#64748b'};" title="Toggle Stop for Manual Action">✋</button>
@@ -12412,6 +12419,16 @@ function initProcBotRunner() {
                 renderSteps(wf);
             };
         });
+
+        // Interactive Point-and-Click Selector Picker
+        document.querySelectorAll(".procbot-pick-selector-btn").forEach(btn => {
+            btn.onclick = () => {
+                const idx = parseInt(btn.dataset.stepIdx, 10);
+                logTerm(`🎯 Live Element Inspector active for Step #${idx + 1}. Hover and click an element on your webpage...`, "info");
+                showToast("🎯 Element Picker Active! Switch to webpage and click any element to capture.", 4500);
+                dispatchPickerToTargetTab(idx);
+            };
+        });
     }
 
     // Step Search Filter
@@ -12595,6 +12612,112 @@ function initProcBotRunner() {
     if (hubCreateBotBtn) hubCreateBotBtn.onclick = () => createNewStandaloneBot();
     if (renameBotBtn) renameBotBtn.onclick = renameCurrentBot;
     if (modalWfTitle) modalWfTitle.onclick = renameCurrentBot;
+
+    // ── Dispatch Selector Picker to Target Active Tab ────────────────────────
+    function dispatchPickerToTargetTab(stepIndex) {
+        const payload = {
+            type: "PROCSNAP_START_SELECTOR_PICKER",
+            stepIndex: stepIndex
+        };
+        window.postMessage(payload, "*");
+        try {
+            if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+                chrome.runtime.sendMessage(payload).catch(() => {});
+            }
+        } catch (_) {}
+    }
+
+    // Window Message Listener for Captured Selector
+    window.addEventListener("message", (event) => {
+        if (!event.data) return;
+        if (event.data.type === "PROCSNAP_SELECTOR_PICKED") {
+            const { stepIndex, selector, tag, text } = event.data;
+            const wf = getActiveWorkflow();
+            if (wf && wf.steps && typeof stepIndex === "number" && wf.steps[stepIndex]) {
+                wf.steps[stepIndex].custom_selector = selector;
+                if (text && (!wf.steps[stepIndex].title || wf.steps[stepIndex].title.startsWith("Step ") || wf.steps[stepIndex].title.startsWith("Click ") || wf.steps[stepIndex].title.startsWith("Input "))) {
+                    const actName = (wf.steps[stepIndex].action || "click").toUpperCase();
+                    wf.steps[stepIndex].title = `${actName} "${text.slice(0, 24)}"`;
+                }
+                renderSteps(wf);
+                logTerm(`🎯 Captured selector for Step #${stepIndex + 1}: ${selector}`, "success");
+                showToast(`🎯 Captured element selector: ${selector}`, 3500);
+            }
+        }
+    });
+
+    // ── AI Prompt to Bot Generator Modal Handlers ───────────────────────────
+    if (aiPromptBtn && aiPromptModal) {
+        aiPromptBtn.onclick = () => {
+            aiPromptModal.style.display = "flex";
+            aiPromptModal.classList.remove("hidden");
+            if (aiPromptInput) {
+                aiPromptInput.focus();
+            }
+        };
+    }
+    if (closeAiPromptBtn && aiPromptModal) {
+        closeAiPromptBtn.onclick = () => {
+            aiPromptModal.style.display = "none";
+            aiPromptModal.classList.add("hidden");
+        };
+    }
+    if (cancelAiPromptBtn && aiPromptModal) {
+        cancelAiPromptBtn.onclick = () => {
+            aiPromptModal.style.display = "none";
+            aiPromptModal.classList.add("hidden");
+        };
+    }
+    document.querySelectorAll(".btn-prompt-chip").forEach(chip => {
+        chip.onclick = () => {
+            if (aiPromptInput) {
+                aiPromptInput.value = chip.dataset.prompt;
+                aiPromptInput.focus();
+            }
+        };
+    });
+    if (submitAiPromptBtn) {
+        submitAiPromptBtn.onclick = async () => {
+            const promptText = (aiPromptInput ? aiPromptInput.value : "").trim();
+            if (!promptText) {
+                showToast("Please enter an automation prompt", 2500);
+                return;
+            }
+            try {
+                submitAiPromptBtn.disabled = true;
+                submitAiPromptBtn.innerHTML = '<span>⏳ Synthesizing Steps...</span>';
+                logTerm(`🪄 Synthesizing automation steps from prompt: "${promptText.slice(0, 40)}..."`, "info");
+                
+                const res = await fetch(`${API_BASE}/procbot/generate-from-prompt`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: promptText })
+                });
+                const data = await res.json();
+                if (data.success && data.steps && data.steps.length > 0) {
+                    const wf = getActiveWorkflow();
+                    if (wf) {
+                        wf.name = data.name || wf.name || "AI Generated Bot";
+                        wf.steps = data.steps;
+                        renderSteps(wf);
+                        if (aiPromptModal) {
+                            aiPromptModal.style.display = "none";
+                            aiPromptModal.classList.add("hidden");
+                        }
+                        showToast(`✨ Generated ${data.steps.length} steps with ${data.engine}!`, 3500);
+                        logTerm(`Successfully generated ${data.steps.length} automation steps (${data.engine})`, "success");
+                    }
+                } else {
+                    showToast(data.message || "Failed to generate steps", 3000);
+                }
+            } catch (e) {
+                showToast(`Generation error: ${e.message}`, 3000);
+            } finally {
+                submitAiPromptBtn.disabled = false;
+                submitAiPromptBtn.innerHTML = '<span>✨ Generate Bot</span>';
+            }
+        };
+    }
 
     // ── Save Bot Config Handler ───────────────────────────────────────────────
     if (saveConfigBtn) {

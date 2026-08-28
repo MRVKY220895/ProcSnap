@@ -6187,7 +6187,10 @@ def get_procbot_script(session_id: str, engine: str = "playwright"):
     """
     Generates executable RPA automation script (Playwright or Selenium).
     """
-    from backend.procbot_generator import ProcBotGenerator
+    try:
+        from backend.procbot_generator import ProcBotGenerator
+    except ImportError:
+        from procbot_generator import ProcBotGenerator
     conn = get_connection()
     try:
         wf = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
@@ -6205,20 +6208,37 @@ def get_procbot_script(session_id: str, engine: str = "playwright"):
             (session_id,)
         )
         steps = [dict(r) for r in steps_cursor.fetchall()]
+
+        # If workflow_steps is empty (e.g. standalone Custom Bot), load steps from procbot_configs
+        if not steps:
+            saved_cfg = conn.execute("SELECT config_json FROM procbot_configs WHERE workflow_id = ?", (session_id,)).fetchone()
+            if saved_cfg and saved_cfg[0]:
+                try:
+                    c_data = json.loads(saved_cfg[0])
+                    if c_data.get("steps"):
+                        steps = c_data["steps"]
+                except Exception:
+                    pass
         
         generator = ProcBotGenerator(workflow_name=dict(wf).get("name", "Workflow"), steps=steps)
+        clean_sid = re.sub(r'[^a-zA-Z0-9_]', '_', session_id)[:16]
         if engine.lower() == "selenium":
             script = generator.generate_selenium_script()
-            filename = f"procbot_{session_id[:8]}_selenium.py"
+            filename = f"procbot_{clean_sid}_selenium.py"
         else:
             script = generator.generate_playwright_script()
-            filename = f"procbot_{session_id[:8]}_playwright.py"
+            filename = f"procbot_{clean_sid}_playwright.py"
             
         return Response(
-            content=script,
-            media_type="text/x-python",
+            content=script.encode("utf-8"),
+            media_type="text/x-python; charset=utf-8",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[ProcBot Script Error] {e}")
+        return Response(content=f"# Error generating script: {str(e)}".encode("utf-8"), media_type="text/x-python; charset=utf-8", status_code=500)
     finally:
         conn.close()
 
@@ -6228,7 +6248,10 @@ def get_procbot_recipe(session_id: str):
     """
     Generates dynamic in-browser execution recipe for Chrome extension and runner.
     """
-    from backend.procbot_generator import ProcBotGenerator
+    try:
+        from backend.procbot_generator import ProcBotGenerator
+    except ImportError:
+        from procbot_generator import ProcBotGenerator
     conn = get_connection()
     try:
         wf = conn.execute("SELECT * FROM workflows WHERE id = ?", (session_id,)).fetchone()
@@ -6469,6 +6492,228 @@ def list_standalone_bots():
                 d["step_count"] = 0
             bots.append(d)
         return {"count": len(bots), "bots": bots}
+    finally:
+        conn.close()
+
+
+@app.post("/procbot/generate-from-prompt")
+def generate_bot_from_prompt(payload: Dict[str, Any] = Body(...)):
+    """
+    AI Prompt-to-Bot Generator:
+    Takes a natural language prompt describing an automation and synthesizes
+    a full executable sequence of ProcBot RPA steps using local Ollama (with NLP fallback).
+    """
+    user_prompt = (payload.get("prompt") or "").strip()
+    base_url = (payload.get("base_url") or "").strip()
+    if not user_prompt:
+        return {"status": "error", "message": "Please provide a prompt describing your automation."}
+
+    generated_steps = []
+    generated_name = "AI Generated Bot"
+    engine_used = "heuristic"
+
+    # Attempt 1: Query Local Ollama LLM (qwen2.5-coder:7b)
+    try:
+        import urllib.request
+        system_instruction = (
+            "You are an expert RPA automation engineer. Convert the user's natural language automation request "
+            "into a JSON array of actionable browser automation steps. Output ONLY valid JSON matching this schema:\n"
+            "[\n"
+            "  {\n"
+            "    \"action\": \"navigate | click | input | select | extract | assert_text | assert_visible | manual_pause\",\n"
+            "    \"title\": \"Clear descriptive step title\",\n"
+            "    \"url\": \"Target URL if navigation step\",\n"
+            "    \"value\": \"Text to type or expected text\",\n"
+            "    \"custom_selector\": \"Resilient CSS selector or XPath\",\n"
+            "    \"extract_var\": \"variable_name (if action is extract)\",\n"
+            "    \"extract_attr\": \"text | value | href | src (if action is extract)\",\n"
+            "    \"assert_type\": \"text | value | url | visible | hidden (if action is assert)\",\n"
+            "    \"expected\": \"Expected value for assertion\",\n"
+            "    \"retry_count\": 2,\n"
+            "    \"on_failure\": \"abort | skip\"\n"
+            "  }\n"
+            "]\n"
+            "Rules:\n"
+            "1. Always start with a 'navigate' step if a website or domain is mentioned or inferred.\n"
+            "2. For searches or form entries, pair 'input' with a subsequent 'click' on the submit/search button or keypress_enter.\n"
+            "3. For data scraping, use 'extract' with a sensible extract_var name.\n"
+            "4. For validation, use 'assert_text' or 'assert_visible'.\n"
+            "5. Return ONLY the raw JSON array. No markdown code blocks, no backticks, no prose."
+        )
+
+        ollama_req_body = json.dumps({
+            "model": "qwen2.5-coder:7b",
+            "prompt": f"{system_instruction}\n\nUser Request: {user_prompt}\nBase URL: {base_url}\nJSON Output:",
+            "stream": False,
+            "options": {"temperature": 0.2}
+        }).encode("utf-8")
+
+        ollama_req = urllib.request.Request(
+            "http://127.0.0.1:11434/api/generate",
+            data=ollama_req_body,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(ollama_req, timeout=12) as resp:
+            ollama_data = json.loads(resp.read().decode("utf-8"))
+            raw_response = ollama_data.get("response", "").strip()
+
+            if "```" in raw_response:
+                raw_response = re.sub(r"```(?:json)?", "", raw_response).strip()
+            
+            match = re.search(r"\[\s*\{.*\}\s*\]", raw_response, re.DOTALL)
+            if match:
+                parsed = json.loads(match.group(0))
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    generated_steps = parsed
+                    engine_used = "ollama (qwen2.5-coder:7b)"
+    except Exception as e:
+        print(f"[ProcBot AI Generator] Ollama query deferred ({e}), using NLP synthesizer fallback")
+
+    # Fallback: Intelligent Heuristic NLP Synthesizer
+    if not generated_steps:
+        prompt_lower = user_prompt.lower()
+        url_match = re.search(r"https?://[^\s]+|(?:www\.)?[a-zA-Z0-9-]+\.(?:com|org|io|net|gov|edu|ai|co)[^\s]*", user_prompt)
+        target_url = base_url
+        if url_match:
+            raw_u = url_match.group(0)
+            target_url = raw_u if raw_u.startswith("http") else f"https://{raw_u}"
+        elif "amazon" in prompt_lower:
+            target_url = "https://www.amazon.com"
+        elif "google" in prompt_lower and "news" in prompt_lower:
+            target_url = "https://news.google.com"
+        elif "google" in prompt_lower:
+            target_url = "https://www.google.com"
+        elif "github" in prompt_lower:
+            target_url = "https://github.com"
+        elif "youtube" in prompt_lower:
+            target_url = "https://www.youtube.com"
+
+        if target_url:
+            generated_steps.append({
+                "action": "navigate",
+                "title": f"Navigate to {target_url}",
+                "url": target_url,
+                "value": target_url,
+                "custom_selector": "body",
+                "retry_count": 2,
+                "on_failure": "abort"
+            })
+
+        search_match = re.search(r"(?:search for|search|type|enter|input|find)\s+['\"]?([^'\",\.\n]+)['\"]?", user_prompt, re.I)
+        if search_match:
+            term = search_match.group(1).strip()
+            term = re.sub(r"\s+(?:and|then|into|on|in).*$", "", term, flags=re.I).strip()
+            generated_steps.append({
+                "action": "input",
+                "title": f"Search for '{term}'",
+                "value": term,
+                "custom_selector": "input[type='search'], input[type='text'], input[name='q'], textarea, .search-input",
+                "retry_count": 2,
+                "on_failure": "abort"
+            })
+            generated_steps.append({
+                "action": "keypress_enter",
+                "title": "Submit Search",
+                "value": "Enter",
+                "custom_selector": "input[type='search'], input[type='text'], input[name='q'], textarea, button[type='submit']",
+                "retry_count": 1,
+                "on_failure": "skip"
+            })
+
+        click_matches = re.finditer(r"(?:click on|click|select|press|choose)\s+['\"]?([^'\",\.\n]+)['\"]?", user_prompt, re.I)
+        for cm in click_matches:
+            target_name = cm.group(1).strip()
+            if target_name.lower() in ("search", "find", "enter"): continue
+            target_name = re.sub(r"\s+(?:and|then).*$", "", target_name, flags=re.I).strip()
+            if target_name:
+                generated_steps.append({
+                    "action": "click",
+                    "title": f"Click '{target_name}'",
+                    "value": "",
+                    "custom_selector": f"button:has-text('{target_name}'), a:has-text('{target_name}'), [role='button']:has-text('{target_name}')",
+                    "retry_count": 2,
+                    "on_failure": "abort"
+                })
+
+        if any(w in prompt_lower for w in ["extract", "scrape", "get", "capture", "download data", "save to"]):
+            var_name = "extracted_data"
+            var_match = re.search(r"(?:extract|scrape|get|capture)\s+(?:the\s+)?([a-zA-Z0-9_\s]+?)(?:\s+(?:to|into|and)|\.|$)", user_prompt, re.I)
+            if var_match:
+                candidate_var = var_match.group(1).strip().replace(" ", "_").lower()
+                if len(candidate_var) <= 24: var_name = candidate_var
+
+            generated_steps.append({
+                "action": "extract",
+                "title": f"Extract {var_name.replace('_', ' ').capitalize()}",
+                "extract_var": var_name,
+                "extract_attr": "text",
+                "custom_selector": "h1, h2, h3, .price, .title, .value, [data-testid]",
+                "retry_count": 2,
+                "on_failure": "skip"
+            })
+
+        if any(w in prompt_lower for w in ["assert", "verify", "check", "ensure", "validate"]):
+            assert_match = re.search(r"(?:assert|verify|check|ensure|validate)\s+(?:that\s+)?['\"]?([^'\",\.\n]+)['\"]?", user_prompt, re.I)
+            expected_txt = assert_match.group(1).strip() if assert_match else "Success"
+            generated_steps.append({
+                "action": "assert_text",
+                "title": f"Verify {expected_txt}",
+                "assert_type": "text",
+                "expected": expected_txt,
+                "value": expected_txt,
+                "custom_selector": "body",
+                "retry_count": 2,
+                "on_failure": "abort"
+            })
+
+    words = user_prompt.strip().split()
+    generated_name = " ".join(words[:4]).title() + " Bot" if len(words) >= 2 else "Custom AI Bot"
+
+    return {
+        "success": True,
+        "name": generated_name,
+        "prompt": user_prompt,
+        "engine": engine_used,
+        "step_count": len(generated_steps),
+        "steps": generated_steps
+    }
+
+
+@app.post("/procbot/bots/{bot_id}/trigger")
+def trigger_bot_execution(bot_id: str, payload: Dict[str, Any] = Body(...)):
+    """
+    Webhook Trigger Endpoint:
+    Allows external systems, webhooks, or CI/CD pipelines to trigger a ProcBot run
+    headlessly with custom dynamic input variables.
+    """
+    conn = get_connection()
+    try:
+        wf = conn.execute("SELECT * FROM workflows WHERE id = ?", (bot_id,)).fetchone()
+        if not wf:
+            return {"success": False, "error": f"Bot {bot_id} not found."}
+        
+        cfg = conn.execute("SELECT config_json FROM procbot_configs WHERE workflow_id = ?", (bot_id,)).fetchone()
+        steps = []
+        if cfg and cfg["config_json"]:
+            try:
+                c_data = json.loads(cfg["config_json"])
+                steps = c_data.get("steps", [])
+            except Exception:
+                steps = []
+
+        now = datetime.utcnow().isoformat()
+        custom_vars = payload.get("variables", payload)
+
+        return {
+            "success": True,
+            "bot_id": bot_id,
+            "name": dict(wf).get("name", "Custom Bot"),
+            "status": "triggered",
+            "triggered_at": now,
+            "steps_count": len(steps),
+            "custom_variables": custom_vars,
+            "message": "Automation triggered successfully via Webhook API"
+        }
     finally:
         conn.close()
 

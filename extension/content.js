@@ -1899,6 +1899,210 @@ function removeProcBotManualHUD() {
     if (existing) existing.remove();
 }
 
+// ── ProcBot Live Point-and-Click Selector Inspector ──────────────────────────
+let procBotPickerActive = false;
+let procBotPickerStepIdx = null;
+let procBotPickerOverlay = null;
+let procBotPickerTooltip = null;
+let procBotPickerBar = null;
+
+function computeOptimalSelector(el) {
+    if (!el || el.nodeType !== Node.ELEMENT_NODE) return "";
+    
+    // Check ID
+    if (el.id && !/^[0-9]/.test(el.id) && !el.id.includes(":") && !el.id.includes(".")) {
+        return `#${el.id}`;
+    }
+    // Check unique data attributes
+    const testAttrs = ["data-testid", "data-test", "data-qa", "name", "aria-label", "placeholder"];
+    for (const attr of testAttrs) {
+        const val = el.getAttribute(attr);
+        if (val) {
+            const sel = `${el.tagName.toLowerCase()}[${attr}="${CSS.escape(val)}"]`;
+            try {
+                if (document.querySelectorAll(sel).length === 1) return sel;
+            } catch (_) {}
+        }
+    }
+    // Check button or link with text
+    const text = (el.innerText || el.textContent || "").trim();
+    if (["button", "a"].includes(el.tagName.toLowerCase()) && text && text.length < 30) {
+        return `${el.tagName.toLowerCase()}:has-text("${text.replace(/"/g, '\\"')}")`;
+    }
+    // Check unique classes
+    if (el.className && typeof el.className === "string") {
+        const classes = el.className.split(/\s+/).filter(c => c && !c.includes(":") && !c.startsWith("procbot") && !c.startsWith("procsnap"));
+        if (classes.length > 0) {
+            const sel = `${el.tagName.toLowerCase()}.${classes.slice(0, 2).map(c => CSS.escape(c)).join(".")}`;
+            try {
+                if (document.querySelectorAll(sel).length === 1) return sel;
+            } catch (_) {}
+        }
+    }
+    // Structural nth-of-type path fallback
+    let path = [];
+    let curr = el;
+    while (curr && curr.nodeType === Node.ELEMENT_NODE && curr.tagName.toLowerCase() !== "html") {
+        let tag = curr.tagName.toLowerCase();
+        if (curr.id && !/^[0-9]/.test(curr.id)) {
+            path.unshift(`#${curr.id}`);
+            break;
+        }
+        let sibling = curr;
+        let nth = 1;
+        while ((sibling = sibling.previousElementSibling)) {
+            if (sibling.tagName.toLowerCase() === tag) nth++;
+        }
+        path.unshift(`${tag}:nth-of-type(${nth})`);
+        curr = curr.parentElement;
+        if (path.length >= 4) break;
+    }
+    return path.join(" > ");
+}
+
+function startProcBotSelectorPicker(stepIdx) {
+    if (procBotPickerActive) stopProcBotSelectorPicker();
+    procBotPickerActive = true;
+    procBotPickerStepIdx = stepIdx;
+
+    // Top instruction bar
+    procBotPickerBar = document.createElement("div");
+    procBotPickerBar.id = "procbot-picker-bar";
+    procBotPickerBar.style.cssText = `
+        position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+        background: linear-gradient(135deg, #0f172a, #1e293b); color: #38bdf8;
+        border: 2px solid #38bdf8; border-radius: 30px; padding: 8px 22px;
+        font-family: system-ui, sans-serif; font-size: 13px; font-weight: 800;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 20px rgba(56,189,248,0.4);
+        z-index: 2147483647; display: flex; align-items: center; gap: 12px;
+        pointer-events: auto; cursor: default; user-select: none;
+    `;
+    procBotPickerBar.innerHTML = `
+        <span>🎯 <strong>ProcBot Inspector:</strong> Hover &amp; Click any element to capture selector</span>
+        <button id="btn-cancel-procbot-picker" style="background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; cursor: pointer;">✕ Cancel (ESC)</button>
+    `;
+    document.body.appendChild(procBotPickerBar);
+
+    document.getElementById("btn-cancel-procbot-picker")?.addEventListener("click", stopProcBotSelectorPicker);
+
+    // Hover Highlight Box
+    procBotPickerOverlay = document.createElement("div");
+    procBotPickerOverlay.id = "procbot-picker-overlay";
+    procBotPickerOverlay.style.cssText = `
+        position: fixed; pointer-events: none; border: 2px solid #38bdf8;
+        background: rgba(56,189,248,0.18); border-radius: 4px; z-index: 2147483646;
+        transition: all 0.06s ease; display: none; box-shadow: 0 0 15px rgba(56,189,248,0.5);
+    `;
+    document.body.appendChild(procBotPickerOverlay);
+
+    // Tooltip
+    procBotPickerTooltip = document.createElement("div");
+    procBotPickerTooltip.id = "procbot-picker-tooltip";
+    procBotPickerTooltip.style.cssText = `
+        position: fixed; pointer-events: none; background: #0b0f19; color: #fff;
+        border: 1px solid rgba(56,189,248,0.5); border-radius: 6px; padding: 4px 8px;
+        font-family: monospace; font-size: 11px; font-weight: 700; z-index: 2147483647;
+        display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    `;
+    document.body.appendChild(procBotPickerTooltip);
+
+    document.addEventListener("mousemove", onProcBotPickerMouseMove, true);
+    document.addEventListener("click", onProcBotPickerClick, true);
+    document.addEventListener("keydown", onProcBotPickerKeyDown, true);
+}
+
+function stopProcBotSelectorPicker() {
+    procBotPickerActive = false;
+    procBotPickerStepIdx = null;
+    if (procBotPickerBar) procBotPickerBar.remove();
+    if (procBotPickerOverlay) procBotPickerOverlay.remove();
+    if (procBotPickerTooltip) procBotPickerTooltip.remove();
+    document.removeEventListener("mousemove", onProcBotPickerMouseMove, true);
+    document.removeEventListener("click", onProcBotPickerClick, true);
+    document.removeEventListener("keydown", onProcBotPickerKeyDown, true);
+}
+
+function onProcBotPickerMouseMove(e) {
+    if (!procBotPickerActive) return;
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    if (!target || target === procBotPickerBar || procBotPickerBar?.contains(target) || target === procBotPickerOverlay || target === procBotPickerTooltip) return;
+
+    const rect = target.getBoundingClientRect();
+    if (procBotPickerOverlay) {
+        procBotPickerOverlay.style.display = "block";
+        procBotPickerOverlay.style.top = `${rect.top}px`;
+        procBotPickerOverlay.style.left = `${rect.left}px`;
+        procBotPickerOverlay.style.width = `${rect.width}px`;
+        procBotPickerOverlay.style.height = `${rect.height}px`;
+    }
+
+    if (procBotPickerTooltip) {
+        const sel = computeOptimalSelector(target);
+        const text = (target.innerText || target.textContent || "").trim().slice(0, 25);
+        procBotPickerTooltip.style.display = "block";
+        procBotPickerTooltip.style.top = `${Math.max(10, rect.top - 28)}px`;
+        procBotPickerTooltip.style.left = `${rect.left}px`;
+        procBotPickerTooltip.textContent = `${target.tagName.toLowerCase()}${sel ? ` | ${sel}` : ''}${text ? ` "${text}"` : ''}`;
+    }
+}
+
+function onProcBotPickerClick(e) {
+    if (!procBotPickerActive) return;
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    if (!target || target === procBotPickerBar || procBotPickerBar?.contains(target)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    const selector = computeOptimalSelector(target);
+    const text = (target.innerText || target.textContent || "").trim().slice(0, 50);
+    const tag = target.tagName.toLowerCase();
+
+    // Success flash
+    if (procBotPickerOverlay) {
+        procBotPickerOverlay.style.borderColor = "#10b981";
+        procBotPickerOverlay.style.background = "rgba(16,185,129,0.3)";
+    }
+
+    const payload = {
+        type: "PROCSNAP_SELECTOR_PICKED",
+        stepIndex: procBotPickerStepIdx,
+        selector: selector,
+        tag: tag,
+        text: text
+    };
+
+    try {
+        chrome.runtime.sendMessage(payload);
+    } catch (_) {}
+    window.postMessage(payload, "*");
+
+    setTimeout(() => {
+        stopProcBotSelectorPicker();
+    }, 250);
+}
+
+function onProcBotPickerKeyDown(e) {
+    if (e.key === "Escape") {
+        stopProcBotSelectorPicker();
+    }
+}
+
+// Runtime message receiver in Content Script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "PROCSNAP_START_SELECTOR_PICKER") {
+        startProcBotSelectorPicker(message.stepIndex);
+        sendResponse({ success: true });
+        return true;
+    }
+    if (message.type === "PROCSNAP_STOP_SELECTOR_PICKER") {
+        stopProcBotSelectorPicker();
+        sendResponse({ success: true });
+        return true;
+    }
+});
+
 // Window message bridge for Dashboard / Webpage communication
 window.addEventListener("message", (event) => {
     if (event.source !== window || !event.data) return;
@@ -1917,5 +2121,7 @@ window.addEventListener("message", (event) => {
                 }, "*");
             });
         } catch (_) {}
+    } else if (event.data.type === "PROCSNAP_START_SELECTOR_PICKER") {
+        startProcBotSelectorPicker(event.data.stepIndex);
     }
 });

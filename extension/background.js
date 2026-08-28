@@ -1152,6 +1152,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true });
         return true;
     }
+
+    if (message.type === "PROCSNAP_START_SELECTOR_PICKER") {
+        chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+            if (tabs[0]?.id) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    type: "PROCSNAP_START_SELECTOR_PICKER",
+                    stepIndex: message.stepIndex
+                }).catch(() => {});
+            }
+        });
+        sendResponse({ success: true });
+        return true;
+    }
+
+    if (message.type === "PROCSNAP_SELECTOR_PICKED") {
+        chrome.tabs.query({}).then(tabs => {
+            for (const t of tabs) {
+                chrome.tabs.sendMessage(t.id, message).catch(() => {});
+            }
+        });
+        sendResponse({ success: true });
+        return true;
+    }
 });
 
 /* =========================================================
