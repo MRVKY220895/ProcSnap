@@ -12821,18 +12821,53 @@ function initProcBotRunner() {
                 });
                 const data = await res.json();
                 if (data.success && data.steps && data.steps.length > 0) {
-                    const wf = getActiveWorkflow();
-                    if (wf) {
+                    let wf = getActiveWorkflow();
+                    if (!wf) {
+                        wf = {
+                            id: "bot_" + Date.now(),
+                            name: data.name || "AI Generated Bot",
+                            steps: data.steps
+                        };
+                        procBotTargetWorkflow = wf;
+                    } else {
                         wf.name = data.name || wf.name || "AI Generated Bot";
                         wf.steps = data.steps;
-                        renderSteps(wf);
-                        if (aiPromptModal) {
-                            aiPromptModal.style.display = "none";
-                            aiPromptModal.classList.add("hidden");
-                        }
-                        showToast(`✨ Generated ${data.steps.length} steps with ${data.engine}!`, 3500);
-                        logTerm(`Successfully generated ${data.steps.length} automation steps (${data.engine})`, "success");
                     }
+
+                    if (modal) {
+                        modal.style.display = "block";
+                        modal.classList.remove("hidden");
+                    }
+                    if (wfSelector) wfSelector.style.display = "none";
+                    if ($("procbotModalWfTitle")) $("procbotModalWfTitle").textContent = `ProcBot: ${wf.name}`;
+                    
+                    switchProcBotTab("builder");
+                    renderSteps(wf);
+
+                    if (aiPromptModal) {
+                        aiPromptModal.style.display = "none";
+                        aiPromptModal.classList.add("hidden");
+                    }
+                    showToast(`✨ Generated ${data.steps.length} steps with ${data.engine}!`, 3500);
+                    logTerm(`Successfully generated ${data.steps.length} automation steps (${data.engine})`, "success");
+
+                    // Automatically persist to backend as a saved custom bot
+                    try {
+                        fetch(`${API_BASE}/procbot/bots`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                name: wf.name,
+                                description: `AI Generated from prompt: "${promptText}"`,
+                                steps: wf.steps
+                            })
+                        }).then(r => r.json()).then(saveRes => {
+                            if (saveRes && saveRes.bot_id) {
+                                wf.id = saveRes.bot_id;
+                                logTerm(`Saved bot to server (${saveRes.bot_id})`, "dim");
+                            }
+                        }).catch(() => {});
+                    } catch (_) {}
                 } else {
                     showToast(data.message || "Failed to generate steps", 3000);
                 }
