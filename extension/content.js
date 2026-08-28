@@ -1898,3 +1898,24 @@ function removeProcBotManualHUD() {
     const existing = document.getElementById("procbot-manual-hud");
     if (existing) existing.remove();
 }
+
+// Window message bridge for Dashboard / Webpage communication
+window.addEventListener("message", (event) => {
+    if (event.source !== window || !event.data) return;
+    if (event.data.type === "PROCSNAP_PROCBOT_EXECUTE_STEP") {
+        try {
+            chrome.runtime.sendMessage({
+                type: "PROCBOT_EXECUTE_STEP",
+                step: event.data.step,
+                value: event.data.value,
+                options: event.data.options
+            }, (res) => {
+                window.postMessage({
+                    type: "PROCSNAP_PROCBOT_EXECUTE_STEP_RESPONSE",
+                    correlationId: event.data.correlationId,
+                    response: res || { success: true }
+                }, "*");
+            });
+        } catch (_) {}
+    }
+});

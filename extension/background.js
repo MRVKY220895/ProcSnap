@@ -868,11 +868,145 @@ chrome.runtime.onMessage.addListener(
             return true;
         }
 
+        /* -----------------------------------------------
+           🤖 PROCBOT AUTOMATION RELAY TO TARGET TAB
+        ------------------------------------------------ */
+        if (message.type === "PROCBOT_EXECUTE_STEP") {
+            (async () => {
+                try {
+                    const step = message.step || {};
+                    const stepUrl = step.url || "";
+                    const isDesktopAction = stepUrl === "app.local" || (step.action || "").includes("desktop");
+
+                    if (isDesktopAction) {
+                        sendResponse({ success: true, action: "desktop_simulated", title: step.title || "Desktop Step" });
+                        return;
+                    }
+
+                    const tabs = await chrome.tabs.query({});
+                    const candidateTabs = tabs.filter(t => t.url && !t.url.includes("127.0.0.1:8000/dashboard") && !t.url.startsWith("chrome://") && !t.url.startsWith("chrome-extension://"));
+                    
+                    let targetTab = candidateTabs[0];
+                    if (stepUrl && stepUrl.startsWith("http")) {
+                        try {
+                            const stepHost = new URL(stepUrl).hostname;
+                            const matched = candidateTabs.find(t => t.url && t.url.includes(stepHost));
+                            if (matched) targetTab = matched;
+                        } catch (_) {}
+                    }
+
+                    if (!targetTab && stepUrl && stepUrl.startsWith("http")) {
+                        targetTab = await chrome.tabs.create({ url: stepUrl });
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
+
+                    if (!targetTab) {
+                        const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                        targetTab = activeTabs[0];
+                    }
+
+                    if (!targetTab || !targetTab.id) {
+                        sendResponse({ success: false, error: "No target browser tab found to execute automation step." });
+                        return;
+                    }
+
+                    try {
+                        if (chrome.scripting && chrome.scripting.executeScript) {
+                            await chrome.scripting.executeScript({
+                                target: { tabId: targetTab.id },
+                                files: ["content.js"]
+                            });
+                        }
+                    } catch (_) {}
+
+                    chrome.tabs.sendMessage(targetTab.id, {
+                        type: "PROCBOT_EXECUTE_STEP",
+                        step: message.step,
+                        value: message.value,
+                        options: message.options || {}
+                    }, (res) => {
+                        if (chrome.runtime.lastError) {
+                            sendResponse({ success: false, error: chrome.runtime.lastError.message });
+                        } else {
+                            sendResponse(res || { success: true });
+                        }
+                    });
+                } catch (e) {
+                    sendResponse({ success: false, error: e.message });
+                }
+            })();
+            return true;
+        }
+
+        if (message.type === "PROCBOT_RESUME_MANUAL") {
+            chrome.tabs.query({}, (tabs) => {
+                tabs.forEach(t => {
+                    if (t.id) chrome.tabs.sendMessage(t.id, { type: "PROCBOT_RESUME_MANUAL" }).catch(() => {});
+                });
+            });
+            sendResponse({ success: true });
+            return false;
+        }
+
         // Fallback for unhandled message types
         sendResponse({ success: false, error: "Unknown message type" });
         return false;
     }
 );
+
+// Listen for external messages from dashboard.html origin
+if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessageExternal) {
+    chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+        if (message.type === "PROCBOT_EXECUTE_STEP") {
+            (async () => {
+                try {
+                    const step = message.step || {};
+                    const stepUrl = step.url || "";
+                    const isDesktopAction = stepUrl === "app.local" || (step.action || "").includes("desktop");
+
+                    if (isDesktopAction) {
+                        sendResponse({ success: true, action: "desktop_simulated", title: step.title || "Desktop Step" });
+                        return;
+                    }
+
+                    const tabs = await chrome.tabs.query({});
+                    const candidateTabs = tabs.filter(t => t.url && !t.url.includes("127.0.0.1:8000/dashboard") && !t.url.startsWith("chrome://") && !t.url.startsWith("chrome-extension://"));
+                    
+                    let targetTab = candidateTabs[0];
+                    if (stepUrl && stepUrl.startsWith("http")) {
+                        try {
+                            const stepHost = new URL(stepUrl).hostname;
+                            const matched = candidateTabs.find(t => t.url && t.url.includes(stepHost));
+                            if (matched) targetTab = matched;
+                        } catch (_) {}
+                    }
+
+                    if (!targetTab && stepUrl && stepUrl.startsWith("http")) {
+                        targetTab = await chrome.tabs.create({ url: stepUrl });
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
+
+                    if (!targetTab || !targetTab.id) {
+                        sendResponse({ success: false, error: "No target tab found" });
+                        return;
+                    }
+
+                    chrome.tabs.sendMessage(targetTab.id, {
+                        type: "PROCBOT_EXECUTE_STEP",
+                        step: message.step,
+                        value: message.value,
+                        options: message.options || {}
+                    }, (res) => {
+                        sendResponse(res || { success: true });
+                    });
+                } catch (e) {
+                    sendResponse({ success: false, error: e.message });
+                }
+            })();
+            return true;
+        }
+    });
+}
 
 
 /* =========================================================

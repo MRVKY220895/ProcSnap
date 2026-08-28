@@ -12779,8 +12779,66 @@ function initProcBotRunner() {
         [stopBtn, pauseBtn, resumeBtn, nextStepBtn].forEach(b => { if (b) b.classList.add("hidden"); });
     }
 
+    // ── Helper to dispatch execution to Chrome Extension / Target Tab ────────
+    function dispatchStepToTargetTab(step, targetVal, options = {}) {
+        return new Promise((resolve) => {
+            const correlationId = `pb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            let resolved = false;
+
+            const onMsg = (e) => {
+                if (e.data && e.data.type === "PROCSNAP_PROCBOT_EXECUTE_STEP_RESPONSE" && e.data.correlationId === correlationId) {
+                    window.removeEventListener("message", onMsg);
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(e.data.response || { success: true });
+                    }
+                }
+            };
+            window.addEventListener("message", onMsg);
+
+            // Attempt 1: Direct chrome.runtime.sendMessage
+            try {
+                if (window.chrome && chrome.runtime && typeof chrome.runtime.sendMessage === "function") {
+                    chrome.runtime.sendMessage({
+                        type: "PROCBOT_EXECUTE_STEP",
+                        step: step,
+                        value: targetVal,
+                        options: options
+                    }, (res) => {
+                        if (!resolved) {
+                            resolved = true;
+                            window.removeEventListener("message", onMsg);
+                            resolve(res || { success: true });
+                        }
+                    });
+                }
+            } catch (_) {}
+
+            // Attempt 2: PostMessage to Content Script Bridge
+            window.postMessage({
+                type: "PROCSNAP_PROCBOT_EXECUTE_STEP",
+                correlationId: correlationId,
+                step: step,
+                value: targetVal,
+                options: options
+            }, "*");
+
+            // Safeguard timeout (10s max per step)
+            setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    window.removeEventListener("message", onMsg);
+                    resolve({ success: true, timeout_fallback: true });
+                }
+            }, 10000);
+        });
+    }
+
     // ── Main Single-Run Execution Engine ──────────────────────────────────────
-    if (runBtn) runBtn.onclick = async () => executeSingleRunner();
+    if (runBtn) runBtn.onclick = async () => {
+        switchProcBotTab("monitor");
+        executeSingleRunner();
+    };
     if (quickRunBtn) quickRunBtn.onclick = async () => {
         switchProcBotTab("monitor");
         executeSingleRunner();
@@ -12829,6 +12887,7 @@ function initProcBotRunner() {
             const isManualTask = act === "manual_pause" || act === "manual_task" || step.manual_pause || step._manualPause;
             const isAssert = act.startsWith("assert") || act === "verify" || act === "check";
             const isExtract = act === "extract";
+            const isDesktop = (step.url === "app.local") || act.includes("desktop");
 
             // Highlight card
             document.querySelectorAll(".procbot-step-card").forEach(c => {
@@ -12867,7 +12926,9 @@ function initProcBotRunner() {
                 logTerm(`🔍 [${i + 1}/${total}] ASSERT: ${title} (Expected: "${step.expected || targetVal}")`, "info");
             } else if (isExtract) {
                 logTerm(`📥 [${i + 1}/${total}] EXTRACT: ${title} ➔ {{${step.extract_var || varKey}}}`, "info");
-            } else if (act.includes("navigate") || (i === 0 && step.url)) {
+            } else if (isDesktop) {
+                logTerm(`🖥️ [${i + 1}/${total}] Desktop Action: ${title}`, "dim");
+            } else if (act.includes("navigate") || (i === 0 && step.url && step.url.startsWith("http"))) {
                 logTerm(`🌐 [${i + 1}/${total}] Navigate: ${step.url || "target app"}`, "info");
             } else if (["input", "change", "textarea_input", "type"].includes(act)) {
                 logTerm(`⌨️ [${i + 1}/${total}] Type "${targetVal.slice(0, 25)}" ➔ ${title}`, "info");
