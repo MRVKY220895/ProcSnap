@@ -879,25 +879,58 @@ def get_sessions():
 @app.get("/sessions/{session_id}/cover")
 def get_session_cover_image(session_id: str):
     """
-    Returns the first step's screenshot or cover image for the workflow session.
+    Returns the first step's screenshot or an attractive SVG cover placeholder for the workflow session.
     """
     conn = get_connection()
     try:
         cur = conn.cursor()
+        wf_row = cur.execute("SELECT name, application, tags FROM workflows WHERE id = ?", (session_id,)).fetchone()
+        wf_name = (wf_row["name"] if wf_row and wf_row["name"] else "ProcSnap Workflow").strip()
+        wf_app = (wf_row["application"] if wf_row and wf_row["application"] else "Application").strip()
+        wf_tags = (wf_row["tags"] if wf_row and wf_row["tags"] else "").lower()
+        is_bot = "procbot" in wf_tags or "bot" in wf_tags or "rpa" in wf_tags or "automation" in wf_tags
+        
         step = cur.execute(
-            "SELECT screenshot_path FROM workflow_steps WHERE workflow_id = ? ORDER BY sequence ASC LIMIT 1",
+            "SELECT screenshot_path FROM workflow_steps WHERE workflow_id = ? AND screenshot_path IS NOT NULL AND screenshot_path != '' ORDER BY sequence ASC LIMIT 1",
             (session_id,)
         ).fetchone()
-        if not step or not step["screenshot_path"]:
-            raise HTTPException(status_code=404, detail="No screenshot found for this session")
         
-        img_file = BASE_DIR / step["screenshot_path"]
-        if not img_file.exists():
-            img_file = BASE_DIR / "screenshots" / session_id / Path(step["screenshot_path"]).name
-        if not img_file.exists():
-            raise HTTPException(status_code=404, detail="Screenshot file not found on disk")
+        if step and step["screenshot_path"]:
+            img_file = BASE_DIR / step["screenshot_path"]
+            if not img_file.exists():
+                img_file = BASE_DIR / "screenshots" / session_id / Path(step["screenshot_path"]).name
+            if img_file.exists():
+                return FileResponse(img_file, media_type="image/png")
         
-        return FileResponse(img_file, media_type="image/png")
+        # Fallback: Generate dynamic SVG placeholder with high aesthetic gradient
+        icon = "🤖" if is_bot else "📋"
+        badge = "PROCBOT RPA" if is_bot else "SOP GUIDE"
+        bg_grad1 = "#312e81" if is_bot else "#1e293b"
+        bg_grad2 = "#0f172a"
+        accent = "#818cf8" if is_bot else "#38bdf8"
+        
+        # Safe XML escaping for SVG
+        safe_name = wf_name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+        if len(safe_name) > 36:
+            safe_name = safe_name[:34] + "..."
+        safe_app = wf_app.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+        
+        svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 225" width="400" height="225">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="{bg_grad1}"/>
+      <stop offset="100%" stop-color="{bg_grad2}"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#g)"/>
+  <circle cx="200" cy="80" r="34" fill="rgba(255,255,255,0.06)" stroke="{accent}" stroke-width="1.5"/>
+  <text x="200" y="93" font-size="30" text-anchor="middle" font-family="system-ui, sans-serif">{icon}</text>
+  <rect x="135" y="124" width="130" height="18" rx="9" fill="rgba(99,102,241,0.2)" stroke="{accent}" stroke-width="0.8"/>
+  <text x="200" y="137" font-size="9" font-weight="800" fill="{accent}" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" letter-spacing="1">{badge}</text>
+  <text x="200" y="168" font-size="13" font-weight="700" fill="#f8fafc" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif">{safe_name}</text>
+  <text x="200" y="188" font-size="11" font-weight="500" fill="#94a3b8" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif">{safe_app}</text>
+</svg>'''
+        return Response(content=svg, media_type="image/svg+xml")
     finally:
         conn.close()
 
@@ -6234,6 +6267,8 @@ def get_procbot_script(session_id: str, engine: str = "playwright"):
             media_type="text/x-python; charset=utf-8",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
