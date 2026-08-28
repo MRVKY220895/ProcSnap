@@ -11937,6 +11937,8 @@ function initProcBotRunner() {
         document.head.appendChild(style);
     }
 
+    let typewriterTimer = null;
+
     function showLiveScreenshot(wf, stepIdx, overrideVal) {
         if (!liveScreenshot || !liveOverlay) return;
         const activeWf = wf || getActiveWorkflow();
@@ -11945,7 +11947,7 @@ function initProcBotRunner() {
         const act = (step.action || "click").toLowerCase();
         const title = step.edited_title || step.title || `Step ${stepIdx + 1}`;
         const targetVal = overrideVal !== undefined ? overrideVal : (step.value || "");
-        const targetUrl = step.url || (activeWf.steps[0] ? activeWf.steps[0].url : "") || "https://google.com";
+        const targetUrl = step.url || (activeWf.steps[0] ? activeWf.steps[0].url : "") || "https://app.procsnap.local";
         const customSel = step.custom_selector || (step.element ? (step.element.cssSelector || step.element.xpath || (step.element.id ? `#${step.element.id}` : "")) : "");
         const isInput = ["input", "change", "textarea_input", "type"].includes(act);
         const isSelect = ["select", "dropdown"].includes(act);
@@ -11955,6 +11957,12 @@ function initProcBotRunner() {
         const isManualTask = act === "manual_pause" || act === "manual_task" || step.manual_pause || step._manualPause;
 
         if (stepSeqIndicator) stepSeqIndicator.textContent = `Step ${stepIdx + 1} of ${activeWf.steps.length}`;
+
+        // Clear any previous typewriter timer
+        if (typewriterTimer) {
+            clearInterval(typewriterTimer);
+            typewriterTimer = null;
+        }
 
         // Action visual badges
         let actIcon = "🖱️";
@@ -11968,89 +11976,109 @@ function initProcBotRunner() {
         else if (isAssert) { actIcon = "🔍"; actBadge = "ASSERT CHECK"; actColor = "#22d3ee"; actBg = "rgba(6,182,212,0.15)"; }
         else if (isManualTask) { actIcon = "✋"; actBadge = "HUMAN ACTION"; actColor = "#fbbf24"; actBg = "rgba(251,191,36,0.15)"; }
 
-        // Function to render the Virtual Browser Simulator Canvas
-        const renderVirtualSimulator = () => {
-            liveScreenshot.style.display = "none";
-            liveOverlay.style.cssText = "position:absolute;inset:0;display:flex;flex-direction:column;background:#090d16;overflow:hidden;";
-            liveOverlay.innerHTML = `
-                <!-- Virtual Browser Chrome Bar -->
-                <div style="background: #111827; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
-                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
-                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-                    </div>
-                    <!-- Address Bar -->
-                    <div style="flex: 1; max-width: 480px; background: #080c14; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 10px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        <span style="color: #10b981; font-size: 10px;">🔒</span>
-                        <span style="color: #f8fafc; font-weight: 600;">${esc(targetUrl)}</span>
-                    </div>
-                    <span style="font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: ${actBg}; color: ${actColor}; border: 1px solid ${actColor}40;">${actIcon} ${actBadge}</span>
+        // Render Live Interactive Webpage Viewport
+        liveScreenshot.style.display = "none";
+        liveOverlay.style.cssText = "position:absolute;inset:0;display:flex;flex-direction:column;background:#090d16;overflow:hidden;";
+        liveOverlay.innerHTML = `
+            <!-- Chrome Browser Navigation Bar -->
+            <div style="background: #111827; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
                 </div>
+                <!-- Address Bar with Live URL -->
+                <div style="flex: 1; max-width: 520px; background: #080c14; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 5px 12px; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #94a3b8; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <span style="color: #10b981; font-size: 11px;">🔒</span>
+                    <span style="color: #38bdf8; font-weight: 700;">${esc(targetUrl)}</span>
+                </div>
+                <span style="font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 6px; background: ${actBg}; color: ${actColor}; border: 1px solid ${actColor}40;">${actIcon} ${actBadge}</span>
+            </div>
 
-                <!-- Virtual Page Viewport & Active Step Stage -->
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; gap: 14px; position: relative; background: radial-gradient(circle at center, rgba(99,102,241,0.08) 0%, transparent 70%);">
-                    <!-- Wireframe Header Placeholder -->
-                    <div style="position: absolute; top: 12px; left: 16px; right: 16px; display: flex; justify-content: space-between; opacity: 0.25;">
-                        <div style="width: 80px; height: 10px; background: #94a3b8; border-radius: 4px;"></div>
-                        <div style="display: flex; gap: 8px;">
-                            <div style="width: 40px; height: 10px; background: #94a3b8; border-radius: 4px;"></div>
-                            <div style="width: 40px; height: 10px; background: #94a3b8; border-radius: 4px;"></div>
+            <!-- Live Interactive Webpage Viewport -->
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; position: relative; background: radial-gradient(circle at center, rgba(99,102,241,0.06) 0%, #090d16 80%); overflow-y: auto;">
+                
+                <!-- Live Web Form Container -->
+                <div style="background: rgba(17,24,39,0.92); border: 2px solid ${actColor}; border-radius: 14px; padding: 24px; width: 92%; max-width: 500px; box-shadow: 0 0 40px ${actColor}25, 0 15px 35px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 16px; backdrop-filter: blur(10px); position: relative;">
+                    
+                    <!-- Form Title & Badge -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 36px; height: 36px; border-radius: 10px; background: ${actBg}; border: 1px solid ${actColor}40; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                                ${actIcon}
+                            </div>
+                            <div>
+                                <div style="font-size: 13.5px; font-weight: 800; color: #f8fafc;">${esc(title)}</div>
+                                <div style="font-size: 10.5px; color: #94a3b8;">${isNav ? 'Web Page Navigation' : isInput ? 'Live Text Input & Typing' : isSelect ? 'Dropdown Selection' : isExtract ? 'Data Extraction' : isAssert ? 'Validation Check' : 'Element Click'}</div>
+                            </div>
                         </div>
+                        <span style="font-size: 10.5px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25); padding: 3px 8px; border-radius: 5px;">Step ${stepIdx + 1} / ${activeWf.steps.length}</span>
                     </div>
 
-                    <!-- Centered High-Contrast Active Target Box -->
-                    <div style="background: rgba(17,24,39,0.85); border: 2px solid ${actColor}; border-radius: 12px; padding: 20px 24px; width: 90%; max-width: 420px; box-shadow: 0 0 35px ${actColor}25, 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; backdrop-filter: blur(8px); animation: procbotPulse 2s infinite ease-in-out;">
-                        <div style="width: 52px; height: 52px; border-radius: 14px; background: ${actBg}; border: 1px solid ${actColor}50; display: flex; align-items: center; justify-content: center; font-size: 26px;">
-                            ${actIcon}
+                    <!-- Live Target Field or Action -->
+                    ${isInput ? `
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: flex; justify-content: space-between;">
+                            <span>Target Input Field: <code style="color: #38bdf8; font-size: 10px;">${esc(customSel || 'input[name="q"]')}</code></span>
+                            <span style="color: #34d399; font-size: 10px; font-weight: 800;">● LIVE TYPING</span>
+                        </label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <input id="liveSimInput" type="text" value="" placeholder="Entering value..." readonly style="width: 100%; background: #080c14; border: 2px solid #34d399; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700; color: #34d399; font-family: monospace; outline: none; box-shadow: 0 0 20px rgba(52,211,153,0.25);">
+                            <span id="liveSimCaret" style="position: absolute; right: 12px; font-size: 14px; color: #34d399; animation: procbotBlink 0.8s infinite; font-weight: 800;">|</span>
                         </div>
-                        <div>
-                            <div style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-bottom: 3px;">${esc(title)}</div>
-                            <div style="font-size: 11px; color: #94a3b8;">${isNav ? 'Navigating to target URL' : isInput ? 'Entering value into form field' : isSelect ? 'Selecting dropdown option' : isExtract ? 'Extracting live page data' : isAssert ? 'Validating page content' : 'Executing mouse click'}</div>
+                    </div>` : isSelect ? `
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 11px; font-weight: 700; color: #94a3b8;">Target Dropdown Option:</label>
+                        <div style="background: #080c14; border: 2px solid #fbbf24; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; justify-content: space-between;">
+                            <span>${esc(targetVal || 'Option 1')}</span>
+                            <span style="color: #fbbf24;">✓ Selected</span>
                         </div>
+                    </div>` : isExtract ? `
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 11px; font-weight: 700; color: #94a3b8;">Extracted Data to Variable:</label>
+                        <div style="background: #080c14; border: 2px solid #c084fc; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; font-weight: 700; color: #c084fc; font-family: monospace; display: flex; align-items: center; justify-content: space-between;">
+                            <span>{{${esc(step.extract_var || 'extracted_var')}}}</span>
+                            <span style="color: #34d399;">📥 Captured</span>
+                        </div>
+                    </div>` : `
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px 0;">
+                        <button id="liveSimBtn" style="background: linear-gradient(135deg, ${actColor}, #4f46e5); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 11px 24px; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 0 25px ${actColor}40; transition: all 0.2s;">
+                            <span>${actIcon}</span>
+                            <span>${esc(title)}</span>
+                        </button>
+                        <div style="font-size: 10.5px; color: #64748b; font-family: monospace;">Target: ${esc(customSel || 'button.primary')}</div>
+                    </div>`}
 
-                        ${customSel ? `
-                        <div style="width: 100%; background: #080c14; border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 5px 8px; font-family: monospace; font-size: 10.5px; color: #38bdf8; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${esc(customSel)}">
-                            <span style="color: #64748b;">Target:</span> ${esc(customSel)}
-                        </div>` : ''}
-
-                        ${(isInput || isSelect || isExtract || isAssert) && targetVal ? `
-                        <div style="width: 100%; background: #080c14; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
-                            <span style="color: #94a3b8; font-weight: 700;">${isAssert ? 'Expected:' : isExtract ? 'Save to:' : 'Value:'}</span>
-                            <span style="color: ${actColor}; font-weight: 800; font-family: monospace;">"${esc(targetVal)}"</span>
-                        </div>` : ''}
-                    </div>
-
-                    <!-- Bottom Step Sequence Pill -->
-                    <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: #64748b;">
-                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: procbotBlink 1.2s infinite;"></span>
-                        <span>EXECUTING STEP ${stepIdx + 1} OF ${activeWf.steps.length}</span>
+                    <!-- Live Status Footer -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10b981; animation: procbotBlink 1.2s infinite;"></span>
+                            <span style="color: #10b981; font-weight: 800;">EXECUTING IN REAL TIME</span>
+                        </div>
+                        <span style="font-family: monospace; color: #94a3b8;">Engine: Browser (Live)</span>
                     </div>
                 </div>
-            `;
-        };
+            </div>
+        `;
 
-        const path = step.screenshot_path || (step.screenshotUrl ? step.screenshotUrl.replace(/^\//, '') : `screenshots/${activeWf.id}/step-${String(stepIdx + 1).padStart(3, "0")}.png`);
-        
-        // Attempt loading physical screenshot
-        const testImg = new Image();
-        testImg.onload = () => {
-            liveScreenshot.src = testImg.src;
-            liveScreenshot.style.display = "block";
-            liveOverlay.style.cssText = "position:absolute;bottom:0;left:0;right:0;padding:8px 14px;font-size:11.5px;font-weight:800;background:rgba(11,15,25,0.88);color:#38bdf8;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,0.1);";
-            liveOverlay.innerHTML = `
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <span>${actIcon}</span>
-                    <span style="color:#fff;">Step ${stepIdx + 1}:</span>
-                    <span>${esc(title)}</span>
-                </div>
-                <span style="font-size:10px;color:#94a3b8;font-family:monospace;">${customSel ? esc(customSel.slice(0, 30)) : ''}</span>
-            `;
-        };
-        testImg.onerror = () => {
-            renderVirtualSimulator();
-        };
-        testImg.src = `${API_BASE}/${path}?t=${Date.now()}`;
+        // Animate Real Character-by-Character Typewriter in Preview
+        if (isInput && targetVal) {
+            const inputEl = document.getElementById("liveSimInput");
+            if (inputEl) {
+                const chars = targetVal.split("");
+                let idx = 0;
+                inputEl.value = "";
+                typewriterTimer = setInterval(() => {
+                    if (idx < chars.length) {
+                        inputEl.value += chars[idx];
+                        idx++;
+                    } else {
+                        clearInterval(typewriterTimer);
+                        typewriterTimer = null;
+                    }
+                }, 40);
+            }
+        }
     }
 
     // ── Render Step Sequence Cards with High-Contrast UI/UX ───────────────────

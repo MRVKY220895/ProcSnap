@@ -1759,24 +1759,46 @@ async function executeProcBotInPageStep(step, dynamicValue, options = {}) {
                 }
             } else if (["input", "change", "textarea_input", "type"].includes(act) || targetEl.tagName === "INPUT" || targetEl.tagName === "TEXTAREA" || targetEl.isContentEditable) {
                 targetEl.focus();
-                if (targetEl.isContentEditable) {
-                    targetEl.innerText = val;
-                } else {
-                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-                        window.HTMLInputElement.prototype,
-                        "value"
-                    )?.set || Object.getOwnPropertyDescriptor(
-                        window.HTMLTextAreaElement.prototype,
-                        "value"
-                    )?.set;
+                
+                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype,
+                    "value"
+                )?.set || Object.getOwnPropertyDescriptor(
+                    window.HTMLTextAreaElement.prototype,
+                    "value"
+                )?.set;
 
-                    if (nativeInputValueSetter) {
-                        nativeInputValueSetter.call(targetEl, val);
+                const setValue = (v) => {
+                    if (targetEl.isContentEditable) {
+                        targetEl.innerText = v;
+                    } else if (nativeInputValueSetter) {
+                        nativeInputValueSetter.call(targetEl, v);
                     } else {
-                        targetEl.value = val;
+                        targetEl.value = v;
                     }
-                }
+                };
+
+                // Clear previous value
+                setValue("");
                 targetEl.dispatchEvent(new Event("input", { bubbles: true }));
+
+                // Animated character-by-character typing
+                const textToType = String(val || "");
+                if (textToType.length > 0 && textToType.length <= 80) {
+                    let accumulated = "";
+                    for (const char of textToType) {
+                        accumulated += char;
+                        setValue(accumulated);
+                        targetEl.dispatchEvent(new KeyboardEvent("keydown", { key: char, bubbles: true }));
+                        targetEl.dispatchEvent(new Event("input", { bubbles: true }));
+                        targetEl.dispatchEvent(new KeyboardEvent("keyup", { key: char, bubbles: true }));
+                        await new Promise(r => setTimeout(r, 35));
+                    }
+                } else {
+                    setValue(textToType);
+                    targetEl.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+
                 targetEl.dispatchEvent(new Event("change", { bubbles: true }));
                 targetEl.dispatchEvent(new Event("blur", { bubbles: true }));
             } else if (act === "dblclick" || act === "double_click") {

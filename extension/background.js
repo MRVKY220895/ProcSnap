@@ -896,8 +896,8 @@ chrome.runtime.onMessage.addListener(
                     }
 
                     if (!targetTab && stepUrl && stepUrl.startsWith("http")) {
-                        targetTab = await chrome.tabs.create({ url: stepUrl });
-                        await new Promise(r => setTimeout(r, 2000));
+                        targetTab = await chrome.tabs.create({ url: stepUrl, active: true });
+                        await new Promise(r => setTimeout(r, 2200));
                     }
 
                     if (!targetTab) {
@@ -909,6 +909,12 @@ chrome.runtime.onMessage.addListener(
                         sendResponse({ success: false, error: "No target browser tab found to execute automation step." });
                         return;
                     }
+
+                    // Bring tab to focus so user can watch it execute live
+                    try {
+                        chrome.tabs.update(targetTab.id, { active: true }).catch(() => {});
+                        if (targetTab.windowId) chrome.windows.update(targetTab.windowId, { focused: true }).catch(() => {});
+                    } catch (_) {}
 
                     try {
                         if (chrome.scripting && chrome.scripting.executeScript) {
@@ -925,6 +931,25 @@ chrome.runtime.onMessage.addListener(
                         value: message.value,
                         options: message.options || {}
                     }, (res) => {
+                        // Capture visible tab screenshot and broadcast back to dashboard
+                        setTimeout(() => {
+                            try {
+                                chrome.tabs.captureVisibleTab(targetTab.windowId || null, { format: "png" }, (dataUrl) => {
+                                    if (!chrome.runtime.lastError && dataUrl) {
+                                        chrome.tabs.query({}).then(allTabs => {
+                                            for (const t of allTabs) {
+                                                chrome.tabs.sendMessage(t.id, {
+                                                    type: "PROCSNAP_LIVE_STEP_SCREENSHOT",
+                                                    stepIndex: message.step?.sequence || message.step?.index,
+                                                    dataUrl: dataUrl
+                                                }).catch(() => {});
+                                            }
+                                        });
+                                    }
+                                });
+                            } catch (_) {}
+                        }, 250);
+
                         if (chrome.runtime.lastError) {
                             sendResponse({ success: false, error: chrome.runtime.lastError.message });
                         } else {
@@ -1170,33 +1195,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.tabs.query({}).then(tabs => {
             for (const t of tabs) {
                 chrome.tabs.sendMessage(t.id, message).catch(() => {});
-            }
-        });
-        sendResponse({ success: true });
-        return true;
-    }
-
-    if (message.type === "PROCBOT_EXECUTE_STEP") {
-        chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-            if (tabs[0]?.id) {
-                chrome.tabs.sendMessage(tabs[0].id, message).catch(() => {});
-                setTimeout(() => {
-                    try {
-                        chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
-                            if (!chrome.runtime.lastError && dataUrl) {
-                                chrome.tabs.query({}).then(allTabs => {
-                                    for (const t of allTabs) {
-                                        chrome.tabs.sendMessage(t.id, {
-                                            type: "PROCSNAP_LIVE_STEP_SCREENSHOT",
-                                            stepIndex: message.step?.index,
-                                            dataUrl: dataUrl
-                                        }).catch(() => {});
-                                    }
-                                });
-                            }
-                        });
-                    } catch (_) {}
-                }, 300);
             }
         });
         sendResponse({ success: true });
