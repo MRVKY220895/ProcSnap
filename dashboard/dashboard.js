@@ -11791,6 +11791,9 @@ function initProcBotRunner() {
     const openBtn = $("btnOpenProcBot");
     const closeBtn = $("btnCloseProcbotModal");
     const openInNewTabBtn = $("btnProcbotOpenInNewTab");
+    const newBotBtn = $("btnProcbotNewBot");
+    const renameBotBtn = $("btnProcbotRenameBot");
+    const modalWfTitle = $("procbotModalWfTitle");
     const runBtn = $("btnRunProcBotNow");
     const quickRunBtn = $("btnProcbotQuickRun");
     const stopBtn = $("btnStopProcBot");
@@ -11798,11 +11801,13 @@ function initProcBotRunner() {
     const resumeBtn = $("btnResumeProcBot");
     const nextStepBtn = $("btnNextStepProcBot");
     const saveConfigBtn = $("btnProcbotSaveConfig");
-    const addAssertBtn = $("btnProcbotAddAssertStep");
-    const addExtractBtn = $("btnProcbotAddExtractStep");
-    const addManualBtn = $("btnProcbotAddManualStep");
-    const addInputBtn = $("btnProcbotAddInputStep");
+    const addNavigateBtn = $("btnProcbotAddNavigateStep");
     const addClickBtn = $("btnProcbotAddClickStep");
+    const addInputBtn = $("btnProcbotAddInputStep");
+    const addSelectBtn = $("btnProcbotAddSelectStep");
+    const addExtractBtn = $("btnProcbotAddExtractStep");
+    const addAssertBtn = $("btnProcbotAddAssertStep");
+    const addManualBtn = $("btnProcbotAddManualStep");
     const stepSearchInput = $("procbotStepSearch");
     const stepsListEl = $("procbotStepsList");
     const termLog = $("procbotTerminalLog");
@@ -11823,6 +11828,7 @@ function initProcBotRunner() {
     const liveScreenshot = $("procbotLiveScreenshot");
     const liveOverlay = $("procbotLiveOverlay");
     const hubProcBotBtn = $("hubActionProcBot");
+    const hubCreateBotBtn = $("hubActionCreateBot");
 
     // Batch Tab Elements
     const batchCsvInput = $("procbotBatchCsvInput");
@@ -11929,6 +11935,51 @@ function initProcBotRunner() {
         if ($("procbotModalWfTitle")) $("procbotModalWfTitle").textContent = `ProcBot: ${wf.name || "Workflow"}`;
         if ($("procbotStepCountBadge")) $("procbotStepCountBadge").textContent = `${wf.steps.length} steps`;
         if (!stepsListEl) return;
+
+        // Empty State: Blank Custom Bot Canvas with Quick Starters
+        if (!wf.steps.length) {
+            stepsListEl.innerHTML = `
+                <div style="background: rgba(99,102,241,0.04); border: 2px dashed rgba(99,102,241,0.25); border-radius: 14px; padding: 36px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; margin: 10px 0;">
+                    <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.3); display: flex; align-items: center; justify-content: center; font-size: 24px;">🤖</div>
+                    <div>
+                        <h4 style="margin: 0 0 4px; font-size: 15px; font-weight: 800; color: #f8fafc;">Blank Custom RPA Bot</h4>
+                        <p style="margin: 0; font-size: 12px; color: #94a3b8; max-width: 460px;">This bot has no recorded SOP steps. Start building your automated sequence by choosing an initial action below:</p>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; width: 100%; max-width: 620px; margin-top: 6px;">
+                        <button class="btn-quick-add-step" data-act="navigate" style="background: #111827; border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 12px 8px; color: #60a5fa; font-weight: 700; font-size: 11.5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <span style="font-size: 18px;">🌐</span> Navigate URL
+                        </button>
+                        <button class="btn-quick-add-step" data-act="click" style="background: #111827; border: 1px solid rgba(99,102,241,0.3); border-radius: 8px; padding: 12px 8px; color: #818cf8; font-weight: 700; font-size: 11.5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <span style="font-size: 18px;">🖱️</span> Click Element
+                        </button>
+                        <button class="btn-quick-add-step" data-act="input" style="background: #111827; border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 12px 8px; color: #34d399; font-weight: 700; font-size: 11.5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <span style="font-size: 18px;">⌨️</span> Type Input
+                        </button>
+                        <button class="btn-quick-add-step" data-act="select" style="background: #111827; border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; padding: 12px 8px; color: #fbbf24; font-weight: 700; font-size: 11.5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <span style="font-size: 18px;">🔽</span> Select Option
+                        </button>
+                        <button class="btn-quick-add-step" data-act="extract" style="background: #111827; border: 1px solid rgba(168,85,247,0.3); border-radius: 8px; padding: 12px 8px; color: #c084fc; font-weight: 700; font-size: 11.5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <span style="font-size: 18px;">📥</span> Extract Data
+                        </button>
+                        <button class="btn-quick-add-step" data-act="assert" style="background: #111827; border: 1px solid rgba(6,182,212,0.3); border-radius: 8px; padding: 12px 8px; color: #22d3ee; font-weight: 700; font-size: 11.5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <span style="font-size: 18px;">🔍</span> Assert Check
+                        </button>
+                    </div>
+                </div>
+            `;
+            stepsListEl.querySelectorAll(".btn-quick-add-step").forEach(btn => {
+                btn.onclick = () => {
+                    const act = btn.dataset.act;
+                    if (act === "navigate") addNavigateStep();
+                    else if (act === "click") addClickStep();
+                    else if (act === "input") addInputStep();
+                    else if (act === "select") addSelectStep();
+                    else if (act === "extract") addExtractStep();
+                    else if (act === "assert") addAssertStep();
+                };
+            });
+            return;
+        }
 
         const filterQuery = (stepSearchInput ? stepSearchInput.value : "").toLowerCase().trim();
 
@@ -12368,90 +12419,182 @@ function initProcBotRunner() {
         stepSearchInput.oninput = () => renderSteps();
     }
 
-    // Toolbar Add Step Handlers
-    if (addAssertBtn) {
-        addAssertBtn.onclick = () => {
-            const wf = getActiveWorkflow();
-            if (!wf) return;
-            wf.steps = wf.steps || [];
-            wf.steps.push({
-                action: "assert_text",
-                title: `Assert Check #${wf.steps.length + 1}`,
-                assert_type: "text",
-                expected: "Expected Text",
-                value: "Expected Text",
-                retry_count: 2,
-                on_failure: "abort"
-            });
-            renderSteps(wf);
-            logTerm("Inserted 🔍 Assert Validation checkpoint", "info");
-        };
+    // ── Dedicated Step Addition Helpers ──────────────────────────────────────
+    function addNavigateStep() {
+        const wf = getActiveWorkflow();
+        if (!wf) return;
+        wf.steps = wf.steps || [];
+        const url = prompt("Enter Target URL to Navigate to:", "https://") || "https://";
+        wf.steps.push({
+            action: "navigate",
+            title: `Navigate to ${url}`,
+            url: url,
+            value: url,
+            custom_selector: "body",
+            retry_count: 2,
+            on_failure: "abort"
+        });
+        renderSteps(wf);
+        logTerm(`Inserted 🌐 Navigate URL step (${url})`, "info");
     }
-    if (addExtractBtn) {
-        addExtractBtn.onclick = () => {
-            const wf = getActiveWorkflow();
-            if (!wf) return;
-            wf.steps = wf.steps || [];
-            wf.steps.push({
-                action: "extract",
-                title: `Extract Data #${wf.steps.length + 1}`,
-                extract_var: `var_data_${wf.steps.length + 1}`,
-                extract_attr: "text",
-                retry_count: 2,
-                on_failure: "skip"
-            });
-            renderSteps(wf);
-            logTerm("Inserted 📥 Data Extraction step", "info");
-        };
+
+    function addClickStep() {
+        const wf = getActiveWorkflow();
+        if (!wf) return;
+        wf.steps = wf.steps || [];
+        wf.steps.push({
+            action: "click",
+            title: `Click Element #${wf.steps.length + 1}`,
+            value: "",
+            retry_count: 1,
+            on_failure: "abort"
+        });
+        renderSteps(wf);
+        logTerm("Inserted 🖱️ Click step", "info");
     }
-    if (addManualBtn) {
-        addManualBtn.onclick = () => {
-            const wf = getActiveWorkflow();
-            if (!wf) return;
-            wf.steps = wf.steps || [];
-            wf.steps.push({
-                action: "manual_pause",
-                title: `Manual Task #${wf.steps.length + 1}`,
-                manual_pause: true,
-                manual_instructions: "Complete manual action (CAPTCHA/OTP/Approval) and resume",
-                value: ""
-            });
-            renderSteps(wf);
-            logTerm("Inserted ✋ Manual Task step", "info");
-        };
+
+    function addInputStep() {
+        const wf = getActiveWorkflow();
+        if (!wf) return;
+        wf.steps = wf.steps || [];
+        wf.steps.push({
+            action: "input",
+            title: `Input Field #${wf.steps.length + 1}`,
+            value: "Sample Value",
+            retry_count: 1,
+            on_failure: "abort"
+        });
+        renderSteps(wf);
+        logTerm("Inserted ⌨️ Input Field step", "info");
     }
-    if (addInputBtn) {
-        addInputBtn.onclick = () => {
-            const wf = getActiveWorkflow();
-            if (!wf) return;
-            wf.steps = wf.steps || [];
-            wf.steps.push({
-                action: "input",
-                title: `Input Field #${wf.steps.length + 1}`,
-                value: "Sample Value",
-                retry_count: 1,
-                on_failure: "abort"
-            });
-            renderSteps(wf);
-            logTerm("Inserted ⌨️ Input Field step", "info");
-        };
+
+    function addSelectStep() {
+        const wf = getActiveWorkflow();
+        if (!wf) return;
+        wf.steps = wf.steps || [];
+        wf.steps.push({
+            action: "select",
+            title: `Select Option #${wf.steps.length + 1}`,
+            value: "Option Value",
+            retry_count: 2,
+            on_failure: "abort"
+        });
+        renderSteps(wf);
+        logTerm("Inserted 🔽 Dropdown Select step", "info");
     }
-    if (addClickBtn) {
-        addClickBtn.onclick = () => {
-            const wf = getActiveWorkflow();
-            if (!wf) return;
-            wf.steps = wf.steps || [];
-            wf.steps.push({
-                action: "click",
-                title: `Click Element #${wf.steps.length + 1}`,
-                value: "",
-                retry_count: 1,
-                on_failure: "abort"
-            });
-            renderSteps(wf);
-            logTerm("Inserted 🖱️ Click step", "info");
-        };
+
+    function addExtractStep() {
+        const wf = getActiveWorkflow();
+        if (!wf) return;
+        wf.steps = wf.steps || [];
+        wf.steps.push({
+            action: "extract",
+            title: `Extract Data #${wf.steps.length + 1}`,
+            extract_var: `var_data_${wf.steps.length + 1}`,
+            extract_attr: "text",
+            retry_count: 2,
+            on_failure: "skip"
+        });
+        renderSteps(wf);
+        logTerm("Inserted 📥 Data Extraction step", "info");
     }
+
+    function addAssertStep() {
+        const wf = getActiveWorkflow();
+        if (!wf) return;
+        wf.steps = wf.steps || [];
+        wf.steps.push({
+            action: "assert_text",
+            title: `Assert Check #${wf.steps.length + 1}`,
+            assert_type: "text",
+            expected: "Expected Text",
+            value: "Expected Text",
+            retry_count: 2,
+            on_failure: "abort"
+        });
+        renderSteps(wf);
+        logTerm("Inserted 🔍 Assert Validation checkpoint", "info");
+    }
+
+    function addManualStep() {
+        const wf = getActiveWorkflow();
+        if (!wf) return;
+        wf.steps = wf.steps || [];
+        wf.steps.push({
+            action: "manual_pause",
+            title: `Manual Task #${wf.steps.length + 1}`,
+            manual_pause: true,
+            manual_instructions: "Complete manual action (CAPTCHA/OTP/Approval) and resume",
+            value: ""
+        });
+        renderSteps(wf);
+        logTerm("Inserted ✋ Manual Task step", "info");
+    }
+
+    // ── Standalone Bot (Non-SOP) Creation & Renaming ─────────────────────────
+    async function createNewStandaloneBot(customName) {
+        const botName = customName || prompt("Enter a name for your new Custom RPA Bot:", `Custom RPA Bot #${Math.floor(Math.random() * 900 + 100)}`);
+        if (!botName || !botName.trim()) return;
+
+        try {
+            logTerm(`Creating standalone RPA Bot "${botName}"...`, "info");
+            const res = await fetch(`${API_BASE}/procbot/bots`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: botName.trim(),
+                    description: "Standalone Custom RPA Bot (Non-SOP)",
+                    steps: []
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                procBotTargetWorkflow = {
+                    id: data.bot_id,
+                    name: data.name,
+                    steps: []
+                };
+                if (modal) {
+                    modal.style.display = "block";
+                    modal.classList.remove("hidden");
+                }
+                switchProcBotTab("builder");
+                renderSteps(procBotTargetWorkflow);
+                if (wfSelector) wfSelector.style.display = "none";
+                showToast(`✨ Created "${data.name}"! Start adding automation steps.`, 3500);
+                logTerm(`Created new standalone bot: ${data.name} (${data.bot_id})`, "success");
+            } else {
+                showToast("Failed to create custom bot", 3000);
+            }
+        } catch (e) {
+            showToast(`Error creating bot: ${e.message}`, 3000);
+        }
+    }
+
+    function renameCurrentBot() {
+        const wf = getActiveWorkflow();
+        if (!wf) return;
+        const newName = prompt("Rename this Bot:", wf.name || "Custom RPA Bot");
+        if (newName && newName.trim()) {
+            wf.name = newName.trim();
+            if ($("procbotModalWfTitle")) $("procbotModalWfTitle").textContent = `ProcBot: ${wf.name}`;
+            showToast(`Bot renamed to "${wf.name}"`, 2000);
+            logTerm(`Bot renamed to: ${wf.name}`, "info");
+        }
+    }
+
+    // Attach Step & Bot Handlers
+    if (addNavigateBtn) addNavigateBtn.onclick = addNavigateStep;
+    if (addClickBtn) addClickBtn.onclick = addClickStep;
+    if (addInputBtn) addInputBtn.onclick = addInputStep;
+    if (addSelectBtn) addSelectBtn.onclick = addSelectStep;
+    if (addExtractBtn) addExtractBtn.onclick = addExtractStep;
+    if (addAssertBtn) addAssertBtn.onclick = addAssertStep;
+    if (addManualBtn) addManualBtn.onclick = addManualStep;
+    if (newBotBtn) newBotBtn.onclick = () => createNewStandaloneBot();
+    if (hubCreateBotBtn) hubCreateBotBtn.onclick = () => createNewStandaloneBot();
+    if (renameBotBtn) renameBotBtn.onclick = renameCurrentBot;
+    if (modalWfTitle) modalWfTitle.onclick = renameCurrentBot;
 
     // ── Save Bot Config Handler ───────────────────────────────────────────────
     if (saveConfigBtn) {
@@ -12720,11 +12863,15 @@ function initProcBotRunner() {
                     const res = await fetch(`${API_BASE}/sessions`);
                     const data = await res.json();
                     const sessions = data.sessions || data || [];
-                    wfSelect.innerHTML = '<option value="">-- Choose a recorded SOP --</option>' +
-                        sessions.map(s => `<option value="${s.id}">${esc(s.name || s.id)} (${s.step_count || "?"} steps)</option>`).join("");
+                    wfSelect.innerHTML = '<option value="">-- Choose a recorded SOP or Custom Bot --</option>' +
+                        '<option value="__NEW_BOT__" style="color:#c084fc;font-weight:800;">✨ + Create New Blank Bot (No SOP)</option>' +
+                        sessions.map(s => {
+                            const isCustom = (s.tags || "").includes("custom_bot") || (s.tags || "").includes("standalone") || s.application === "ProcBot Custom RPA";
+                            return `<option value="${s.id}">${isCustom ? '🤖 [CUSTOM BOT] ' : ''}${esc(s.name || s.id)} (${s.step_count || "?"} steps)</option>`;
+                        }).join("");
                 } catch(e) { wfSelect.innerHTML = '<option value="">Failed to load</option>'; }
             }
-            if (stepsListEl) stepsListEl.innerHTML = '<div style="color:#64748b;padding:40px;text-align:center;">Select a workflow above to load steps</div>';
+            if (stepsListEl) stepsListEl.innerHTML = '<div style="color:#64748b;padding:40px;text-align:center;">Select a workflow above or click ✨ New Bot to build from scratch</div>';
         } else {
             if (wfSelector) wfSelector.style.display = "none";
             // Check if custom config exists
@@ -12750,6 +12897,10 @@ function initProcBotRunner() {
         wfSelect.onchange = async () => {
             const sid = wfSelect.value;
             if (!sid) { procBotTargetWorkflow = null; if (stepsListEl) stepsListEl.innerHTML = '<div style="color:#64748b;padding:40px;text-align:center;">Select a workflow above</div>'; return; }
+            if (sid === "__NEW_BOT__") {
+                await createNewStandaloneBot();
+                return;
+            }
             try {
                 logTerm(`Loading workflow ${sid}...`, "dim");
                 const res = await fetch(`${API_BASE}/sessions/${sid}`);

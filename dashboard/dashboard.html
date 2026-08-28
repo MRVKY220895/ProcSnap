@@ -209,6 +209,13 @@
                                     <div class="hub-action-desc">Automate & replay any recorded SOP</div>
                                 </div>
                             </div>
+                            <div class="hub-action-card" id="hubActionCreateBot" style="cursor: pointer; border: 1px solid rgba(168,85,247,0.3); background: rgba(168,85,247,0.06);">
+                                <div class="hub-action-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">✨</div>
+                                <div class="hub-action-content">
+                                    <div class="hub-action-title">Create New Bot</div>
+                                    <div class="hub-action-desc">Build custom automation from scratch (No SOP)</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -2995,7 +3002,8 @@
                     </div>
                     <div style="min-width: 0;">
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <h2 style="margin: 0; font-size: 16px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px;" id="procbotModalWfTitle">ProcBot RPA Studio</h2>
+                            <h2 style="margin: 0; font-size: 16px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; cursor: pointer;" id="procbotModalWfTitle" title="Click to rename Bot">ProcBot RPA Studio</h2>
+                            <button id="btnProcbotRenameBot" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 13px; padding: 2px 4px;" title="Rename Bot">✏️</button>
                             <span style="font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: linear-gradient(90deg, #6366f1, #8b5cf6); color: #fff; letter-spacing: 0.05em; text-transform: uppercase;">RPA Studio v3</span>
                             <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.25);" id="procbotStepCountBadge">0 steps</span>
                         </div>
@@ -3005,6 +3013,9 @@
 
                 <!-- Top Right Action Controls -->
                 <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <button id="btnProcbotNewBot" class="btn btn-xs" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.35); font-weight: 700; padding: 6px 12px; border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Create a new blank Bot from scratch (Non-SOP)">
+                        ✨ New Bot
+                    </button>
                     <button id="btnProcbotSaveConfig" class="btn btn-xs" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; border: 1px solid rgba(255,255,255,0.15); font-weight: 700; padding: 6px 12px; border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Save customized Bot recipe">
                         💾 Save Bot
                     </button>
@@ -3048,9 +3059,9 @@
             <!-- Standalone Workflow Selector (shown when opened without an active workflow) -->
             <div id="procbotWorkflowSelector" style="display: none; background: #131b2e; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 10px 18px; flex-shrink: 0;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8; white-space: nowrap;">Workflow:</label>
+                    <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8; white-space: nowrap;">Workflow / Bot:</label>
                     <select id="procbotWorkflowSelect" style="flex: 1; font-size: 12px; padding: 6px 10px; font-weight: 700; background: #0b0f19; color: #fff; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;">
-                        <option value="">-- Choose a recorded SOP --</option>
+                        <option value="">-- Choose a recorded SOP or Custom Bot --</option>
                     </select>
                 </div>
             </div>
@@ -3106,12 +3117,14 @@
 
                         <!-- Step Inserter Buttons & Search -->
                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                            <input id="procbotStepSearch" type="search" placeholder="🔍 Search steps..." style="background: #0b0f19; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #fff; font-size: 11px; padding: 4px 8px; width: 140px;">
-                            <button id="btnProcbotAddAssertStep" class="btn btn-xs" style="background: rgba(6,182,212,0.12); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Add validation checkpoint">+ 🔍 Assert</button>
-                            <button id="btnProcbotAddExtractStep" class="btn btn-xs" style="background: rgba(168,85,247,0.12); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Scrape and extract value to variable">+ 📥 Extract</button>
-                            <button id="btnProcbotAddManualStep" class="btn btn-xs" style="background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;">+ ✋ Manual</button>
-                            <button id="btnProcbotAddInputStep" class="btn btn-xs" style="background: rgba(16,185,129,0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;">+ ⌨️ Input</button>
-                            <button id="btnProcbotAddClickStep" class="btn btn-xs" style="background: rgba(99,102,241,0.1); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;">+ 🖱️ Click</button>
+                            <input id="procbotStepSearch" type="search" placeholder="🔍 Search steps..." style="background: #0b0f19; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #fff; font-size: 11px; padding: 4px 8px; width: 130px;">
+                            <button id="btnProcbotAddNavigateStep" class="btn btn-xs" style="background: rgba(59,130,246,0.12); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Navigate to URL">+ 🌐 Navigate</button>
+                            <button id="btnProcbotAddClickStep" class="btn btn-xs" style="background: rgba(99,102,241,0.1); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Click on element">+ 🖱️ Click</button>
+                            <button id="btnProcbotAddInputStep" class="btn btn-xs" style="background: rgba(16,185,129,0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Type text into field">+ ⌨️ Input</button>
+                            <button id="btnProcbotAddSelectStep" class="btn btn-xs" style="background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Select dropdown item">+ 🔽 Select</button>
+                            <button id="btnProcbotAddExtractStep" class="btn btn-xs" style="background: rgba(168,85,247,0.12); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Extract data to variable">+ 📥 Extract</button>
+                            <button id="btnProcbotAddAssertStep" class="btn btn-xs" style="background: rgba(6,182,212,0.12); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Add validation assertion">+ 🔍 Assert</button>
+                            <button id="btnProcbotAddManualStep" class="btn btn-xs" style="background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Pause for manual user action">+ ✋ Manual</button>
                         </div>
                     </div>
 

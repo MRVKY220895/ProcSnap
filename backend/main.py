@@ -6370,6 +6370,109 @@ def get_procbot_run_logs(session_id: str, limit: int = 20):
         conn.close()
 
 
+@app.post("/procbot/bots")
+def create_standalone_bot(payload: Dict[str, Any] = Body(...)):
+    """
+    Creates a new custom, standalone RPA Bot from scratch (Non-SOP version).
+    """
+    bot_id = str(uuid4())
+    now = datetime.utcnow().isoformat()
+    name = (payload.get("name") or "New Custom RPA Bot").strip()
+    description = payload.get("description", "Standalone Custom RPA Automation")
+    initial_url = (payload.get("initial_url") or "").strip()
+    steps = payload.get("steps", [])
+
+    if not steps and initial_url:
+        steps = [{
+            "action": "navigate",
+            "title": f"Navigate to {initial_url}",
+            "url": initial_url,
+            "value": initial_url,
+            "custom_selector": "body",
+            "retry_count": 2,
+            "on_failure": "abort"
+        }]
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO workflows (
+                id, name, application, status, started_at, ended_at, created_at, updated_at, tags
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                bot_id,
+                name,
+                "ProcBot Custom RPA",
+                "completed",
+                now,
+                now,
+                now,
+                now,
+                "procbot,custom_bot,rpa,standalone"
+            )
+        )
+        
+        config_str = json.dumps({"steps": steps, "name": name, "description": description})
+        conn.execute(
+            """
+            INSERT INTO procbot_configs (workflow_id, name, config_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(workflow_id) DO UPDATE SET
+                name = excluded.name,
+                config_json = excluded.config_json,
+                updated_at = excluded.updated_at
+            """,
+            (bot_id, name, config_str, now, now)
+        )
+        conn.commit()
+
+        return {
+            "success": True,
+            "id": bot_id,
+            "bot_id": bot_id,
+            "name": name,
+            "steps": steps,
+            "message": "Custom RPA Bot created successfully"
+        }
+    finally:
+        conn.close()
+
+
+@app.get("/procbot/bots")
+def list_standalone_bots():
+    """
+    Lists all standalone Custom RPA Bots.
+    """
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT w.id, w.name, w.created_at, w.updated_at, c.config_json
+            FROM workflows w
+            LEFT JOIN procbot_configs c ON w.id = c.workflow_id
+            WHERE w.tags LIKE '%custom_bot%' OR w.tags LIKE '%procbot%'
+            ORDER BY w.updated_at DESC
+            """
+        ).fetchall()
+        bots = []
+        for r in rows:
+            d = dict(r)
+            try:
+                cfg = json.loads(d.get("config_json") or "{}")
+                d["steps"] = cfg.get("steps", [])
+                d["step_count"] = len(d["steps"])
+            except Exception:
+                d["steps"] = []
+                d["step_count"] = 0
+            bots.append(d)
+        return {"count": len(bots), "bots": bots}
+    finally:
+        conn.close()
+
+
 @app.post("/procbot/heal-selector")
 def heal_procbot_selector(payload: Dict[str, Any] = Body(...)):
     """
