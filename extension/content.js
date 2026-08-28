@@ -1581,8 +1581,10 @@ async function executeProcBotInPageStep(step, dynamicValue, options = {}) {
     const title = step.edited_title || step.title || "Step";
     const val = dynamicValue !== undefined ? dynamicValue : (step.value || "");
     const isManualPause = step.manual_pause || step._manualPause || act === "manual_pause" || act === "manual_task";
+    const retryCount = parseInt(step.retry_count || options.retry_count || 1, 10);
+    const onFail = step.on_failure || options.on_failure || "abort";
 
-    // Handle Manual Stop / Action Prompt
+    // 1. Handle Manual Stop / Action Prompt
     if (isManualPause) {
         return new Promise(resolve => {
             procBotManualResolve = resolve;
@@ -1590,7 +1592,7 @@ async function executeProcBotInPageStep(step, dynamicValue, options = {}) {
         });
     }
 
-    // Navigation Step
+    // 2. Navigation Step
     if (act.includes("navigate") || act.includes("page_load")) {
         const targetUrl = step.url || "";
         if (targetUrl && !window.location.href.includes(targetUrl)) {
@@ -1600,109 +1602,214 @@ async function executeProcBotInPageStep(step, dynamicValue, options = {}) {
         return { success: true, action: "navigate_noop" };
     }
 
-    // Find Target Element using multi-tier strategy
-    const targetEl = findTargetElement(step);
-    if (!targetEl) {
-        console.warn("[ProcBot] Element not found for step:", step);
-        if (options.ignoreNotFound) {
-            return { success: true, skipped: true, warning: "Element not found (skipped)" };
+    // 3. URL Assertion Step
+    if (act === "assert_url" || (act.startsWith("assert") && step.assert_type === "url")) {
+        const expectedUrl = val || step.expected || "";
+        const currentUrl = window.location.href;
+        const passed = currentUrl.toLowerCase().includes(expectedUrl.toLowerCase());
+        if (!passed && onFail === "abort") {
+            return { success: false, assertion_passed: false, error: `URL assertion failed: Expected URL to contain "${expectedUrl}", but got "${currentUrl}"` };
         }
-        return { success: false, error: `Element not found: ${title}` };
+        return { success: true, assertion_passed: passed, expected: expectedUrl, actual: currentUrl };
     }
 
-    // Scroll into view smoothly
-    try {
-        targetEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-    } catch (_) {}
+    // 4. Retry Loop for Element Actions
+    let lastError = null;
+    for (let attempt = 1; attempt <= Math.max(1, retryCount); attempt++) {
+        try {
+            // Find Target Element using multi-tier strategy + AI Self-Healing
+            let targetEl = findTargetElement(step);
+            let healedInfo = null;
 
-    // Place temporary visual spotlight & glowing beacon
-    highlightProcBotElement(targetEl);
+            if (!targetEl) {
+                // Trigger AI Self-Healing Fallback
+                try {
+                    const interactiveSnippet = Array.from(document.querySelectorAll("button, input, select, textarea, a, [role='button'], h1, h2, h3, .btn"))
+                        .slice(0, 35)
+                        .map(el => el.outerHTML.slice(0, 220))
+                        .join("\n");
+                    
+                    const healRes = await fetch("http://127.0.0.1:8000/procbot/heal-selector", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            step_title: title,
+                            action: act,
+                            failed_selector: step.custom_selector || (step.element && step.element.cssSelector),
+                            original_text: (step.element && (step.element.text || step.element.ariaLabel)) || title,
+                            dom_snippet: interactiveSnippet
+                        })
+                    }).catch(() => null);
 
-    // Wait a brief moment for scroll to settle
-    await new Promise(r => setTimeout(r, 200));
-
-    // Execute DOM Action
-    try {
-        if (act in { select: 1, dropdown: 1 } || targetEl.tagName === "SELECT") {
-            // Select / Dropdown handling
-            if (targetEl.tagName === "SELECT") {
-                let matched = false;
-                for (let i = 0; i < targetEl.options.length; i++) {
-                    const opt = targetEl.options[i];
-                    if (opt.text.trim().toLowerCase() === val.toLowerCase() || opt.value.toLowerCase() === val.toLowerCase()) {
-                        targetEl.selectedIndex = i;
-                        matched = true;
-                        break;
+                    if (healRes && healRes.ok) {
+                        const healData = await healRes.json();
+                        if (healData.status === "healed" && healData.healed_selector) {
+                            try {
+                                if (healData.strategy === "xpath") {
+                                    const xr = document.evaluate(healData.healed_selector, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                                    if (xr && xr.singleNodeValue) targetEl = xr.singleNodeValue;
+                                } else {
+                                    targetEl = document.querySelector(healData.healed_selector);
+                                }
+                                if (targetEl) {
+                                    healedInfo = healData;
+                                    console.log(`[ProcBot AI Self-Healing] Successfully healed selector for "${title}" -> ${healData.healed_selector} (${healData.engine})`);
+                                }
+                            } catch (_) {}
+                        }
                     }
-                }
-                if (!matched && targetEl.options.length > 0) {
-                    const num = parseInt(val, 10);
-                    if (!isNaN(num) && num < targetEl.options.length) {
-                        targetEl.selectedIndex = num;
-                    }
-                }
-                targetEl.dispatchEvent(new Event("change", { bubbles: true }));
-                targetEl.dispatchEvent(new Event("input", { bubbles: true }));
-            } else {
-                // Custom select / dropdown container
-                targetEl.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-                await new Promise(r => setTimeout(r, 250));
-                // Try clicking child option with matching text
-                const options = Array.from(document.querySelectorAll("[role='option'], li, .dropdown-item, .select-option, option"));
-                const targetOpt = options.find(o => o.textContent && o.textContent.trim().toLowerCase().includes(val.toLowerCase()));
-                if (targetOpt) {
-                    targetOpt.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-                }
+                } catch (_) {}
             }
-        } else if (["input", "change", "textarea_input", "type"].includes(act) || targetEl.tagName === "INPUT" || targetEl.tagName === "TEXTAREA" || targetEl.isContentEditable) {
-            // Text Input with reactive framework support (React, Vue, Angular)
-            targetEl.focus();
-            if (targetEl.isContentEditable) {
-                targetEl.innerText = val;
-            } else {
-                // React 16+ value tracker override to ensure state updates
-                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-                    window.HTMLInputElement.prototype,
-                    "value"
-                )?.set || Object.getOwnPropertyDescriptor(
-                    window.HTMLTextAreaElement.prototype,
-                    "value"
-                )?.set;
 
-                if (nativeInputValueSetter) {
-                    nativeInputValueSetter.call(targetEl, val);
+            // Assertion: Hidden Check
+            if (act === "assert_hidden" || (act.startsWith("assert") && step.assert_type === "hidden")) {
+                const isHidden = !targetEl || targetEl.offsetParent === null;
+                if (!isHidden && onFail === "abort") {
+                    return { success: false, assertion_passed: false, error: `Element expected to be hidden, but is still visible: ${title}` };
+                }
+                return { success: true, assertion_passed: isHidden };
+            }
+
+            if (!targetEl) {
+                if (attempt < retryCount) {
+                    await new Promise(r => setTimeout(r, 800));
+                    continue;
+                }
+                if (options.ignoreNotFound || onFail === "skip") {
+                    return { success: true, skipped: true, warning: `Element not found (skipped): ${title}` };
+                }
+                return { success: false, error: `Element not found: ${title}` };
+            }
+
+            // Scroll into view smoothly & highlight
+            try {
+                targetEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+            } catch (_) {}
+
+            highlightProcBotElement(targetEl);
+            await new Promise(r => setTimeout(r, 200));
+
+            // Assertion: Visible Check
+            if (act === "assert_visible" || (act.startsWith("assert") && step.assert_type === "visible")) {
+                const isVisible = targetEl && targetEl.offsetParent !== null;
+                return { success: true, assertion_passed: isVisible };
+            }
+
+            // Assertion: Text or Value Check
+            if (act.startsWith("assert") || act === "verify" || act === "check") {
+                const assertType = step.assert_type || (act.includes("value") ? "value" : "text");
+                const expected = (val || step.expected || "").trim().toLowerCase();
+                const actual = (assertType === "value" ? (targetEl.value || "") : (targetEl.textContent || targetEl.innerText || "")).trim();
+                const passed = actual.toLowerCase().includes(expected);
+                if (!passed && onFail === "abort") {
+                    return { success: false, assertion_passed: false, error: `Assertion failed: Expected "${expected}", but got "${actual}"` };
+                }
+                return { success: true, assertion_passed: passed, expected, actual, healed: healedInfo };
+            }
+
+            // Data Extraction Action
+            if (act === "extract") {
+                const extractAttr = step.extract_attr || "text";
+                const extractVar = step.extract_var || `var_${title.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 24)}`;
+                let extractedVal = "";
+                if (extractAttr === "text") {
+                    extractedVal = (targetEl.textContent || targetEl.innerText || "").trim();
+                } else if (extractAttr === "value") {
+                    extractedVal = (targetEl.value || "").trim();
                 } else {
-                    targetEl.value = val;
+                    extractedVal = (targetEl.getAttribute(extractAttr) || "").trim();
                 }
+                return {
+                    success: true,
+                    action: "extract",
+                    extracted_key: extractVar,
+                    extracted_value: extractedVal,
+                    healed: healedInfo
+                };
             }
-            targetEl.dispatchEvent(new Event("input", { bubbles: true }));
-            targetEl.dispatchEvent(new Event("change", { bubbles: true }));
-            targetEl.dispatchEvent(new Event("blur", { bubbles: true }));
-        } else if (act === "dblclick" || act === "double_click") {
-            // Double Click
-            targetEl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
-            targetEl.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
-            targetEl.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-            targetEl.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true, view: window }));
-        } else if (act === "keypress_enter" || act === "enter") {
-            // Keypress Enter
-            targetEl.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
-            targetEl.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
-        } else {
-            // Standard Click
-            targetEl.focus();
-            targetEl.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true, cancelable: true, view: window }));
-            targetEl.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, view: window }));
-            targetEl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
-            targetEl.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, cancelable: true, view: window }));
-            targetEl.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
-            targetEl.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-        }
 
-        return { success: true, action: act, title };
-    } catch (e) {
-        return { success: false, error: e.message };
+            // Standard DOM Actions (Select, Input, Click, DblClick, Enter)
+            if (act in { select: 1, dropdown: 1 } || targetEl.tagName === "SELECT") {
+                if (targetEl.tagName === "SELECT") {
+                    let matched = false;
+                    for (let i = 0; i < targetEl.options.length; i++) {
+                        const opt = targetEl.options[i];
+                        if (opt.text.trim().toLowerCase() === val.toLowerCase() || opt.value.toLowerCase() === val.toLowerCase()) {
+                            targetEl.selectedIndex = i;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched && targetEl.options.length > 0) {
+                        const num = parseInt(val, 10);
+                        if (!isNaN(num) && num < targetEl.options.length) {
+                            targetEl.selectedIndex = num;
+                        }
+                    }
+                    targetEl.dispatchEvent(new Event("change", { bubbles: true }));
+                    targetEl.dispatchEvent(new Event("input", { bubbles: true }));
+                } else {
+                    targetEl.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+                    await new Promise(r => setTimeout(r, 250));
+                    const options = Array.from(document.querySelectorAll("[role='option'], li, .dropdown-item, .select-option, option"));
+                    const targetOpt = options.find(o => o.textContent && o.textContent.trim().toLowerCase().includes(val.toLowerCase()));
+                    if (targetOpt) {
+                        targetOpt.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+                    }
+                }
+            } else if (["input", "change", "textarea_input", "type"].includes(act) || targetEl.tagName === "INPUT" || targetEl.tagName === "TEXTAREA" || targetEl.isContentEditable) {
+                targetEl.focus();
+                if (targetEl.isContentEditable) {
+                    targetEl.innerText = val;
+                } else {
+                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                        window.HTMLInputElement.prototype,
+                        "value"
+                    )?.set || Object.getOwnPropertyDescriptor(
+                        window.HTMLTextAreaElement.prototype,
+                        "value"
+                    )?.set;
+
+                    if (nativeInputValueSetter) {
+                        nativeInputValueSetter.call(targetEl, val);
+                    } else {
+                        targetEl.value = val;
+                    }
+                }
+                targetEl.dispatchEvent(new Event("input", { bubbles: true }));
+                targetEl.dispatchEvent(new Event("change", { bubbles: true }));
+                targetEl.dispatchEvent(new Event("blur", { bubbles: true }));
+            } else if (act === "dblclick" || act === "double_click") {
+                targetEl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+                targetEl.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+                targetEl.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+                targetEl.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true, view: window }));
+            } else if (act === "keypress_enter" || act === "enter") {
+                targetEl.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
+                targetEl.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
+            } else {
+                targetEl.focus();
+                targetEl.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true, cancelable: true, view: window }));
+                targetEl.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, view: window }));
+                targetEl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+                targetEl.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, cancelable: true, view: window }));
+                targetEl.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+                targetEl.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+            }
+
+            return { success: true, action: act, title, healed: healedInfo };
+        } catch (e) {
+            lastError = e;
+            if (attempt < retryCount) {
+                await new Promise(r => setTimeout(r, 800));
+            }
+        }
     }
+
+    if (onFail === "skip") {
+        return { success: true, skipped: true, warning: `Failed after retries (skipped): ${lastError?.message}` };
+    }
+    return { success: false, error: lastError ? lastError.message : "Step execution failed" };
 }
 
 function highlightProcBotElement(el) {

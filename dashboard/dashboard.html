@@ -3105,10 +3105,12 @@
                         </div>
 
                         <!-- Step Inserter Buttons & Search -->
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <input id="procbotStepSearch" type="search" placeholder="🔍 Search steps or variables..." style="background: #0b0f19; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #fff; font-size: 11px; padding: 4px 10px; width: 170px;">
-                            <button id="btnProcbotAddManualStep" class="btn btn-xs" style="background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;">+ ✋ Manual Task</button>
-                            <button id="btnProcbotAddInputStep" class="btn btn-xs" style="background: rgba(16,185,129,0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;">+ ⌨️ Input Field</button>
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <input id="procbotStepSearch" type="search" placeholder="🔍 Search steps..." style="background: #0b0f19; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #fff; font-size: 11px; padding: 4px 8px; width: 140px;">
+                            <button id="btnProcbotAddAssertStep" class="btn btn-xs" style="background: rgba(6,182,212,0.12); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Add validation checkpoint">+ 🔍 Assert</button>
+                            <button id="btnProcbotAddExtractStep" class="btn btn-xs" style="background: rgba(168,85,247,0.12); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;" title="Scrape and extract value to variable">+ 📥 Extract</button>
+                            <button id="btnProcbotAddManualStep" class="btn btn-xs" style="background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;">+ ✋ Manual</button>
+                            <button id="btnProcbotAddInputStep" class="btn btn-xs" style="background: rgba(16,185,129,0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;">+ ⌨️ Input</button>
                             <button id="btnProcbotAddClickStep" class="btn btn-xs" style="background: rgba(99,102,241,0.1); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer;">+ 🖱️ Click</button>
                         </div>
                     </div>

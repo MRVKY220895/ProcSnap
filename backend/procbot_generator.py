@@ -60,7 +60,8 @@ class ProcBotGenerator:
             'import sys',
             'import csv',
             'import os',
-            'from playwright.sync_api import sync_playwright',
+            'import re',
+            'from playwright.sync_api import sync_playwright, expect',
             '',
             '# Default Parameter Variables (Override with CLI arguments or CSV batch data)',
             'DEFAULT_VARIABLES = {'
@@ -87,11 +88,14 @@ class ProcBotGenerator:
             act = (step.get('action') or '').lower()
             url = step.get('url') or ''
             title = (step.get('edited_title') or step.get('title') or f'Step {i}').replace('"', '\\"')
-            val = step.get('value') or ''
+            val = (step.get('value') or '').replace('"', '\\"')
             var_key = sanitize_var_name(step.get('edited_title') or step.get('title') or f"step_{i}_input")
             sel_info = self._extract_selector(step)
             is_manual_pause = step.get('manual_pause') or step.get('_manualPause') or act in ('manual_pause', 'manual_task')
             note = (step.get('manual_instructions') or step.get('note') or 'Perform manual action on screen').replace('"', '\\"')
+            pw_sel = sel_info['playwright'].replace('"', '\\"')
+            retry_count = int(step.get('retry_count') or 1)
+            on_failure = step.get('on_failure') or 'abort'
 
             script_lines.append(f'    # Step {i}: {title}')
             script_lines.append(f'    print(f"▶️ [Step {i}/{len(self.steps)}] {title}")')
@@ -109,58 +113,118 @@ class ProcBotGenerator:
             if act in ('navigate', 'page_load') or i == 1:
                 target_url = url if url.startswith('http') else f'https://{url}' if url else 'https://google.com'
                 script_lines.append(f'    page.goto("{target_url}", wait_until="domcontentloaded")')
-                script_lines.append('    time.sleep(1.5)')
+                script_lines.append('    time.sleep(1.0)')
                 if act in ('navigate', 'page_load'):
                     script_lines.append('')
                     continue
 
-            pw_sel = sel_info['playwright'].replace('"', '\\"')
+            # Assertion Steps
+            if act.startswith('assert') or act in ('verify', 'check'):
+                assert_type = step.get('assert_type') or ('url' if 'url' in act else 'text' if 'text' in act else 'visible' if 'visible' in act else 'hidden' if 'hidden' in act else 'text')
+                expected_val = val or step.get('expected') or ''
+                script_lines.append('    try:')
+                if assert_type == 'url':
+                    script_lines.append(f'        expect(page).to_have_url(re.compile(r"{expected_val}"), timeout=8000)')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: URL matches \'{expected_val}\'")')
+                elif assert_type == 'visible':
+                    script_lines.append(f'        expect(page.locator("{pw_sel}")).to_be_visible(timeout=8000)')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: Element \'{pw_sel}\' is visible")')
+                elif assert_type == 'hidden':
+                    script_lines.append(f'        expect(page.locator("{pw_sel}")).to_be_hidden(timeout=8000)')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: Element \'{pw_sel}\' is hidden")')
+                elif assert_type == 'value':
+                    script_lines.append(f'        expect(page.locator("{pw_sel}")).to_have_value("{expected_val}", timeout=8000)')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: Value equals \'{expected_val}\'")')
+                else: # text
+                    script_lines.append(f'        expect(page.locator("{pw_sel}")).to_contain_text("{expected_val}", timeout=8000)')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: Text contains \'{expected_val}\'")')
+                script_lines.append('    except Exception as e:')
+                script_lines.append(f'        print(f"   ❌ Assertion Failed: {{e}}")')
+                if on_failure == 'abort':
+                    script_lines.append('        raise e')
+                elif on_failure == 'manual_pause':
+                    script_lines.append('        input("   ⚠️ Assertion failed. Fix manually and press [ENTER] to resume...")')
+                else:
+                    script_lines.append('        print("   ⚠️ Continuing on failure (policy: skip)...")')
+                script_lines.append('    time.sleep(0.3)')
+                script_lines.append('')
+                continue
+
+            # Data Extraction Step
+            if act == 'extract':
+                extract_var = step.get('extract_var') or var_key
+                extract_attr = step.get('extract_attr') or 'text'
+                script_lines.append('    try:')
+                script_lines.append(f'        page.wait_for_selector("{pw_sel}", state="visible", timeout=6000)')
+                if extract_attr == 'text':
+                    script_lines.append(f'        extracted_data = page.locator("{pw_sel}").first.inner_text().strip()')
+                elif extract_attr == 'value':
+                    script_lines.append(f'        extracted_data = page.locator("{pw_sel}").first.input_value().strip()')
+                else:
+                    script_lines.append(f'        extracted_data = (page.locator("{pw_sel}").first.get_attribute("{extract_attr}") or "").strip()')
+                script_lines.append(f'        vars_map["{extract_var}"] = extracted_data')
+                script_lines.append(f'        print(f"   📥 Extracted [{{{{ {extract_var} }}}}] = {{extracted_data}}")')
+                script_lines.append('    except Exception as e:')
+                script_lines.append(f'        print(f"   ⚠️ Extraction failed: {{e}}")')
+                script_lines.append('    time.sleep(0.3)')
+                script_lines.append('')
+                continue
+
+            # Standard Automation Actions with Retry Loop
+            if retry_count > 1:
+                script_lines.append(f'    for attempt in range(1, {retry_count + 1}):')
+                script_lines.append('        try:')
+                indent = '            '
+            else:
+                indent = '    '
 
             if act in ('select', 'dropdown'):
-                script_lines.append(f'    target_opt = vars_map.get("{var_key}", "{val}")')
-                script_lines.append('    try:')
-                script_lines.append(f'        page.wait_for_selector("{pw_sel}", state="visible", timeout=6000)')
-                script_lines.append(f'        page.select_option("{pw_sel}", label=target_opt)')
-                script_lines.append('    except Exception:')
-                script_lines.append('        try:')
-                script_lines.append(f'            page.select_option("{pw_sel}", value=target_opt)')
-                script_lines.append('        except Exception as e:')
-                script_lines.append(f'            print(f"   ⚠️ Dropdown select fallback: {{e}}")')
-                script_lines.append('    time.sleep(0.4)')
+                script_lines.append(f'{indent}target_opt = vars_map.get("{var_key}", "{val}")')
+                script_lines.append(f'{indent}try:')
+                script_lines.append(f'{indent}    page.wait_for_selector("{pw_sel}", state="visible", timeout=6000)')
+                script_lines.append(f'{indent}    page.select_option("{pw_sel}", label=target_opt)')
+                script_lines.append(f'{indent}except Exception:')
+                script_lines.append(f'{indent}    page.select_option("{pw_sel}", value=target_opt)')
+                script_lines.append(f'{indent}time.sleep(0.3)')
             elif act in ('input', 'change', 'textarea_input', 'type'):
-                script_lines.append(f'    target_val = vars_map.get("{var_key}", "{val}")')
-                script_lines.append('    try:')
-                script_lines.append(f'        page.wait_for_selector("{pw_sel}", state="visible", timeout=6000)')
-                script_lines.append(f'        page.fill("{pw_sel}", target_val)')
-                script_lines.append('    except Exception:')
-                script_lines.append('        page.keyboard.type(target_val)')
-                script_lines.append('    time.sleep(0.4)')
+                script_lines.append(f'{indent}target_val = vars_map.get("{var_key}", "{val}")')
+                script_lines.append(f'{indent}try:')
+                script_lines.append(f'{indent}    page.wait_for_selector("{pw_sel}", state="visible", timeout=6000)')
+                script_lines.append(f'{indent}    page.fill("{pw_sel}", target_val)')
+                script_lines.append(f'{indent}except Exception:')
+                script_lines.append(f'{indent}    page.keyboard.type(target_val)')
+                script_lines.append(f'{indent}time.sleep(0.3)')
             elif act in ('click', 'desktop_left_click'):
-                script_lines.append('    try:')
-                script_lines.append(f'        page.wait_for_selector("{pw_sel}", state="visible", timeout=6000)')
-                script_lines.append(f'        page.click("{pw_sel}")')
-                script_lines.append('    except Exception as e:')
-                script_lines.append(f'        print(f"   ⚠️ Click fallback: {{e}}")')
-                script_lines.append('    time.sleep(0.5)')
+                script_lines.append(f'{indent}page.wait_for_selector("{pw_sel}", state="visible", timeout=6000)')
+                script_lines.append(f'{indent}page.click("{pw_sel}")')
+                script_lines.append(f'{indent}time.sleep(0.4)')
             elif act in ('dblclick', 'double_click'):
-                script_lines.append('    try:')
-                script_lines.append(f'        page.wait_for_selector("{pw_sel}", state="visible", timeout=6000)')
-                script_lines.append(f'        page.dblclick("{pw_sel}")')
-                script_lines.append('    except Exception as e:')
-                script_lines.append(f'        print(f"   ⚠️ Double-click fallback: {{e}}")')
-                script_lines.append('    time.sleep(0.5)')
+                script_lines.append(f'{indent}page.wait_for_selector("{pw_sel}", state="visible", timeout=6000)')
+                script_lines.append(f'{indent}page.dblclick("{pw_sel}")')
+                script_lines.append(f'{indent}time.sleep(0.4)')
             elif act in ('wait', 'delay'):
                 delay_sec = float(val or 1.0)
-                script_lines.append(f'    print("   ⏱️ Waiting {delay_sec}s...")')
-                script_lines.append(f'    time.sleep({delay_sec})')
+                script_lines.append(f'{indent}print("   ⏱️ Waiting {delay_sec}s...")')
+                script_lines.append(f'{indent}time.sleep({delay_sec})')
             elif act in ('keypress_enter', 'keyboard_shortcut', 'enter'):
-                script_lines.append('    page.keyboard.press("Enter")')
-                script_lines.append('    time.sleep(0.8)')
+                script_lines.append(f'{indent}page.keyboard.press("Enter")')
+                script_lines.append(f'{indent}time.sleep(0.6)')
             else:
-                script_lines.append('    try:')
-                script_lines.append(f'        page.click("{pw_sel}")')
-                script_lines.append('    except Exception: pass')
-                script_lines.append('    time.sleep(0.4)')
+                script_lines.append(f'{indent}page.click("{pw_sel}")')
+                script_lines.append(f'{indent}time.sleep(0.3)')
+
+            if retry_count > 1:
+                script_lines.append(f'{indent}break')
+                script_lines.append('        except Exception as e:')
+                script_lines.append(f'            if attempt == {retry_count}:')
+                if on_failure == 'abort':
+                    script_lines.append('                raise e')
+                elif on_failure == 'manual_pause':
+                    script_lines.append('                input("   ⚠️ Step failed after retries. Fix on screen and press [ENTER] to resume...")')
+                else:
+                    script_lines.append('                print(f"   ⚠️ Step failed after {attempt} attempts (policy: skip): {e}")')
+                script_lines.append('            time.sleep(1.0)')
+
             script_lines.append('')
 
         script_lines.extend([
@@ -181,7 +245,7 @@ class ProcBotGenerator:
             '        print(f"📊 Loaded {len(datasets)} data row(s) from {csv_path}")',
             '',
             '    with sync_playwright() as p:',
-            '        browser = p.chromium.launch(headless=headless, slow_mo=300)',
+            '        browser = p.chromium.launch(headless=headless, slow_mo=250)',
             '        context = browser.new_context(viewport={"width": 1440, "height": 900})',
             '        page = context.new_page()',
             '        page.set_default_timeout(10000)',
@@ -244,11 +308,14 @@ class ProcBotGenerator:
             act = (step.get('action') or '').lower()
             url = step.get('url') or ''
             title = (step.get('edited_title') or step.get('title') or f'Step {i}').replace('"', '\\"')
-            val = step.get('value') or ''
+            val = (step.get('value') or '').replace('"', '\\"')
             var_key = sanitize_var_name(step.get('edited_title') or step.get('title') or f"step_{i}_input")
             sel_info = self._extract_selector(step)
             is_manual_pause = step.get('manual_pause') or step.get('_manualPause') or act in ('manual_pause', 'manual_task')
             note = (step.get('manual_instructions') or step.get('note') or 'Perform manual action on screen').replace('"', '\\"')
+            by_sel = sel_info['selenium']
+            retry_count = int(step.get('retry_count') or 1)
+            on_failure = step.get('on_failure') or 'abort'
 
             script_lines.append(f'    # Step {i}: {title}')
             script_lines.append(f'    print(f"▶️ [Step {i}/{len(self.steps)}] {title}")')
@@ -266,54 +333,120 @@ class ProcBotGenerator:
             if act in ('navigate', 'page_load') or i == 1:
                 target_url = url if url.startswith('http') else f'https://{url}' if url else 'https://google.com'
                 script_lines.append(f'    driver.get("{target_url}")')
-                script_lines.append('    time.sleep(1.5)')
+                script_lines.append('    time.sleep(1.0)')
                 if act in ('navigate', 'page_load'):
                     script_lines.append('')
                     continue
 
-            by_sel = sel_info['selenium']
+            # Assertion Steps
+            if act.startswith('assert') or act in ('verify', 'check'):
+                assert_type = step.get('assert_type') or ('url' if 'url' in act else 'text' if 'text' in act else 'visible' if 'visible' in act else 'hidden' if 'hidden' in act else 'text')
+                expected_val = val or step.get('expected') or ''
+                script_lines.append('    try:')
+                if assert_type == 'url':
+                    script_lines.append(f'        assert "{expected_val}" in driver.current_url')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: Current URL contains \'{expected_val}\'")')
+                elif assert_type == 'visible':
+                    script_lines.append(f'        el = wait.until(EC.visibility_of_element_located(({by_sel})))')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: Element is visible")')
+                elif assert_type == 'hidden':
+                    script_lines.append(f'        wait.until(EC.invisibility_of_element_located(({by_sel})))')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: Element is hidden")')
+                elif assert_type == 'value':
+                    script_lines.append(f'        el = wait.until(EC.presence_of_element_located(({by_sel})))')
+                    script_lines.append(f'        assert "{expected_val}" in (el.get_attribute("value") or "")')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: Value contains \'{expected_val}\'")')
+                else: # text
+                    script_lines.append(f'        el = wait.until(EC.visibility_of_element_located(({by_sel})))')
+                    script_lines.append(f'        assert "{expected_val}" in el.text')
+                    script_lines.append(f'        print(f"   ✓ Assertion Passed: Text contains \'{expected_val}\'")')
+                script_lines.append('    except Exception as e:')
+                script_lines.append(f'        print(f"   ❌ Assertion Failed: {{e}}")')
+                if on_failure == 'abort':
+                    script_lines.append('        raise e')
+                elif on_failure == 'manual_pause':
+                    script_lines.append('        input("   ⚠️ Assertion failed. Fix manually and press [ENTER] to resume...")')
+                else:
+                    script_lines.append('        print("   ⚠️ Continuing on failure (policy: skip)...")')
+                script_lines.append('    time.sleep(0.3)')
+                script_lines.append('')
+                continue
+
+            # Data Extraction Step
+            if act == 'extract':
+                extract_var = step.get('extract_var') or var_key
+                extract_attr = step.get('extract_attr') or 'text'
+                script_lines.append('    try:')
+                script_lines.append(f'        el = wait.until(EC.presence_of_element_located(({by_sel})))')
+                if extract_attr == 'text':
+                    script_lines.append('        extracted_data = el.text.strip()')
+                elif extract_attr == 'value':
+                    script_lines.append('        extracted_data = (el.get_attribute("value") or "").strip()')
+                else:
+                    script_lines.append(f'        extracted_data = (el.get_attribute("{extract_attr}") or "").strip()')
+                script_lines.append(f'        vars_map["{extract_var}"] = extracted_data')
+                script_lines.append(f'        print(f"   📥 Extracted [{{{{ {extract_var} }}}}] = {{extracted_data}}")')
+                script_lines.append('    except Exception as e:')
+                script_lines.append(f'        print(f"   ⚠️ Extraction failed: {{e}}")')
+                script_lines.append('    time.sleep(0.3)')
+                script_lines.append('')
+                continue
+
+            # Standard Actions with Retry Loop
+            if retry_count > 1:
+                script_lines.append(f'    for attempt in range(1, {retry_count + 1}):')
+                script_lines.append('        try:')
+                indent = '            '
+            else:
+                indent = '    '
 
             if act in ('select', 'dropdown'):
-                script_lines.append(f'    target_opt = vars_map.get("{var_key}", "{val}")')
-                script_lines.append('    try:')
-                script_lines.append(f'        el = wait.until(EC.presence_of_element_located(({by_sel})))')
-                script_lines.append('        try:')
-                script_lines.append('            Select(el).select_by_visible_text(target_opt)')
-                script_lines.append('        except Exception:')
-                script_lines.append('            Select(el).select_by_value(target_opt)')
-                script_lines.append('    except Exception as e:')
-                script_lines.append(f'        print(f"   ⚠️ Dropdown fallback: {{e}}")')
-                script_lines.append('    time.sleep(0.4)')
+                script_lines.append(f'{indent}target_opt = vars_map.get("{var_key}", "{val}")')
+                script_lines.append(f'{indent}try:')
+                script_lines.append(f'{indent}    el = wait.until(EC.presence_of_element_located(({by_sel})))')
+                script_lines.append(f'{indent}    try:')
+                script_lines.append(f'{indent}        Select(el).select_by_visible_text(target_opt)')
+                script_lines.append(f'{indent}    except Exception:')
+                script_lines.append(f'{indent}        Select(el).select_by_value(target_opt)')
+                script_lines.append(f'{indent}except Exception as e:')
+                script_lines.append(f'{indent}    print(f"   ⚠️ Dropdown fallback: {{e}}")')
+                script_lines.append(f'{indent}time.sleep(0.3)')
             elif act in ('input', 'change', 'textarea_input', 'type'):
-                script_lines.append(f'    target_val = vars_map.get("{var_key}", "{val}")')
-                script_lines.append('    try:')
-                script_lines.append(f'        el = wait.until(EC.presence_of_element_located(({by_sel})))')
-                script_lines.append('        el.clear()')
-                script_lines.append('        el.send_keys(target_val)')
-                script_lines.append('    except Exception as e:')
-                script_lines.append(f'        print(f"   ⚠️ Input fallback: {{e}}")')
-                script_lines.append('    time.sleep(0.4)')
+                script_lines.append(f'{indent}target_val = vars_map.get("{var_key}", "{val}")')
+                script_lines.append(f'{indent}try:')
+                script_lines.append(f'{indent}    el = wait.until(EC.presence_of_element_located(({by_sel})))')
+                script_lines.append(f'{indent}    el.clear()')
+                script_lines.append(f'{indent}    el.send_keys(target_val)')
+                script_lines.append(f'{indent}except Exception as e:')
+                script_lines.append(f'{indent}    print(f"   ⚠️ Input fallback: {{e}}")')
+                script_lines.append(f'{indent}time.sleep(0.3)')
             elif act in ('click', 'desktop_left_click'):
-                script_lines.append('    try:')
-                script_lines.append(f'        el = wait.until(EC.element_to_be_clickable(({by_sel})))')
-                script_lines.append('        el.click()')
-                script_lines.append('    except Exception as e:')
-                script_lines.append(f'        print(f"   ⚠️ Click fallback: {{e}}")')
-                script_lines.append('    time.sleep(0.5)')
+                script_lines.append(f'{indent}el = wait.until(EC.element_to_be_clickable(({by_sel})))')
+                script_lines.append(f'{indent}el.click()')
+                script_lines.append(f'{indent}time.sleep(0.4)')
             elif act in ('wait', 'delay'):
                 delay_sec = float(val or 1.0)
-                script_lines.append(f'    print("   ⏱️ Waiting {delay_sec}s...")')
-                script_lines.append(f'    time.sleep({delay_sec})')
+                script_lines.append(f'{indent}print("   ⏱️ Waiting {delay_sec}s...")')
+                script_lines.append(f'{indent}time.sleep({delay_sec})')
             elif act in ('keypress_enter', 'keyboard_shortcut', 'enter'):
-                script_lines.append('    try:')
-                script_lines.append('        webdriver.ActionChains(driver).send_keys(Keys.ENTER).perform()')
-                script_lines.append('    except Exception: pass')
-                script_lines.append('    time.sleep(0.8)')
+                script_lines.append(f'{indent}webdriver.ActionChains(driver).send_keys(Keys.ENTER).perform()')
+                script_lines.append(f'{indent}time.sleep(0.6)')
             else:
-                script_lines.append('    try:')
-                script_lines.append(f'        driver.find_element({by_sel}).click()')
-                script_lines.append('    except Exception: pass')
-                script_lines.append('    time.sleep(0.4)')
+                script_lines.append(f'{indent}driver.find_element({by_sel}).click()')
+                script_lines.append(f'{indent}time.sleep(0.3)')
+
+            if retry_count > 1:
+                script_lines.append(f'{indent}break')
+                script_lines.append('        except Exception as e:')
+                script_lines.append(f'            if attempt == {retry_count}:')
+                if on_failure == 'abort':
+                    script_lines.append('                raise e')
+                elif on_failure == 'manual_pause':
+                    script_lines.append('                input("   ⚠️ Step failed after retries. Fix on screen and press [ENTER] to resume...")')
+                else:
+                    script_lines.append('                print(f"   ⚠️ Step failed after {attempt} attempts (policy: skip): {e}")')
+                script_lines.append('            time.sleep(1.0)')
+
             script_lines.append('')
 
         script_lines.extend([
@@ -378,11 +511,17 @@ class ProcBotGenerator:
                 'element': step.get('element'),
                 'manual_pause': bool(is_manual_pause),
                 'manual_instructions': note,
+                'assert_type': step.get('assert_type', 'text'),
+                'assert_operator': step.get('assert_operator', 'contains'),
+                'extract_var': step.get('extract_var', var_key),
+                'extract_attr': step.get('extract_attr', 'text'),
+                'retry_count': int(step.get('retry_count') or 1),
+                'on_failure': step.get('on_failure', 'abort'),
                 'delay_ms': step.get('delay_ms', 500),
             })
         return {
             'name': self.workflow_name,
-            'version': '2.0',
+            'version': '3.0',
             'engine': 'procbot_rpa',
             'variables': self.variables,
             'total_steps': len(recipe_steps),

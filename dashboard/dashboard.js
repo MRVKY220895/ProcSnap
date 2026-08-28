@@ -11798,6 +11798,8 @@ function initProcBotRunner() {
     const resumeBtn = $("btnResumeProcBot");
     const nextStepBtn = $("btnNextStepProcBot");
     const saveConfigBtn = $("btnProcbotSaveConfig");
+    const addAssertBtn = $("btnProcbotAddAssertStep");
+    const addExtractBtn = $("btnProcbotAddExtractStep");
     const addManualBtn = $("btnProcbotAddManualStep");
     const addInputBtn = $("btnProcbotAddInputStep");
     const addClickBtn = $("btnProcbotAddClickStep");
@@ -11882,7 +11884,7 @@ function initProcBotRunner() {
         if (!termLog) return;
         const line = document.createElement("div");
         const ts = new Date().toLocaleTimeString();
-        const colors = { success: "#34d399", warn: "#fbbf24", error: "#f87171", dim: "#64748b", pause: "#c084fc", info: "#38bdf8" };
+        const colors = { success: "#34d399", warn: "#fbbf24", error: "#f87171", dim: "#64748b", pause: "#c084fc", info: "#38bdf8", heal: "#a855f7" };
         line.style.color = colors[type] || colors.info;
         line.style.fontSize = "11px";
         line.style.lineHeight = "1.5";
@@ -11937,11 +11939,15 @@ function initProcBotRunner() {
             const isSelect = ["select", "dropdown"].includes(act);
             const isWait = ["wait", "delay"].includes(act);
             const isNav = act.includes("navigate") || act.includes("page_load");
+            const isAssert = act.startsWith("assert") || act === "verify" || act === "check";
+            const isExtract = act === "extract";
             const title = step.edited_title || step.title || `Step ${idx + 1}`;
             const rawVal = step.value || "";
             const varKey = `var_${(title || `step_${idx + 1}`).toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 24)}`;
             const isHidden = step.hidden || step._disabled;
             const customSel = step.custom_selector || (step.element ? (step.element.cssSelector || step.element.xpath || step.element.id ? `#${step.element.id}` : "") : "");
+            const retryCount = step.retry_count || 1;
+            const onFail = step.on_failure || "abort";
 
             // Search filter
             if (filterQuery && !title.toLowerCase().includes(filterQuery) && !rawVal.toLowerCase().includes(filterQuery) && !varKey.includes(filterQuery)) {
@@ -11950,18 +11956,19 @@ function initProcBotRunner() {
 
             let actBadgeColor = "#6366f1";
             let actBadgeBg = "rgba(99,102,241,0.15)";
-            let actIcon = "🖱️";
-            if (isInput) { actBadgeColor = "#34d399"; actBadgeBg = "rgba(16,185,129,0.15)"; actIcon = "⌨️"; }
-            if (isSelect) { actBadgeColor = "#38bdf8"; actBadgeBg = "rgba(56,189,248,0.15)"; actIcon = "🔽"; }
-            if (isManualTask) { actBadgeColor = "#fbbf24"; actBadgeBg = "rgba(251,191,36,0.15)"; actIcon = "✋"; }
-            if (isWait) { actBadgeColor = "#c084fc"; actBadgeBg = "rgba(168,85,247,0.15)"; actIcon = "⏱️"; }
-            if (isNav) { actBadgeColor = "#60a5fa"; actBadgeBg = "rgba(59,130,246,0.15)"; actIcon = "🌐"; }
+            if (isInput) { actBadgeColor = "#34d399"; actBadgeBg = "rgba(16,185,129,0.15)"; }
+            if (isSelect) { actBadgeColor = "#38bdf8"; actBadgeBg = "rgba(56,189,248,0.15)"; }
+            if (isManualTask) { actBadgeColor = "#fbbf24"; actBadgeBg = "rgba(251,191,36,0.15)"; }
+            if (isWait) { actBadgeColor = "#c084fc"; actBadgeBg = "rgba(168,85,247,0.15)"; }
+            if (isNav) { actBadgeColor = "#60a5fa"; actBadgeBg = "rgba(59,130,246,0.15)"; }
+            if (isAssert) { actBadgeColor = "#22d3ee"; actBadgeBg = "rgba(6,182,212,0.15)"; }
+            if (isExtract) { actBadgeColor = "#c084fc"; actBadgeBg = "rgba(192,132,252,0.15)"; }
 
             let hostLabel = "";
             if (step.url) { try { hostLabel = new URL(step.url.startsWith("http") ? step.url : "https://app.local").hostname; } catch(e) {} }
 
             return `
-                <div class="procbot-step-card" data-step-idx="${idx}" style="background: #111827; border: 1px solid ${isManualTask ? 'rgba(251,191,36,0.35)' : 'rgba(255,255,255,0.08)'}; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; transition: all .15s ease; ${isHidden ? 'opacity: 0.4;' : ''}">
+                <div class="procbot-step-card" data-step-idx="${idx}" style="background: #111827; border: 1px solid ${isAssert ? 'rgba(34,211,238,0.3)' : isExtract ? 'rgba(192,132,252,0.3)' : isManualTask ? 'rgba(251,191,36,0.35)' : 'rgba(255,255,255,0.08)'}; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; transition: all .15s ease; ${isHidden ? 'opacity: 0.4;' : ''}">
                     <!-- Top Row: Checkbox, Step Number, Action Selector, Title Input, Host Pill, Controls -->
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                         <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
@@ -11975,6 +11982,8 @@ function initProcBotRunner() {
                                 <option value="dblclick" ${act === 'dblclick' || act === 'double_click' ? 'selected' : ''}>🖱️ Double-Click</option>
                                 <option value="input" ${isInput ? 'selected' : ''}>⌨️ Type Input</option>
                                 <option value="select" ${isSelect ? 'selected' : ''}>🔽 Dropdown Select</option>
+                                <option value="assert_text" ${isAssert ? 'selected' : ''}>🔍 Assert Validation</option>
+                                <option value="extract" ${isExtract ? 'selected' : ''}>📥 Extract to Variable</option>
                                 <option value="manual_pause" ${isManualTask ? 'selected' : ''}>✋ Manual Task</option>
                                 <option value="navigate" ${isNav ? 'selected' : ''}>🌐 Navigate URL</option>
                                 <option value="wait" ${isWait ? 'selected' : ''}>⏱️ Wait Delay</option>
@@ -11990,6 +11999,7 @@ function initProcBotRunner() {
                             ${hostLabel ? `<span style="font-size: 10px; font-weight: 700; color: #64748b; background: #1e293b; padding: 2px 6px; border-radius: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🌐 ${hostLabel}</span>` : ''}
                             
                             <button class="procbot-test-step-btn" data-step-idx="${idx}" style="background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); border-radius: 5px; color: #38bdf8; padding: 2px 6px; font-size: 10px; font-weight: 700; cursor: pointer;" title="Dry-run this single step in browser">⚡ Test</button>
+                            <button class="procbot-resilience-btn" data-step-idx="${idx}" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; padding: 2px 6px; font-size: 10px; font-weight: 700; cursor: pointer; color: #34d399;" title="Resilience & Retry Policy">🛡️ ${retryCount > 1 ? `${retryCount}x` : '1x'}</button>
                             <button class="procbot-breakpoint-btn" data-bp-idx="${idx}" style="background: ${step._breakpoint ? '#ef4444' : 'rgba(255,255,255,0.06)'}; border: 1px solid ${step._breakpoint ? '#ef4444' : 'rgba(255,255,255,0.12)'}; border-radius: 5px; width: 22px; height: 22px; cursor: pointer; padding: 0; font-size: 10px; color: ${step._breakpoint ? '#fff' : '#64748b'};" title="Toggle Breakpoint">●</button>
                             <button class="procbot-manual-pause-btn" data-mp-idx="${idx}" style="background: ${isManualTask ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.06)'}; border: 1px solid ${isManualTask ? '#fbbf24' : 'rgba(255,255,255,0.12)'}; border-radius: 5px; width: 22px; height: 22px; cursor: pointer; padding: 0; font-size: 11px; color: ${isManualTask ? '#fbbf24' : '#64748b'};" title="Toggle Stop for Manual Action">✋</button>
                             <button class="procbot-edit-selector-btn" data-step-idx="${idx}" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; width: 22px; height: 22px; cursor: pointer; padding: 0; font-size: 10px; color: #818cf8;" title="Target Selector Inspector">⚙️</button>
@@ -12000,7 +12010,33 @@ function initProcBotRunner() {
                         </div>
                     </div>
 
-                    <!-- Row 2: Dynamic Parameters / Field Value / Dropdown / Manual Instructions -->
+                    <!-- Row 2: Dynamic Parameters / Field Value / Dropdown / Assertion / Extraction -->
+                    ${isAssert ? `
+                    <div style="display: grid; grid-template-columns: 160px 1fr; gap: 8px; align-items: center; background: #080c14; border-radius: 7px; padding: 6px 10px; border: 1px dashed rgba(6,182,212,0.35);">
+                        <select class="procbot-assert-type-select" data-step-idx="${idx}" style="font-size: 11px; font-weight: 700; background: #131b2e; color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); border-radius: 5px; padding: 3px 6px;">
+                            <option value="text" ${(step.assert_type || 'text') === 'text' ? 'selected' : ''}>🔍 Text Contains</option>
+                            <option value="value" ${step.assert_type === 'value' ? 'selected' : ''}>🔍 Value Equals</option>
+                            <option value="url" ${step.assert_type === 'url' ? 'selected' : ''}>🌐 URL Contains</option>
+                            <option value="visible" ${step.assert_type === 'visible' ? 'selected' : ''}>👁️ Element Visible</option>
+                            <option value="hidden" ${step.assert_type === 'hidden' ? 'selected' : ''}>🚫 Element Hidden</option>
+                        </select>
+                        <input type="text" class="procbot-assert-val-input" data-step-idx="${idx}" value="${esc(step.expected || rawVal)}" placeholder="Expected text, value, or URL substring..." style="font-size: 11.5px; padding: 4px 8px; height: 26px; border-radius: 5px; background: #131b2e; color: #22d3ee; border: 1px solid rgba(6,182,212,0.25); outline: none;">
+                    </div>` : ''}
+
+                    ${isExtract ? `
+                    <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; align-items: center; background: #080c14; border-radius: 7px; padding: 6px 10px; border: 1px dashed rgba(192,132,252,0.35);">
+                        <select class="procbot-extract-attr-select" data-step-idx="${idx}" style="font-size: 11px; font-weight: 700; background: #131b2e; color: #c084fc; border: 1px solid rgba(192,132,252,0.3); border-radius: 5px; padding: 3px 6px;">
+                            <option value="text" ${(step.extract_attr || 'text') === 'text' ? 'selected' : ''}>📥 Text Content</option>
+                            <option value="value" ${step.extract_attr === 'value' ? 'selected' : ''}>📥 Input Value</option>
+                            <option value="href" ${step.extract_attr === 'href' ? 'selected' : ''}>🔗 Link Href</option>
+                            <option value="src" ${step.extract_attr === 'src' ? 'selected' : ''}>🖼️ Image Src</option>
+                        </select>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 10px; font-weight: 800; color: #c084fc;">Save to:</span>
+                            <input type="text" class="procbot-extract-var-input" data-step-idx="${idx}" value="${esc(step.extract_var || varKey)}" placeholder="variable_name..." style="font-size: 11.5px; font-family: monospace; padding: 4px 8px; height: 26px; border-radius: 5px; flex: 1; background: #131b2e; color: #c084fc; border: 1px solid rgba(192,132,252,0.25); outline: none;">
+                        </div>
+                    </div>` : ''}
+
                     ${isManualTask ? `
                     <div style="background: rgba(251,191,36,0.08); border: 1px dashed rgba(251,191,36,0.35); border-radius: 7px; padding: 7px 10px; display: flex; flex-direction: column; gap: 4px;">
                         <span style="font-size: 10px; font-weight: 800; color: #fbbf24; display: flex; align-items: center; gap: 4px;">✋ Human-in-the-loop Checkpoint Instructions:</span>
@@ -12043,6 +12079,30 @@ function initProcBotRunner() {
                             <span style="font-size: 9.5px; color: #64748b;">Supports ID, Classes, XPath, Attributes</span>
                         </div>
                         <input type="text" class="procbot-custom-selector-input" data-step-idx="${idx}" value="${esc(customSel)}" placeholder="#id, .class, button[type='submit'], //input[@name='q']..." style="font-size: 11px; font-family: monospace; padding: 4px 8px; height: 26px; border-radius: 5px; background: #131b2e; color: #38bdf8; border: 1px solid rgba(255,255,255,0.12); outline: none;">
+                    </div>
+
+                    <!-- Collapsible Resilience & Policy Drawer -->
+                    <div class="procbot-resilience-drawer" data-step-idx="${idx}" style="display: none; background: #080c14; border-radius: 7px; padding: 8px 10px; border: 1px solid rgba(52,211,153,0.25); flex-direction: column; gap: 8px;">
+                        <div style="font-size: 10px; font-weight: 800; color: #34d399; text-transform: uppercase;">🛡️ Resilience, Retry &amp; Error Policy:</div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="font-size: 10.5px; color: #94a3b8;">Retry Attempts:</label>
+                                <select class="procbot-retry-select" data-step-idx="${idx}" style="font-size: 11px; background: #131b2e; color: #f8fafc; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 2px 6px;">
+                                    <option value="1" ${retryCount === 1 ? 'selected' : ''}>1 (No retry)</option>
+                                    <option value="2" ${retryCount === 2 ? 'selected' : ''}>2 attempts</option>
+                                    <option value="3" ${retryCount === 3 ? 'selected' : ''}>3 attempts</option>
+                                    <option value="5" ${retryCount === 5 ? 'selected' : ''}>5 attempts</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="font-size: 10.5px; color: #94a3b8;">On Failure:</label>
+                                <select class="procbot-onfail-select" data-step-idx="${idx}" style="font-size: 11px; background: #131b2e; color: #f8fafc; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 2px 6px;">
+                                    <option value="abort" ${onFail === 'abort' ? 'selected' : ''}>🛑 Stop / Abort Run</option>
+                                    <option value="skip" ${onFail === 'skip' ? 'selected' : ''}>⏭️ Skip &amp; Continue</option>
+                                    <option value="manual_pause" ${onFail === 'manual_pause' ? 'selected' : ''}>✋ Pause for Manual Action</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -12122,6 +12182,59 @@ function initProcBotRunner() {
             };
         });
 
+        // Assertion type and value changes
+        document.querySelectorAll(".procbot-assert-type-select").forEach(sel => {
+            sel.onchange = () => {
+                const idx = parseInt(sel.dataset.stepIdx, 10);
+                wf.steps[idx].assert_type = sel.value;
+            };
+        });
+        document.querySelectorAll(".procbot-assert-val-input").forEach(inp => {
+            inp.onchange = () => {
+                const idx = parseInt(inp.dataset.stepIdx, 10);
+                wf.steps[idx].expected = inp.value;
+                wf.steps[idx].value = inp.value;
+            };
+        });
+
+        // Extraction attr and variable changes
+        document.querySelectorAll(".procbot-extract-attr-select").forEach(sel => {
+            sel.onchange = () => {
+                const idx = parseInt(sel.dataset.stepIdx, 10);
+                wf.steps[idx].extract_attr = sel.value;
+            };
+        });
+        document.querySelectorAll(".procbot-extract-var-input").forEach(inp => {
+            inp.onchange = () => {
+                const idx = parseInt(inp.dataset.stepIdx, 10);
+                wf.steps[idx].extract_var = inp.value.replace(/[^a-zA-Z0-9_]/g, "_");
+            };
+        });
+
+        // Resilience Drawer Toggle and Inputs
+        document.querySelectorAll(".procbot-resilience-btn").forEach(btn => {
+            btn.onclick = () => {
+                const idx = parseInt(btn.dataset.stepIdx, 10);
+                const drawer = document.querySelector(`.procbot-resilience-drawer[data-step-idx="${idx}"]`);
+                if (drawer) {
+                    const isHidden = drawer.style.display === "none";
+                    drawer.style.display = isHidden ? "flex" : "none";
+                }
+            };
+        });
+        document.querySelectorAll(".procbot-retry-select").forEach(sel => {
+            sel.onchange = () => {
+                const idx = parseInt(sel.dataset.stepIdx, 10);
+                wf.steps[idx].retry_count = parseInt(sel.value, 10);
+            };
+        });
+        document.querySelectorAll(".procbot-onfail-select").forEach(sel => {
+            sel.onchange = () => {
+                const idx = parseInt(sel.dataset.stepIdx, 10);
+                wf.steps[idx].on_failure = sel.value;
+            };
+        });
+
         // Password mask toggle
         document.querySelectorAll(".procbot-toggle-mask-btn").forEach(btn => {
             btn.onclick = () => {
@@ -12174,7 +12287,19 @@ function initProcBotRunner() {
                         chrome.runtime.sendMessage({
                             type: "PROCBOT_EXECUTE_STEP",
                             step: step,
-                            value: step.value || ""
+                            value: step.value || "",
+                            options: { retry_count: step.retry_count || 1, on_failure: step.on_failure || "abort" }
+                        }, (res) => {
+                            if (res && res.healed) {
+                                logTerm(`✨ [AI Self-Healing] Repaired selector using ${res.healed.engine}: ${res.healed.healed_selector}`, "heal");
+                            }
+                            if (res && res.assertion_passed !== undefined) {
+                                if (res.assertion_passed) logTerm(`✓ [Assertion Passed] Expected: "${res.expected || ''}" | Actual: "${res.actual || ''}"`, "success");
+                                else logTerm(`❌ [Assertion Failed] ${res.error || 'Assertion mismatch'}`, "error");
+                            }
+                            if (res && res.extracted_value !== undefined) {
+                                logTerm(`📥 [Extracted] {{${res.extracted_key}}} = "${res.extracted_value}"`, "success");
+                            }
                         });
                         logTerm(`✓ Dispatched test command for Step #${idx + 1}`, "success");
                     } catch (e) {
@@ -12228,7 +12353,9 @@ function initProcBotRunner() {
                 const newStep = {
                     action: "input",
                     title: `Step ${idx + 2}`,
-                    value: ""
+                    value: "",
+                    retry_count: 1,
+                    on_failure: "abort"
                 };
                 wf.steps.splice(idx + 1, 0, newStep);
                 renderSteps(wf);
@@ -12242,6 +12369,41 @@ function initProcBotRunner() {
     }
 
     // Toolbar Add Step Handlers
+    if (addAssertBtn) {
+        addAssertBtn.onclick = () => {
+            const wf = getActiveWorkflow();
+            if (!wf) return;
+            wf.steps = wf.steps || [];
+            wf.steps.push({
+                action: "assert_text",
+                title: `Assert Check #${wf.steps.length + 1}`,
+                assert_type: "text",
+                expected: "Expected Text",
+                value: "Expected Text",
+                retry_count: 2,
+                on_failure: "abort"
+            });
+            renderSteps(wf);
+            logTerm("Inserted 🔍 Assert Validation checkpoint", "info");
+        };
+    }
+    if (addExtractBtn) {
+        addExtractBtn.onclick = () => {
+            const wf = getActiveWorkflow();
+            if (!wf) return;
+            wf.steps = wf.steps || [];
+            wf.steps.push({
+                action: "extract",
+                title: `Extract Data #${wf.steps.length + 1}`,
+                extract_var: `var_data_${wf.steps.length + 1}`,
+                extract_attr: "text",
+                retry_count: 2,
+                on_failure: "skip"
+            });
+            renderSteps(wf);
+            logTerm("Inserted 📥 Data Extraction step", "info");
+        };
+    }
     if (addManualBtn) {
         addManualBtn.onclick = () => {
             const wf = getActiveWorkflow();
@@ -12266,7 +12428,9 @@ function initProcBotRunner() {
             wf.steps.push({
                 action: "input",
                 title: `Input Field #${wf.steps.length + 1}`,
-                value: "Sample Value"
+                value: "Sample Value",
+                retry_count: 1,
+                on_failure: "abort"
             });
             renderSteps(wf);
             logTerm("Inserted ⌨️ Input Field step", "info");
@@ -12280,7 +12444,9 @@ function initProcBotRunner() {
             wf.steps.push({
                 action: "click",
                 title: `Click Element #${wf.steps.length + 1}`,
-                value: ""
+                value: "",
+                retry_count: 1,
+                on_failure: "abort"
             });
             renderSteps(wf);
             logTerm("Inserted 🖱️ Click step", "info");
@@ -12649,6 +12815,7 @@ function initProcBotRunner() {
 
         let successCount = 0;
         let failedCount = 0;
+        const runtimeVars = { ...(customVars || {}) };
 
         for (let i = 0; i < total; i++) {
             if (!isProcBotRunning) { logTerm("⏹️ Execution stopped by user.", "warn"); break; }
@@ -12660,6 +12827,8 @@ function initProcBotRunner() {
             const title = step.edited_title || step.title || `Step ${i + 1}`;
             const act = (step.action || "click").toLowerCase();
             const isManualTask = act === "manual_pause" || act === "manual_task" || step.manual_pause || step._manualPause;
+            const isAssert = act.startsWith("assert") || act === "verify" || act === "check";
+            const isExtract = act === "extract";
 
             // Highlight card
             document.querySelectorAll(".procbot-step-card").forEach(c => {
@@ -12680,11 +12849,34 @@ function initProcBotRunner() {
             if (progressPercent) progressPercent.textContent = `${pct}%`;
             if (statusText) statusText.textContent = `Step ${i + 1}/${total}: ${title}`;
 
-            // Resolve dynamic value
+            // Resolve dynamic value & variables interpolation
             let targetVal = step.value || "";
-            if (customVars) {
-                const varKey = `var_${(title || `step_${i + 1}`).toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 24)}`;
-                if (customVars[varKey] !== undefined) targetVal = customVars[varKey];
+            const varKey = `var_${(title || `step_${i + 1}`).toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 24)}`;
+            if (runtimeVars[varKey] !== undefined) targetVal = runtimeVars[varKey];
+            
+            // Interpolate any {{var_name}} in strings
+            Object.keys(runtimeVars).forEach(k => {
+                const pat = new RegExp(`\\{\\{${k}\\}\\}`, 'g');
+                targetVal = String(targetVal).replace(pat, runtimeVars[k]);
+            });
+
+            // Log action
+            if (isManualTask) {
+                logTerm(`✋ [${i + 1}/${total}] MANUAL TASK: ${title}`, "pause");
+            } else if (isAssert) {
+                logTerm(`🔍 [${i + 1}/${total}] ASSERT: ${title} (Expected: "${step.expected || targetVal}")`, "info");
+            } else if (isExtract) {
+                logTerm(`📥 [${i + 1}/${total}] EXTRACT: ${title} ➔ {{${step.extract_var || varKey}}}`, "info");
+            } else if (act.includes("navigate") || (i === 0 && step.url)) {
+                logTerm(`🌐 [${i + 1}/${total}] Navigate: ${step.url || "target app"}`, "info");
+            } else if (["input", "change", "textarea_input", "type"].includes(act)) {
+                logTerm(`⌨️ [${i + 1}/${total}] Type "${targetVal.slice(0, 25)}" ➔ ${title}`, "info");
+            } else if (["select", "dropdown"].includes(act)) {
+                logTerm(`🔽 [${i + 1}/${total}] Select Option "${targetVal}" ➔ ${title}`, "info");
+            } else if (act.includes("click")) {
+                logTerm(`🖱️ [${i + 1}/${total}] Click: ${title}`, "info");
+            } else {
+                logTerm(`▶️ [${i + 1}/${total}] ${act}: ${title}`, "info");
             }
 
             // Forward to In-Page Extension Runner

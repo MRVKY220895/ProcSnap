@@ -6370,6 +6370,86 @@ def get_procbot_run_logs(session_id: str, limit: int = 20):
         conn.close()
 
 
+@app.post("/procbot/heal-selector")
+def heal_procbot_selector(payload: Dict[str, Any] = Body(...)):
+    """
+    AI-powered Self-Healing Selector endpoint.
+    When a selector fails during automation replay, this endpoint queries Ollama
+    (or smart DOM heuristics) to deduce the new working CSS/XPath selector.
+    """
+    step_title = payload.get("step_title", "")
+    action = payload.get("action", "click")
+    failed_selector = payload.get("failed_selector", "")
+    original_text = payload.get("original_text", "")
+    dom_snippet = (payload.get("dom_snippet", "") or "")[:4000]
+
+    if not dom_snippet and not original_text:
+        return {"status": "error", "message": "No DOM snippet or target context provided"}
+
+    # Attempt 1: Query Local Ollama LLM
+    try:
+        import urllib.request
+        prompt = (
+            f"You are an expert RPA DOM selector generator. An automated browser step '{step_title}' "
+            f"(Action: {action}, Expected Text: '{original_text}', Failed Selector: '{failed_selector}') failed to find its element.\n\n"
+            f"Here is a snippet of the current page interactive DOM:\n"
+            f"```html\n{dom_snippet}\n```\n\n"
+            f"Analyze the HTML and provide ONLY the most resilient, precise single CSS selector (or XPath starting with //) "
+            f"to locate this target element. Output ONLY the selector string without markdown quotes, backticks, or explanation."
+        )
+        
+        req_data = json.dumps({
+            "model": "qwen2.5-coder:7b",
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0.1, "num_predict": 60}
+        }).encode("utf-8")
+        
+        req = urllib.request.Request(
+            "http://127.0.0.1:11434/api/generate",
+            data=req_data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            candidate = data.get("response", "").strip()
+            # Clean up candidate
+            candidate = re.sub(r"^```[a-z]*\s*", "", candidate)
+            candidate = re.sub(r"\s*```$", "", candidate).strip()
+            candidate = candidate.split("\n")[0].strip('`"\' ')
+            if candidate and len(candidate) < 120 and (candidate.startswith(("#", ".", "[", "//", "(//")) or any(t in candidate for t in ("button", "input", "a", "select"))):
+                strategy = "xpath" if candidate.startswith(("//", "(//")) else "css"
+                return {
+                    "status": "healed",
+                    "engine": "ollama",
+                    "healed_selector": candidate,
+                    "strategy": strategy,
+                    "confidence": 92
+                }
+    except Exception:
+        pass
+
+    # Attempt 2: Smart Heuristic Fallback based on text or button match in snippet
+    clean_target = (original_text or step_title).strip().lower()
+    for word in re.findall(r'[A-Za-z0-9]{3,}', clean_target):
+        if word in dom_snippet.lower():
+            # Check for button with this text
+            heuristic_sel = f"button:has-text('{word}')"
+            return {
+                "status": "healed",
+                "engine": "heuristic",
+                "healed_selector": heuristic_sel,
+                "strategy": "css",
+                "confidence": 75
+            }
+
+    return {
+        "status": "unhealed",
+        "message": "Could not deduce alternative selector with confidence."
+    }
+
+
+
 
 
 
