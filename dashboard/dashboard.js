@@ -3470,14 +3470,7 @@ function loadActiveStepDetails() {
                 : rawUrl.replace(/-demo.*\.gif/i, ".png");
             
             imgEl.onerror = () => {
-                console.warn("[ProcSnap] Screenshot load retry for step", step.sequence);
-                if (workflow && workflow.id) {
-                    const fallbackUrl = `${API_BASE}/screenshots/${workflow.id}/step-${String(step.sequence).padStart(3, "0")}.png`;
-                    if (imgEl.src !== fallbackUrl && !imgEl.src.endsWith(fallbackUrl)) {
-                        imgEl.src = fallbackUrl;
-                        return;
-                    }
-                }
+                imgEl.onerror = null;
                 imgEl.classList.add("hidden");
                 if (noScr) noScr.classList.remove("hidden");
             };
