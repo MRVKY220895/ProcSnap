@@ -12485,10 +12485,15 @@ function initProcBotRunner() {
     if (openInNewTabBtn) {
         openInNewTabBtn.onclick = () => {
             const wf = getActiveWorkflow();
-            const sid = wf && wf.id ? wf.id : (selectedWorkflowId || "");
-            const targetUrl = `${window.location.origin}${window.location.pathname}?session_id=${sid}&view=procbot`;
-            window.open(targetUrl, "_blank");
-            showToast("Opening ProcBot in dedicated fullscreen browser tab...", 2500);
+            const sid = (wf && wf.id) ? wf.id : (selectedWorkflowId || (wfSelect ? wfSelect.value : ""));
+            const targetUrl = `${window.location.origin}${window.location.pathname}?session_id=${encodeURIComponent(sid || "")}&view=procbot`;
+            const popWin = window.open(targetUrl, "_blank");
+            if (!popWin || popWin.closed || typeof popWin.closed === "undefined") {
+                // If browser popup blocker intercepts, navigate directly in current window
+                window.location.href = targetUrl;
+            } else {
+                showToast("↗️ Opening ProcBot in dedicated fullscreen browser tab...", 3000);
+            }
         };
     }
 
@@ -13039,6 +13044,50 @@ function initProcBotRunner() {
     if (pauseBtn) { pauseBtn.onclick = () => { isProcBotPaused = true; if (pauseBtn) pauseBtn.classList.add("hidden"); if (resumeBtn) resumeBtn.classList.remove("hidden"); if (statusText) statusText.textContent = "PAUSED"; logTerm("\u23f8\ufe0f Paused.", "pause"); }; }
     if (resumeBtn) { resumeBtn.onclick = () => { isProcBotPaused = false; if (resumeBtn) resumeBtn.classList.add("hidden"); if (pauseBtn) pauseBtn.classList.remove("hidden"); if (statusText) statusText.textContent = "Resumed..."; logTerm("\u25b6\ufe0f Resumed.", "success"); }; }
     if (nextStepBtn) { nextStepBtn.onclick = () => { if (procBotStepResolve) procBotStepResolve(); }; }
+
+    // ── Check if opened in dedicated Pop-Out Tab view (?view=procbot) ────────
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("view") === "procbot") {
+        setTimeout(async () => {
+            const sid = urlParams.get("session_id");
+            if (sid) {
+                try {
+                    const res = await fetch(`${API_BASE}/sessions/${sid}`);
+                    const data = await res.json();
+                    if (data && (data.steps || data.id)) {
+                        procBotTargetWorkflow = data;
+                        const cfgRes = await fetch(`${API_BASE}/sessions/${sid}/procbot-config`).catch(() => null);
+                        if (cfgRes && cfgRes.ok) {
+                            const cfgData = await cfgRes.json();
+                            if (cfgData.config && cfgData.config.steps) {
+                                procBotTargetWorkflow.steps = cfgData.config.steps;
+                            }
+                        }
+                    }
+                } catch (_) {}
+            }
+            await openModal(!sid);
+
+            // Fullscreen immersion styling for standalone pop-out tab
+            if (modal) {
+                modal.style.background = "#070b14";
+                const container = $("procbotModalContainer");
+                if (container) {
+                    container.style.inset = "0px";
+                    container.style.borderRadius = "0px";
+                    container.style.border = "none";
+                }
+            }
+            if (openInNewTabBtn) {
+                openInNewTabBtn.innerHTML = "🔙 Back to Studio";
+                openInNewTabBtn.title = "Return to Standard SOP Studio view";
+                openInNewTabBtn.onclick = () => {
+                    const curSid = urlParams.get("session_id") || (procBotTargetWorkflow ? procBotTargetWorkflow.id : "");
+                    window.location.href = `${window.location.origin}${window.location.pathname}${curSid ? `?session_id=${encodeURIComponent(curSid)}` : ''}`;
+                };
+            }
+        }, 200);
+    }
 }
 
 // Global Escape Key Modal Closer
