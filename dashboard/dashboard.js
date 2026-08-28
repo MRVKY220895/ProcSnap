@@ -13401,15 +13401,20 @@ function initProcBotRunner() {
                 logTerm(`▶️ [${i + 1}/${total}] ${act}: ${title}`, "info");
             }
 
-            // Forward to In-Page Extension Runner
-            if (selectedEngine === "browser" && window.chrome && chrome.runtime) {
-                try {
-                    chrome.runtime.sendMessage({
-                        type: "PROCBOT_EXECUTE_STEP",
-                        step: { ...step, action: act, manual_pause: isManualTask },
-                        value: targetVal
-                    });
-                } catch(e) {}
+            // Forward to In-Page Extension Runner and AWAIT execution in the live tab
+            if (selectedEngine === "browser") {
+                const stepExecResult = await executeStepInBrowser(
+                    { ...step, action: act, manual_pause: isManualTask, sequence: i + 1 },
+                    targetVal,
+                    { retry_count: step.retry_count || 2, on_failure: step.on_failure || "abort" }
+                );
+                if (stepExecResult && stepExecResult.success === false && step.on_failure === "abort") {
+                    logTerm(`❌ [${i + 1}/${total}] Failed: ${stepExecResult.error || "Element action failed"}`, "error");
+                    failedCount++;
+                    break;
+                } else if (stepExecResult && stepExecResult.healed) {
+                    logTerm(`✨ [${i + 1}/${total}] AI Self-Healed selector ➔ ${stepExecResult.healed}`, "heal");
+                }
             }
 
             // Breakpoint check
