@@ -835,9 +835,16 @@ async function init() {
     // Check query params for auto-open
     const params = new URLSearchParams(window.location.search);
     const session_id = params.get("session_id");
+    const viewParam = params.get("view");
     if (session_id) {
         selectedWorkflowId = session_id;
-        openWorkflow(session_id);
+        openWorkflow(session_id).then(() => {
+            if (viewParam === "procbot" && window.openProcBotStudio) {
+                setTimeout(() => window.openProcBotStudio(false), 300);
+            }
+        });
+    } else if (viewParam === "procbot" && window.openProcBotStudio) {
+        setTimeout(() => window.openProcBotStudio(true), 300);
     }
 }
 
@@ -11767,7 +11774,7 @@ function initModeSwitcher() {
     applyMode(currentMode);
 }
 
-// ── ProcBot RPA Automation Studio Engine v3 ────────────────────────────────
+// ── ProcBot RPA Automation Studio Engine v3 (UI/UX Master Edition) ────────
 let isProcBotRunning = false;
 let isProcBotPaused = false;
 let procBotStepResolve = null;
@@ -11776,33 +11783,35 @@ let procBotStartTime = null;
 let procBotTargetWorkflow = null;
 let procBotBatchRows = [];
 let procBotLogsHistory = [];
+let procBotActiveTab = "builder";
+let procBotCurrentCodeLang = "playwright";
 
 function initProcBotRunner() {
     const modal = $("procbotRunnerModal");
     const openBtn = $("btnOpenProcBot");
     const closeBtn = $("btnCloseProcbotModal");
+    const openInNewTabBtn = $("btnProcbotOpenInNewTab");
     const runBtn = $("btnRunProcBotNow");
+    const quickRunBtn = $("btnProcbotQuickRun");
     const stopBtn = $("btnStopProcBot");
     const pauseBtn = $("btnPauseProcBot");
     const resumeBtn = $("btnResumeProcBot");
     const nextStepBtn = $("btnNextStepProcBot");
-    const pwBtn = $("btnProcbotDownloadPlaywright");
-    const selBtn = $("btnProcbotDownloadSelenium");
-    const exportPwBtn = $("btnExportProcbotPw");
-    const exportSelBtn = $("btnExportProcbotSel");
     const saveConfigBtn = $("btnProcbotSaveConfig");
-    const batchModalBtn = $("btnProcbotBatchModal");
-    const historyModalBtn = $("btnProcbotHistoryModal");
     const addManualBtn = $("btnProcbotAddManualStep");
     const addInputBtn = $("btnProcbotAddInputStep");
     const addClickBtn = $("btnProcbotAddClickStep");
     const stepSearchInput = $("procbotStepSearch");
     const stepsListEl = $("procbotStepsList");
     const termLog = $("procbotTerminalLog");
+    const clearTermBtn = $("btnClearProcbotTerminal");
     const progressBar = $("procbotProgressBar");
     const progressPercent = $("procbotProgressPercent");
     const statusText = $("procbotStatusText");
+    const statusPill = $("procbotStatusPill");
     const elapsedEl = $("procbotElapsedTime");
+    const activeEngineBadge = $("procbotActiveEngineBadge");
+    const stepSeqIndicator = $("procbotStepSeqIndicator");
     const engineSelect = $("procbotEngineSelect");
     const speedSelect = $("procbotSpeedSelect");
     const loadWaitSelect = $("procbotLoadWait");
@@ -11813,29 +11822,80 @@ function initProcBotRunner() {
     const liveOverlay = $("procbotLiveOverlay");
     const hubProcBotBtn = $("hubActionProcBot");
 
-    // Batch Modal Elements
-    const batchModal = $("procbotBatchModal");
-    const closeBatchBtn = $("btnCloseProcbotBatchModal");
+    // Batch Tab Elements
     const batchCsvInput = $("procbotBatchCsvInput");
     const downloadCsvTemplateBtn = $("btnProcbotDownloadCsvTemplate");
     const batchPreviewContainer = $("procbotBatchPreviewContainer");
     const runBatchBtn = $("btnProcbotRunBatch");
 
-    // History Modal Elements
-    const historyModal = $("procbotHistoryModal");
-    const closeHistoryBtn = $("btnCloseProcbotHistoryModal");
+    // History Tab Elements
     const historyListEl = $("procbotHistoryList");
+    const histTotalRuns = $("procbotHistTotalRuns");
+    const histSuccessRate = $("procbotHistSuccessRate");
+    const histAvgDuration = $("procbotHistAvgDuration");
+    const histLastRun = $("procbotHistLastRun");
 
+    // Code Tab Elements
+    const codeViewer = $("procbotCodeViewer");
+    const copyCodeBtn = $("btnProcbotCopyCode");
+    const downloadCodeBtn = $("btnProcbotDownloadCode");
+
+    // ── Tab Switching Logic ──────────────────────────────────────────────────
+    function switchProcBotTab(tabName) {
+        procBotActiveTab = tabName;
+        // Update tab buttons
+        document.querySelectorAll("#procbotStudioTabBar .procbot-nav-tab").forEach(btn => {
+            const isTarget = btn.dataset.tab === tabName;
+            btn.classList.toggle("active", isTarget);
+            btn.style.borderBottomColor = isTarget ? "#6366f1" : "transparent";
+            btn.style.color = isTarget ? "#818cf8" : "#94a3b8";
+            btn.style.fontWeight = isTarget ? "800" : "700";
+        });
+
+        // Toggle tab panes
+        const panes = {
+            builder: $("procbotTabBuilder"),
+            monitor: $("procbotTabMonitor"),
+            batch: $("procbotTabBatch"),
+            history: $("procbotTabHistory"),
+            code: $("procbotTabCode")
+        };
+
+        Object.keys(panes).forEach(k => {
+            if (panes[k]) {
+                panes[k].style.display = k === tabName ? "flex" : "none";
+            }
+        });
+
+        // Tab specific refreshes
+        if (tabName === "history") loadHistoryLogs();
+        if (tabName === "code") renderExportCode(procBotCurrentCodeLang);
+        if (tabName === "batch") renderBatchPreview();
+    }
+
+    document.querySelectorAll("#procbotStudioTabBar .procbot-nav-tab").forEach(btn => {
+        btn.onclick = () => switchProcBotTab(btn.dataset.tab);
+    });
+
+    // ── Terminal Logger ──────────────────────────────────────────────────────
     function logTerm(msg, type) {
         if (!termLog) return;
         const line = document.createElement("div");
         const ts = new Date().toLocaleTimeString();
-        const colors = { success: "#34d399", warn: "#fbbf24", error: "#f87171", dim: "#64748b", pause: "#c084fc", info: "#a5b4fc" };
+        const colors = { success: "#34d399", warn: "#fbbf24", error: "#f87171", dim: "#64748b", pause: "#c084fc", info: "#38bdf8" };
         line.style.color = colors[type] || colors.info;
+        line.style.fontSize = "11px";
+        line.style.lineHeight = "1.5";
         line.textContent = `[${ts}] ${msg}`;
         termLog.appendChild(line);
         termLog.scrollTop = termLog.scrollHeight;
         procBotLogsHistory.push({ time: ts, msg, type: type || "info" });
+    }
+
+    if (clearTermBtn) {
+        clearTermBtn.onclick = () => {
+            if (termLog) termLog.innerHTML = '<div style="color:#64748b;">// Terminal log cleared.</div>';
+        };
     }
 
     function updateElapsed() {
@@ -11856,9 +11916,11 @@ function initProcBotRunner() {
         liveScreenshot.style.display = "block";
         liveScreenshot.onerror = () => { liveScreenshot.style.display = "none"; };
         liveOverlay.textContent = `Step ${stepIdx + 1}: ${step.edited_title || step.title || ""}`;
-        liveOverlay.style.cssText = "position:absolute;bottom:0;left:0;right:0;padding:4px 8px;font-size:10px;font-weight:700;background:rgba(0,0,0,0.75);color:#a5b4fc;text-align:center;";
+        liveOverlay.style.cssText = "position:absolute;bottom:0;left:0;right:0;padding:6px 12px;font-size:11px;font-weight:800;background:rgba(11,15,25,0.85);color:#38bdf8;text-align:center;backdrop-filter:blur(4px);border-top:1px solid rgba(255,255,255,0.08);";
+        if (stepSeqIndicator) stepSeqIndicator.textContent = `Step ${stepIdx + 1} of ${activeWf.steps.length}`;
     }
 
+    // ── Render Step Sequence Cards with High-Contrast UI/UX ───────────────────
     function renderSteps(targetWf) {
         const wf = targetWf || getActiveWorkflow();
         if (!wf || !wf.steps) return;
@@ -11887,26 +11949,28 @@ function initProcBotRunner() {
             }
 
             let actBadgeColor = "#6366f1";
-            if (isInput) actBadgeColor = "#10b981";
-            if (isSelect) actBadgeColor = "#38bdf8";
-            if (isManualTask) actBadgeColor = "#fbbf24";
-            if (isWait) actBadgeColor = "#a855f7";
-            if (isNav) actBadgeColor = "#3b82f6";
+            let actBadgeBg = "rgba(99,102,241,0.15)";
+            let actIcon = "🖱️";
+            if (isInput) { actBadgeColor = "#34d399"; actBadgeBg = "rgba(16,185,129,0.15)"; actIcon = "⌨️"; }
+            if (isSelect) { actBadgeColor = "#38bdf8"; actBadgeBg = "rgba(56,189,248,0.15)"; actIcon = "🔽"; }
+            if (isManualTask) { actBadgeColor = "#fbbf24"; actBadgeBg = "rgba(251,191,36,0.15)"; actIcon = "✋"; }
+            if (isWait) { actBadgeColor = "#c084fc"; actBadgeBg = "rgba(168,85,247,0.15)"; actIcon = "⏱️"; }
+            if (isNav) { actBadgeColor = "#60a5fa"; actBadgeBg = "rgba(59,130,246,0.15)"; actIcon = "🌐"; }
 
             let hostLabel = "";
             if (step.url) { try { hostLabel = new URL(step.url.startsWith("http") ? step.url : "https://app.local").hostname; } catch(e) {} }
 
             return `
-                <div class="procbot-step-card" data-step-idx="${idx}" style="background:rgba(255,255,255,0.03);border:1px solid ${isManualTask ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.08)'};border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;transition:all .15s ease;${isHidden ? 'opacity:0.45;' : ''}">
-                    <!-- Top Step Row -->
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-                        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
-                            <input type="checkbox" class="procbot-step-active" ${!isHidden ? 'checked' : ''} style="accent-color:#10b981;cursor:pointer;" title="Enable/Disable step">
-                            <button class="procbot-breakpoint-btn" data-bp-idx="${idx}" style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:15px;height:15px;cursor:pointer;padding:0;font-size:9px;line-height:13px;color:#475569;${step._breakpoint ? 'background:#ef4444;border-color:#ef4444;color:#fff;' : ''}" title="Toggle Breakpoint (Pause here)">●</button>
-                            <button class="procbot-manual-pause-btn" data-mp-idx="${idx}" style="background:${isManualTask ? 'rgba(251,191,36,0.2)' : 'none'};border:1px solid ${isManualTask ? '#fbbf24' : 'rgba(255,255,255,0.1)'};border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;color:${isManualTask ? '#fbbf24' : '#475569'};font-weight:700;" title="Toggle Stop for Manual Action">✋</button>
+                <div class="procbot-step-card" data-step-idx="${idx}" style="background: #111827; border: 1px solid ${isManualTask ? 'rgba(251,191,36,0.35)' : 'rgba(255,255,255,0.08)'}; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; transition: all .15s ease; ${isHidden ? 'opacity: 0.4;' : ''}">
+                    <!-- Top Row: Checkbox, Step Number, Action Selector, Title Input, Host Pill, Controls -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+                            <input type="checkbox" class="procbot-step-active" ${!isHidden ? 'checked' : ''} style="accent-color: #10b981; width: 15px; height: 15px; cursor: pointer;" title="Enable/Disable step">
                             
-                            <!-- Action Type Selector -->
-                            <select class="procbot-step-action-select" data-step-idx="${idx}" style="font-size:10.5px;font-weight:800;background:${actBadgeColor}22;color:${actBadgeColor};border:1px solid ${actBadgeColor}55;border-radius:5px;padding:2px 4px;cursor:pointer;">
+                            <span style="font-size: 10.5px; font-weight: 800; font-family: monospace; color: #94a3b8; background: #1f293d; padding: 2px 6px; border-radius: 4px;">#${String(idx + 1).padStart(2, '0')}</span>
+
+                            <!-- Action Selector -->
+                            <select class="procbot-step-action-select" data-step-idx="${idx}" style="font-size: 11px; font-weight: 800; background: ${actBadgeBg}; color: ${actBadgeColor}; border: 1px solid ${actBadgeColor}44; border-radius: 6px; padding: 3px 6px; cursor: pointer; outline: none;">
                                 <option value="click" ${act === 'click' ? 'selected' : ''}>🖱️ Click</option>
                                 <option value="dblclick" ${act === 'dblclick' || act === 'double_click' ? 'selected' : ''}>🖱️ Double-Click</option>
                                 <option value="input" ${isInput ? 'selected' : ''}>⌨️ Type Input</option>
@@ -11918,63 +11982,67 @@ function initProcBotRunner() {
                             </select>
 
                             <!-- Step Title Edit -->
-                            <input type="text" class="procbot-step-title-input form-control" data-step-idx="${idx}" value="${esc(title)}" placeholder="Step Title..." style="font-size:11.5px;font-weight:700;padding:2px 6px;height:24px;border-radius:4px;flex:1;min-width:80px;background:rgba(0,0,0,0.2);color:#fff;border:1px solid rgba(255,255,255,0.06);">
+                            <input type="text" class="procbot-step-title-input" data-step-idx="${idx}" value="${esc(title)}" placeholder="Step Title..." style="font-size: 12px; font-weight: 700; padding: 4px 8px; height: 26px; border-radius: 6px; flex: 1; min-width: 120px; background: #080c14; color: #f8fafc; border: 1px solid rgba(255,255,255,0.12); outline: none;">
                         </div>
 
-                        <!-- Step Controls (Move / Delete / Insert) -->
-                        <div style="display:flex;align-items:center;gap:3px;">
-                            <span style="font-size:9.5px;font-family:monospace;color:var(--text-muted);margin-right:2px;">${hostLabel}</span>
-                            <button class="procbot-step-move-up" data-step-idx="${idx}" style="background:none;border:none;color:#94a3b8;cursor:pointer;padding:1px 3px;font-size:10px;" title="Move Up" ${idx === 0 ? 'disabled style="opacity:0.2"' : ''}>⬆️</button>
-                            <button class="procbot-step-move-down" data-step-idx="${idx}" style="background:none;border:none;color:#94a3b8;cursor:pointer;padding:1px 3px;font-size:10px;" title="Move Down" ${idx === wf.steps.length - 1 ? 'disabled style="opacity:0.2"' : ''}>⬇️</button>
-                            <button class="procbot-step-insert-below" data-step-idx="${idx}" style="background:none;border:none;color:#10b981;cursor:pointer;padding:1px 3px;font-size:10px;" title="Insert Step Below">➕</button>
-                            <button class="procbot-step-delete" data-step-idx="${idx}" style="background:none;border:none;color:#ef4444;cursor:pointer;padding:1px 3px;font-size:10px;" title="Delete Step">🗑️</button>
+                        <!-- Top Right Step Controls -->
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            ${hostLabel ? `<span style="font-size: 10px; font-weight: 700; color: #64748b; background: #1e293b; padding: 2px 6px; border-radius: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🌐 ${hostLabel}</span>` : ''}
+                            
+                            <button class="procbot-test-step-btn" data-step-idx="${idx}" style="background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); border-radius: 5px; color: #38bdf8; padding: 2px 6px; font-size: 10px; font-weight: 700; cursor: pointer;" title="Dry-run this single step in browser">⚡ Test</button>
+                            <button class="procbot-breakpoint-btn" data-bp-idx="${idx}" style="background: ${step._breakpoint ? '#ef4444' : 'rgba(255,255,255,0.06)'}; border: 1px solid ${step._breakpoint ? '#ef4444' : 'rgba(255,255,255,0.12)'}; border-radius: 5px; width: 22px; height: 22px; cursor: pointer; padding: 0; font-size: 10px; color: ${step._breakpoint ? '#fff' : '#64748b'};" title="Toggle Breakpoint">●</button>
+                            <button class="procbot-manual-pause-btn" data-mp-idx="${idx}" style="background: ${isManualTask ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.06)'}; border: 1px solid ${isManualTask ? '#fbbf24' : 'rgba(255,255,255,0.12)'}; border-radius: 5px; width: 22px; height: 22px; cursor: pointer; padding: 0; font-size: 11px; color: ${isManualTask ? '#fbbf24' : '#64748b'};" title="Toggle Stop for Manual Action">✋</button>
+                            <button class="procbot-edit-selector-btn" data-step-idx="${idx}" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; width: 22px; height: 22px; cursor: pointer; padding: 0; font-size: 10px; color: #818cf8;" title="Target Selector Inspector">⚙️</button>
+                            <button class="procbot-step-move-up" data-step-idx="${idx}" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; font-size: 11px;" title="Move Up" ${idx === 0 ? 'disabled style="opacity:0.2"' : ''}>⬆️</button>
+                            <button class="procbot-step-move-down" data-step-idx="${idx}" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; font-size: 11px;" title="Move Down" ${idx === wf.steps.length - 1 ? 'disabled style="opacity:0.2"' : ''}>⬇️</button>
+                            <button class="procbot-step-insert-below" data-step-idx="${idx}" style="background: none; border: none; color: #10b981; cursor: pointer; padding: 2px; font-size: 11px;" title="Insert Step Below">➕</button>
+                            <button class="procbot-step-delete" data-step-idx="${idx}" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 2px; font-size: 11px;" title="Delete Step">🗑️</button>
                         </div>
                     </div>
 
-                    <!-- Step Value / Parameter / Manual Note Editor -->
+                    <!-- Row 2: Dynamic Parameters / Field Value / Dropdown / Manual Instructions -->
                     ${isManualTask ? `
-                    <div style="background:rgba(251,191,36,0.08);border:1px dashed rgba(251,191,36,0.3);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;">
-                        <span style="font-size:10px;font-weight:800;color:#fbbf24;">✋ Manual Action Instructions:</span>
-                        <input type="text" class="procbot-manual-note-input form-control" data-step-idx="${idx}" value="${esc(step.manual_instructions || step.note || 'Complete manual task (CAPTCHA/OTP/Approval) and resume')}" placeholder="Instructions for manual step..." style="font-size:11px;padding:3px 6px;height:24px;border-radius:4px;">
+                    <div style="background: rgba(251,191,36,0.08); border: 1px dashed rgba(251,191,36,0.35); border-radius: 7px; padding: 7px 10px; display: flex; flex-direction: column; gap: 4px;">
+                        <span style="font-size: 10px; font-weight: 800; color: #fbbf24; display: flex; align-items: center; gap: 4px;">✋ Human-in-the-loop Checkpoint Instructions:</span>
+                        <input type="text" class="procbot-manual-note-input" data-step-idx="${idx}" value="${esc(step.manual_instructions || step.note || 'Complete manual task (CAPTCHA/OTP/Approval) and resume')}" placeholder="Instructions for user on screen..." style="font-size: 11.5px; padding: 4px 8px; height: 26px; border-radius: 5px; background: #080c14; color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); outline: none;">
                     </div>` : ''}
 
                     ${isInput ? `
-                    <div style="display:grid;grid-template-columns:130px 1fr;gap:6px;align-items:center;background:rgba(0,0,0,0.25);border-radius:5px;padding:4px 7px;border:1px dashed rgba(16,185,129,0.3);">
-                        <span style="font-size:9.5px;font-family:monospace;color:#34d399;font-weight:700;">{{${varKey}}}</span>
-                        <div style="display:flex;gap:4px;">
-                            <input type="text" class="procbot-var-input form-control" data-step-idx="${idx}" data-var-key="${varKey}" value="${esc(rawVal)}" placeholder="Enter parameter value..." style="font-size:11px;padding:3px 6px;height:24px;border-radius:4px;flex:1;">
-                            <button class="procbot-toggle-mask-btn" data-step-idx="${idx}" style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:0 5px;cursor:pointer;font-size:10px;color:#94a3b8;" title="Mask password">👁️</button>
+                    <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; align-items: center; background: #080c14; border-radius: 7px; padding: 6px 10px; border: 1px dashed rgba(16,185,129,0.35);">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 10px; font-family: monospace; color: #34d399; font-weight: 800; background: rgba(16,185,129,0.12); padding: 2px 6px; border-radius: 4px;">{{${varKey}}}</span>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" class="procbot-var-input" data-step-idx="${idx}" data-var-key="${varKey}" value="${esc(rawVal)}" placeholder="Enter field value or {{variable}}..." style="font-size: 11.5px; padding: 4px 8px; height: 26px; border-radius: 5px; flex: 1; background: #131b2e; color: #f8fafc; border: 1px solid rgba(255,255,255,0.12); outline: none;">
+                            <button class="procbot-toggle-mask-btn" data-step-idx="${idx}" style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 5px; padding: 0 7px; cursor: pointer; font-size: 11px; color: #94a3b8;" title="Mask sensitive password">👁️</button>
                         </div>
                     </div>` : ''}
 
                     ${isSelect ? `
-                    <div style="display:grid;grid-template-columns:130px 1fr;gap:6px;align-items:center;background:rgba(0,0,0,0.25);border-radius:5px;padding:4px 7px;border:1px dashed rgba(56,189,248,0.3);">
-                        <span style="font-size:9.5px;font-family:monospace;color:#38bdf8;font-weight:700;">🔽 {{${varKey}}}</span>
-                        <input type="text" class="procbot-select-val-input form-control" data-step-idx="${idx}" data-var-key="${varKey}" value="${esc(rawVal)}" placeholder="Select Option Text or Value..." style="font-size:11px;padding:3px 6px;height:24px;border-radius:4px;">
+                    <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; align-items: center; background: #080c14; border-radius: 7px; padding: 6px 10px; border: 1px dashed rgba(56,189,248,0.35);">
+                        <span style="font-size: 10px; font-family: monospace; color: #38bdf8; font-weight: 800; background: rgba(56,189,248,0.12); padding: 2px 6px; border-radius: 4px;">🔽 {{${varKey}}}</span>
+                        <input type="text" class="procbot-select-val-input" data-step-idx="${idx}" data-var-key="${varKey}" value="${esc(rawVal)}" placeholder="Select Option Text or Value..." style="font-size: 11.5px; padding: 4px 8px; height: 26px; border-radius: 5px; background: #131b2e; color: #f8fafc; border: 1px solid rgba(255,255,255,0.12); outline: none;">
                     </div>` : ''}
 
                     ${isWait ? `
-                    <div style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.25);border-radius:5px;padding:4px 7px;border:1px dashed rgba(168,85,247,0.3);">
-                        <span style="font-size:10px;font-weight:700;color:#c084fc;">⏱️ Delay Duration (Seconds):</span>
-                        <input type="number" step="0.5" min="0.5" max="60" class="procbot-wait-val-input form-control" data-step-idx="${idx}" value="${esc(rawVal || '2.0')}" style="font-size:11px;padding:3px 6px;height:24px;width:70px;border-radius:4px;">
+                    <div style="display: flex; align-items: center; gap: 8px; background: #080c14; border-radius: 7px; padding: 6px 10px; border: 1px dashed rgba(168,85,247,0.35);">
+                        <span style="font-size: 11px; font-weight: 800; color: #c084fc;">⏱️ Delay Duration (Seconds):</span>
+                        <input type="number" step="0.5" min="0.5" max="60" class="procbot-wait-val-input" data-step-idx="${idx}" value="${esc(rawVal || '2.0')}" style="font-size: 11.5px; padding: 3px 8px; height: 26px; width: 80px; border-radius: 5px; background: #131b2e; color: #f8fafc; border: 1px solid rgba(255,255,255,0.12); outline: none;">
                     </div>` : ''}
 
                     ${isNav ? `
-                    <div style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.25);border-radius:5px;padding:4px 7px;border:1px dashed rgba(59,130,246,0.3);">
-                        <span style="font-size:10px;font-weight:700;color:#60a5fa;">🌐 Target URL:</span>
-                        <input type="text" class="procbot-nav-url-input form-control" data-step-idx="${idx}" value="${esc(step.url || '')}" placeholder="https://..." style="font-size:11px;padding:3px 6px;height:24px;border-radius:4px;flex:1;">
+                    <div style="display: flex; align-items: center; gap: 8px; background: #080c14; border-radius: 7px; padding: 6px 10px; border: 1px dashed rgba(59,130,246,0.35);">
+                        <span style="font-size: 11px; font-weight: 800; color: #60a5fa;">🌐 Target Navigation URL:</span>
+                        <input type="text" class="procbot-nav-url-input" data-step-idx="${idx}" value="${esc(step.url || '')}" placeholder="https://..." style="font-size: 11.5px; padding: 4px 8px; height: 26px; border-radius: 5px; flex: 1; background: #131b2e; color: #f8fafc; border: 1px solid rgba(255,255,255,0.12); outline: none;">
                     </div>` : ''}
 
-                    <!-- Selector Collapsible Bar -->
-                    <div style="display:flex;align-items:center;justify-content:space-between;font-size:9.5px;color:var(--text-muted);padding-top:2px;">
-                        <span style="font-family:monospace;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(customSel)}">🎯 ${esc(customSel || 'auto-selector')}</span>
-                        <button class="procbot-edit-selector-btn" data-step-idx="${idx}" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:9.5px;font-weight:700;">Edit Selector ⚙️</button>
-                    </div>
-                    <div class="procbot-selector-drawer hidden" data-step-idx="${idx}" style="display:none;background:rgba(0,0,0,0.4);border-radius:6px;padding:6px 8px;border:1px solid rgba(255,255,255,0.06);flex-direction:column;gap:4px;">
-                        <label style="font-size:9.5px;font-weight:700;color:#94a3b8;">CSS Selector / XPath Locator:</label>
-                        <div style="display:flex;gap:4px;">
-                            <input type="text" class="procbot-custom-selector-input form-control" data-step-idx="${idx}" value="${esc(customSel)}" placeholder="#id, .class, //button[text()='Submit']..." style="font-size:10.5px;font-family:monospace;padding:3px 6px;height:22px;border-radius:4px;flex:1;">
+                    <!-- Collapsible Selector Drawer -->
+                    <div class="procbot-selector-drawer" data-step-idx="${idx}" style="display: none; background: #080c14; border-radius: 7px; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.08); flex-direction: column; gap: 6px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <label style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Target Element Selector (CSS / XPath):</label>
+                            <span style="font-size: 9.5px; color: #64748b;">Supports ID, Classes, XPath, Attributes</span>
                         </div>
+                        <input type="text" class="procbot-custom-selector-input" data-step-idx="${idx}" value="${esc(customSel)}" placeholder="#id, .class, button[type='submit'], //input[@name='q']..." style="font-size: 11px; font-family: monospace; padding: 4px 8px; height: 26px; border-radius: 5px; background: #131b2e; color: #38bdf8; border: 1px solid rgba(255,255,255,0.12); outline: none;">
                     </div>
                 </div>
             `;
@@ -12009,12 +12077,12 @@ function initProcBotRunner() {
 
         // Active / Enabled toggle
         document.querySelectorAll(".procbot-step-active").forEach(cb => {
-            cb.onchange = (e) => {
+            cb.onchange = () => {
                 const card = cb.closest(".procbot-step-card");
                 const idx = parseInt(card.dataset.stepIdx, 10);
                 wf.steps[idx].hidden = !cb.checked;
                 wf.steps[idx]._disabled = !cb.checked;
-                card.style.opacity = cb.checked ? "1" : "0.45";
+                card.style.opacity = cb.checked ? "1" : "0.4";
             };
         });
 
@@ -12043,13 +12111,25 @@ function initProcBotRunner() {
             };
         });
 
-        // Variable & Manual Value inputs
+        // Variable & Parameter inputs
         document.querySelectorAll(".procbot-var-input, .procbot-select-val-input, .procbot-wait-val-input, .procbot-nav-url-input").forEach(inp => {
             inp.onchange = () => {
                 const idx = parseInt(inp.dataset.stepIdx, 10);
                 wf.steps[idx].value = inp.value;
                 if (inp.classList.contains("procbot-nav-url-input")) {
                     wf.steps[idx].url = inp.value;
+                }
+            };
+        });
+
+        // Password mask toggle
+        document.querySelectorAll(".procbot-toggle-mask-btn").forEach(btn => {
+            btn.onclick = () => {
+                const card = btn.closest(".procbot-step-card");
+                const input = card.querySelector(".procbot-var-input");
+                if (input) {
+                    input.type = input.type === "password" ? "text" : "password";
+                    btn.textContent = input.type === "password" ? "🔒" : "👁️";
                 }
             };
         });
@@ -12078,6 +12158,31 @@ function initProcBotRunner() {
             inp.onchange = () => {
                 const idx = parseInt(inp.dataset.stepIdx, 10);
                 wf.steps[idx].custom_selector = inp.value;
+            };
+        });
+
+        // Dry Run Single Step Button
+        document.querySelectorAll(".procbot-test-step-btn").forEach(btn => {
+            btn.onclick = async () => {
+                const idx = parseInt(btn.dataset.stepIdx, 10);
+                const step = wf.steps[idx];
+                logTerm(`⚡ Testing Step #${idx + 1}: ${step.edited_title || step.title || step.action}`, "info");
+                showToast(`Testing Step #${idx + 1} in active browser...`, 2000);
+                
+                if (window.chrome && chrome.runtime) {
+                    try {
+                        chrome.runtime.sendMessage({
+                            type: "PROCBOT_EXECUTE_STEP",
+                            step: step,
+                            value: step.value || ""
+                        });
+                        logTerm(`✓ Dispatched test command for Step #${idx + 1}`, "success");
+                    } catch (e) {
+                        logTerm(`Test failed: ${e.message}`, "error");
+                    }
+                } else {
+                    logTerm(`Extension message channel ready. Verify active browser tab.`, "dim");
+                }
             };
         });
 
@@ -12121,10 +12226,8 @@ function initProcBotRunner() {
             btn.onclick = () => {
                 const idx = parseInt(btn.dataset.stepIdx, 10);
                 const newStep = {
-                    action: "manual_pause",
-                    title: `Manual Action ${idx + 2}`,
-                    manual_pause: true,
-                    manual_instructions: "Perform manual task on screen, then click continue",
+                    action: "input",
+                    title: `Step ${idx + 2}`,
                     value: ""
                 };
                 wf.steps.splice(idx + 1, 0, newStep);
@@ -12133,7 +12236,7 @@ function initProcBotRunner() {
         });
     }
 
-    // Step Search filter listener
+    // Step Search Filter
     if (stepSearchInput) {
         stepSearchInput.oninput = () => renderSteps();
     }
@@ -12184,7 +12287,7 @@ function initProcBotRunner() {
         };
     }
 
-    // Save Bot Configuration Handler
+    // ── Save Bot Config Handler ───────────────────────────────────────────────
     if (saveConfigBtn) {
         saveConfigBtn.onclick = async () => {
             const wf = getActiveWorkflow();
@@ -12198,7 +12301,7 @@ function initProcBotRunner() {
                     body: JSON.stringify({ config: { name: wf.name, steps: wf.steps } })
                 });
                 if (res.ok) {
-                    showToast("💾 ProcBot configuration saved successfully!", 3000);
+                    showToast("💾 ProcBot recipe saved successfully!", 3000);
                     logTerm("Saved bot configuration recipe to server.", "success");
                 } else {
                     showToast("Failed to save bot configuration", 3000);
@@ -12212,19 +12315,18 @@ function initProcBotRunner() {
         };
     }
 
-    // Batch CSV Modal Handlers
-    if (batchModalBtn && batchModal) {
-        batchModalBtn.onclick = () => {
-            batchModal.style.display = "block";
-            batchModal.classList.remove("hidden");
+    // ── Pop Out / Open In New Tab Handler ──────────────────────────────────────
+    if (openInNewTabBtn) {
+        openInNewTabBtn.onclick = () => {
+            const wf = getActiveWorkflow();
+            const sid = wf && wf.id ? wf.id : (selectedWorkflowId || "");
+            const targetUrl = `${window.location.origin}${window.location.pathname}?session_id=${sid}&view=procbot`;
+            window.open(targetUrl, "_blank");
+            showToast("Opening ProcBot in dedicated fullscreen browser tab...", 2500);
         };
     }
-    if (closeBatchBtn && batchModal) {
-        closeBatchBtn.onclick = () => {
-            batchModal.style.display = "none";
-            batchModal.classList.add("hidden");
-        };
-    }
+
+    // ── Batch CSV Handlers ───────────────────────────────────────────────────
     if (downloadCsvTemplateBtn) {
         downloadCsvTemplateBtn.onclick = () => {
             const wf = getActiveWorkflow();
@@ -12238,7 +12340,7 @@ function initProcBotRunner() {
                     if (!vars.includes(varKey)) vars.push(varKey);
                 }
             });
-            if (!vars.length) { showToast("No input variables in workflow", 2000); return; }
+            if (!vars.length) { showToast("No input variables found in workflow", 2000); return; }
             const csvContent = "data:text/csv;charset=utf-8," + vars.join(",") + "\n" + vars.map((_, i) => `sample_val_${i + 1}`).join(",");
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
@@ -12249,7 +12351,42 @@ function initProcBotRunner() {
             link.remove();
         };
     }
-    if (batchCsvInput && batchPreviewContainer) {
+
+    function renderBatchPreview() {
+        if (!batchPreviewContainer) return;
+        if (!procBotBatchRows || !procBotBatchRows.length) {
+            batchPreviewContainer.innerHTML = '<div style="color: #64748b; font-size: 12px; text-align: center; padding: 60px;">Select a CSV file above or download the template to preview dataset rows</div>';
+            if (runBatchBtn) { runBatchBtn.disabled = true; runBatchBtn.textContent = "▶️ Run Batch Automation (0 Rows)"; }
+            return;
+        }
+        const headers = Object.keys(procBotBatchRows[0]);
+        batchPreviewContainer.innerHTML = `
+            <div style="font-size: 11.5px; font-weight: 700; color: #38bdf8; margin-bottom: 8px;">Loaded ${procBotBatchRows.length} Data Rows (${headers.length} Variables)</div>
+            <table style="width: 100%; font-size: 11px; border-collapse: collapse; color: #f8fafc;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.12); color: #94a3b8;">
+                        <th style="padding: 6px; text-align: left;">#</th>
+                        ${headers.map(h => `<th style="padding: 6px; text-align: left;">${esc(h)}</th>`).join("")}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${procBotBatchRows.slice(0, 10).map((row, rIdx) => `
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                            <td style="padding: 6px; color: #64748b;">${rIdx + 1}</td>
+                            ${headers.map(h => `<td style="padding: 6px;">${esc(row[h] || '')}</td>`).join("")}
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+            ${procBotBatchRows.length > 10 ? `<div style="font-size: 10.5px; color: #64748b; text-align: center; margin-top: 8px;">...and ${procBotBatchRows.length - 10} more rows</div>` : ''}
+        `;
+        if (runBatchBtn) {
+            runBatchBtn.disabled = false;
+            runBatchBtn.textContent = `▶️ Run Batch Automation (${procBotBatchRows.length} Rows)`;
+        }
+    }
+
+    if (batchCsvInput) {
         batchCsvInput.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -12258,7 +12395,7 @@ function initProcBotRunner() {
                 const text = evt.target.result;
                 const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
                 if (lines.length < 2) {
-                    batchPreviewContainer.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">CSV must contain header row and at least 1 data row.</div>';
+                    batchPreviewContainer.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 40px;">CSV must contain header row and at least 1 data row.</div>';
                     return;
                 }
                 const headers = lines[0].split(",").map(h => h.trim());
@@ -12268,103 +12405,142 @@ function initProcBotRunner() {
                     headers.forEach((h, i) => { row[h] = vals[i] || ""; });
                     return row;
                 });
-
-                batchPreviewContainer.innerHTML = `
-                    <div style="font-size:11px;font-weight:700;color:#38bdf8;margin-bottom:6px;">Loaded ${procBotBatchRows.length} data rows (${headers.length} columns)</div>
-                    <table style="width:100%;font-size:11px;border-collapse:collapse;color:#fff;">
-                        <thead>
-                            <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;">
-                                <th style="padding:4px;text-align:left;">#</th>
-                                ${headers.map(h => `<th style="padding:4px;text-align:left;">${esc(h)}</th>`).join("")}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${procBotBatchRows.slice(0, 5).map((row, rIdx) => `
-                                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
-                                    <td style="padding:4px;color:#64748b;">${rIdx + 1}</td>
-                                    ${headers.map(h => `<td style="padding:4px;">${esc(row[h] || '')}</td>`).join("")}
-                                </tr>
-                            `).join("")}
-                        </tbody>
-                    </table>
-                    ${procBotBatchRows.length > 5 ? `<div style="font-size:10px;color:#64748b;text-align:center;margin-top:6px;">...and ${procBotBatchRows.length - 5} more rows</div>` : ''}
-                `;
-
-                if (runBatchBtn) {
-                    runBatchBtn.disabled = false;
-                    runBatchBtn.textContent = `▶️ Run Batch Automation (${procBotBatchRows.length} Rows)`;
-                }
+                renderBatchPreview();
             };
             reader.readAsText(file);
         };
     }
+
     if (runBatchBtn) {
         runBatchBtn.onclick = () => {
             if (!procBotBatchRows.length) return;
-            if (batchModal) { batchModal.style.display = "none"; batchModal.classList.add("hidden"); }
+            switchProcBotTab("monitor");
             logTerm(`📊 Starting Batch Execution for ${procBotBatchRows.length} dataset rows...`, "info");
             executeBatchRunner(procBotBatchRows);
         };
     }
 
-    // History Modal Handlers
-    if (historyModalBtn && historyModal) {
-        historyModalBtn.onclick = async () => {
-            historyModal.style.display = "block";
-            historyModal.classList.remove("hidden");
-            const wf = getActiveWorkflow();
-            if (!wf || !wf.id) return;
-            try {
-                if (historyListEl) historyListEl.innerHTML = '<div style="color:#64748b;text-align:center;padding:30px;">Loading history...</div>';
-                const res = await fetch(`${API_BASE}/sessions/${wf.id}/procbot-run-logs`);
-                const data = await res.json();
-                const runs = data.runs || [];
-                if (!runs.length) {
-                    historyListEl.innerHTML = '<div style="color:#64748b;text-align:center;padding:40px;">No execution logs recorded yet. Run a bot automation to generate audit logs.</div>';
-                    return;
-                }
-                historyListEl.innerHTML = runs.map((run, i) => `
-                    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <span style="font-size:12px;font-weight:800;color:${run.failed_steps === 0 ? '#34d399' : '#f87171'};">
-                                    ${run.failed_steps === 0 ? '✓ SUCCESS' : '⚠️ COMPLETED WITH ISSUES'}
-                                </span>
-                                <span style="font-size:10.5px;background:rgba(99,102,241,0.2);color:#818cf8;padding:1px 6px;border-radius:4px;font-weight:700;">
-                                    ${(run.engine || 'BROWSER').toUpperCase()}
-                                </span>
-                            </div>
-                            <span style="font-size:10.5px;color:var(--text-muted);">${new Date(run.created_at).toLocaleString()}</span>
-                        </div>
-                        <div style="font-size:11px;color:#cbd5e1;display:flex;gap:16px;">
-                            <span>Steps: <strong>${run.success_steps}/${run.total_steps}</strong></span>
-                            <span>Duration: <strong>${run.elapsed_sec.toFixed(1)}s</strong></span>
-                            <span>Mode: <strong>${run.mode}</strong></span>
-                        </div>
-                    </div>
-                `).join("");
-            } catch (e) {
-                if (historyListEl) historyListEl.innerHTML = `<div style="color:#f87171;text-align:center;padding:20px;">Failed to load history: ${e.message}</div>`;
+    // ── History Tab Loader ───────────────────────────────────────────────────
+    async function loadHistoryLogs() {
+        const wf = getActiveWorkflow();
+        if (!wf || !wf.id || !historyListEl) return;
+        try {
+            historyListEl.innerHTML = '<div style="color:#64748b;text-align:center;padding:40px;">Loading audit logs...</div>';
+            const res = await fetch(`${API_BASE}/sessions/${wf.id}/procbot-run-logs`);
+            const data = await res.json();
+            const runs = data.runs || [];
+            
+            if (histTotalRuns) histTotalRuns.textContent = runs.length;
+            if (histSuccessRate) {
+                const passed = runs.filter(r => r.failed_steps === 0).length;
+                histSuccessRate.textContent = runs.length ? `${Math.round((passed / runs.length) * 100)}%` : "--%";
             }
-        };
+            if (histAvgDuration) {
+                const avg = runs.length ? (runs.reduce((acc, r) => acc + (r.elapsed_sec || 0), 0) / runs.length).toFixed(1) : "--";
+                histAvgDuration.textContent = `${avg}s`;
+            }
+            if (histLastRun && runs.length) {
+                histLastRun.textContent = new Date(runs[0].created_at).toLocaleTimeString();
+            }
+
+            if (!runs.length) {
+                historyListEl.innerHTML = '<div style="color:#64748b;text-align:center;padding:40px;">No execution logs recorded yet. Run a bot automation to generate audit logs.</div>';
+                return;
+            }
+
+            historyListEl.innerHTML = runs.map((run, i) => `
+                <div style="background: #111827; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 11.5px; font-weight: 800; color: ${run.failed_steps === 0 ? '#34d399' : '#f87171'};">
+                                ${run.failed_steps === 0 ? '✓ SUCCESS' : '⚠️ COMPLETED WITH ISSUES'}
+                            </span>
+                            <span style="font-size: 10px; background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); padding: 1px 6px; border-radius: 4px; font-weight: 700;">
+                                ${(run.engine || 'BROWSER').toUpperCase()}
+                            </span>
+                        </div>
+                        <span style="font-size: 10.5px; color: #94a3b8;">${new Date(run.created_at).toLocaleString()}</span>
+                    </div>
+                    <div style="font-size: 11px; color: #cbd5e1; display: flex; gap: 20px;">
+                        <span>Steps: <strong>${run.success_steps}/${run.total_steps}</strong></span>
+                        <span>Duration: <strong>${(run.elapsed_sec || 0).toFixed(1)}s</strong></span>
+                        <span>Mode: <strong>${run.mode}</strong></span>
+                    </div>
+                </div>
+            `).join("");
+        } catch (e) {
+            if (historyListEl) historyListEl.innerHTML = `<div style="color:#f87171;text-align:center;padding:20px;">Failed to load history: ${e.message}</div>`;
+        }
     }
-    if (closeHistoryBtn && historyModal) {
-        closeHistoryBtn.onclick = () => {
-            historyModal.style.display = "none";
-            historyModal.classList.add("hidden");
+
+    // ── Code Tab Export Generator ────────────────────────────────────────────
+    async function renderExportCode(lang) {
+        procBotCurrentCodeLang = lang;
+        document.querySelectorAll(".procbot-code-lang-btn").forEach(btn => {
+            const isTarget = btn.dataset.lang === lang;
+            btn.classList.toggle("active", isTarget);
+            btn.style.background = isTarget ? "rgba(99,102,241,0.2)" : "none";
+            btn.style.color = isTarget ? "#818cf8" : "#94a3b8";
+            btn.style.borderColor = isTarget ? "rgba(99,102,241,0.4)" : "transparent";
+        });
+
+        const wf = getActiveWorkflow();
+        if (!wf || !wf.id || !codeViewer) return;
+
+        codeViewer.value = "// Generating script...";
+        try {
+            if (lang === "json") {
+                const res = await fetch(`${API_BASE}/sessions/${wf.id}/procbot-recipe`);
+                const data = await res.json();
+                codeViewer.value = JSON.stringify(data, null, 2);
+            } else {
+                const res = await fetch(`${API_BASE}/sessions/${wf.id}/procbot-script?engine=${lang}`);
+                const text = await res.text();
+                codeViewer.value = text;
+            }
+        } catch (e) {
+            codeViewer.value = `// Failed to generate script: ${e.message}`;
+        }
+    }
+
+    document.querySelectorAll(".procbot-code-lang-btn").forEach(btn => {
+        btn.onclick = () => renderExportCode(btn.dataset.lang);
+    });
+
+    if (copyCodeBtn && codeViewer) {
+        copyCodeBtn.onclick = async () => {
+            await navigator.clipboard.writeText(codeViewer.value);
+            showToast("📋 Code copied to clipboard!", 2500);
         };
     }
 
+    if (downloadCodeBtn) {
+        downloadCodeBtn.onclick = () => {
+            const wf = getActiveWorkflow();
+            if (!wf || !wf.id) return;
+            if (procBotCurrentCodeLang === "json") {
+                window.open(`${API_BASE}/sessions/${wf.id}/procbot-recipe`, "_blank");
+            } else {
+                window.open(`${API_BASE}/sessions/${wf.id}/procbot-script?engine=${procBotCurrentCodeLang}`, "_blank");
+            }
+            showToast(`Downloading ${procBotCurrentCodeLang} script...`, 3000);
+        };
+    }
+
+    // ── Open Studio Modal Logic ──────────────────────────────────────────────
     async function openModal(standaloneMode) {
         procBotTargetWorkflow = null;
         procBotLogsHistory = [];
         if (progressBar) progressBar.style.width = "0%";
         if (progressPercent) progressPercent.textContent = "0%";
         if (statusText) statusText.textContent = "Status: Ready";
+        if (statusPill) { statusPill.textContent = "READY"; statusPill.style.color = "#38bdf8"; statusPill.style.background = "rgba(56,189,248,0.15)"; }
         if (elapsedEl) elapsedEl.textContent = "00:00";
-        if (termLog) termLog.innerHTML = '<div style="color:#64748b;">// ProcBot RPA Studio v3 Console. Ready to execute.</div>';
+        if (termLog) termLog.innerHTML = '<div style="color:#64748b;">// ProcBot RPA Execution Terminal. Ready to replay workflow.</div>';
         if (liveScreenshot) liveScreenshot.style.display = "none";
-        if (liveOverlay) { liveOverlay.textContent = "📷 Live step screenshot preview"; liveOverlay.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:11.5px;font-weight:700;"; }
+        if (liveOverlay) { liveOverlay.textContent = "📷 Live step screenshot preview will appear here during execution"; liveOverlay.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:12px;font-weight:700;"; }
+
+        switchProcBotTab("builder");
 
         if (standaloneMode || !workflow || !workflow.steps || !workflow.steps.length) {
             if (wfSelector) wfSelector.style.display = "block";
@@ -12377,10 +12553,10 @@ function initProcBotRunner() {
                         sessions.map(s => `<option value="${s.id}">${esc(s.name || s.id)} (${s.step_count || "?"} steps)</option>`).join("");
                 } catch(e) { wfSelect.innerHTML = '<option value="">Failed to load</option>'; }
             }
-            if (stepsListEl) stepsListEl.innerHTML = '<div style="color:#64748b;padding:20px;text-align:center;">Select a workflow above to load steps</div>';
+            if (stepsListEl) stepsListEl.innerHTML = '<div style="color:#64748b;padding:40px;text-align:center;">Select a workflow above to load steps</div>';
         } else {
             if (wfSelector) wfSelector.style.display = "none";
-            // Check if saved config exists
+            // Check if custom config exists
             try {
                 const res = await fetch(`${API_BASE}/sessions/${workflow.id}/procbot-config`);
                 const data = await res.json();
@@ -12391,14 +12567,18 @@ function initProcBotRunner() {
             } catch (_) {}
             renderSteps();
         }
-        if (modal) { modal.style.display = "block"; modal.classList.remove("hidden"); }
+
+        if (modal) {
+            modal.style.display = "block";
+            modal.classList.remove("hidden");
+        }
     }
 
     // Standalone workflow selector
     if (wfSelect) {
         wfSelect.onchange = async () => {
             const sid = wfSelect.value;
-            if (!sid) { procBotTargetWorkflow = null; if (stepsListEl) stepsListEl.innerHTML = '<div style="color:#64748b;padding:20px;text-align:center;">Select a workflow above</div>'; return; }
+            if (!sid) { procBotTargetWorkflow = null; if (stepsListEl) stepsListEl.innerHTML = '<div style="color:#64748b;padding:40px;text-align:center;">Select a workflow above</div>'; return; }
             try {
                 logTerm(`Loading workflow ${sid}...`, "dim");
                 const res = await fetch(`${API_BASE}/sessions/${sid}`);
@@ -12425,31 +12605,20 @@ function initProcBotRunner() {
         closeBtn.onclick = () => { isProcBotRunning = false; isProcBotPaused = false; if (procBotElapsedTimer) clearInterval(procBotElapsedTimer); if (procBotStepResolve) procBotStepResolve(); modal.style.display = "none"; modal.classList.add("hidden"); };
     }
 
-    // Script Downloads
-    function downloadScript(engine) {
-        const wf = getActiveWorkflow();
-        if (!wf || !wf.id) { showToast("No workflow selected", 2000); return; }
-        window.open(`${API_BASE}/sessions/${wf.id}/procbot-script?engine=${engine}`, "_blank");
-        showToast(`Downloading ${engine} RPA script...`, 3000);
-    }
-    if (pwBtn) pwBtn.onclick = () => downloadScript("playwright");
-    if (selBtn) selBtn.onclick = () => downloadScript("selenium");
-    if (exportPwBtn) exportPwBtn.onclick = () => downloadScript("playwright");
-    if (exportSelBtn) exportSelBtn.onclick = () => downloadScript("selenium");
-
     function resetRunState() {
         isProcBotRunning = false; isProcBotPaused = false;
         if (procBotElapsedTimer) clearInterval(procBotElapsedTimer);
         if (runBtn) { runBtn.disabled = false; runBtn.style.opacity = "1"; }
+        if (quickRunBtn) { quickRunBtn.disabled = false; quickRunBtn.style.opacity = "1"; }
         [stopBtn, pauseBtn, resumeBtn, nextStepBtn].forEach(b => { if (b) b.classList.add("hidden"); });
     }
 
-    // Main Single-Run Execution Engine
-    if (runBtn) {
-        runBtn.onclick = async () => {
-            await executeSingleRunner();
-        };
-    }
+    // ── Main Single-Run Execution Engine ──────────────────────────────────────
+    if (runBtn) runBtn.onclick = async () => executeSingleRunner();
+    if (quickRunBtn) quickRunBtn.onclick = async () => {
+        switchProcBotTab("monitor");
+        executeSingleRunner();
+    };
 
     async function executeSingleRunner(customVars) {
         const activeWf = getActiveWorkflow();
@@ -12457,17 +12626,20 @@ function initProcBotRunner() {
         if (isProcBotRunning) return;
         isProcBotRunning = true; isProcBotPaused = false;
         if (runBtn) { runBtn.disabled = true; runBtn.style.opacity = "0.5"; }
+        if (quickRunBtn) { quickRunBtn.disabled = true; quickRunBtn.style.opacity = "0.5"; }
         if (stopBtn) stopBtn.classList.remove("hidden");
         if (pauseBtn) pauseBtn.classList.remove("hidden");
 
         const execMode = execModeSelect ? execModeSelect.value : "auto";
         const selectedEngine = engineSelect ? engineSelect.value : "browser";
+        if (activeEngineBadge) activeEngineBadge.textContent = selectedEngine.toUpperCase();
+        if (statusPill) { statusPill.textContent = "RUNNING"; statusPill.style.color = "#10b981"; statusPill.style.background = "rgba(16,185,129,0.15)"; }
         if (execMode === "step" && nextStepBtn) nextStepBtn.classList.remove("hidden");
 
         procBotStartTime = Date.now();
         procBotElapsedTimer = setInterval(updateElapsed, 1000);
 
-        logTerm(`🚀 ProcBot Engine v3 starting [${selectedEngine.toUpperCase()}]`, "info");
+        logTerm(`🚀 ProcBot Engine starting [${selectedEngine.toUpperCase()}]`, "info");
         logTerm(`Mode: ${execMode} | Speed: ${speedSelect ? speedSelect.value : 500}ms`, "dim");
 
         // Active Steps
@@ -12492,12 +12664,12 @@ function initProcBotRunner() {
             // Highlight card
             document.querySelectorAll(".procbot-step-card").forEach(c => {
                 c.style.borderColor = "rgba(255,255,255,0.08)";
-                c.style.background = "rgba(255,255,255,0.03)";
+                c.style.background = "#111827";
             });
             const activeCard = document.querySelector(`.procbot-step-card[data-step-idx="${realIdx}"]`);
             if (activeCard) {
                 activeCard.style.borderColor = "#6366f1";
-                activeCard.style.background = "rgba(99,102,241,0.12)";
+                activeCard.style.background = "#1e293b";
                 activeCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
             }
 
@@ -12515,21 +12687,6 @@ function initProcBotRunner() {
                 if (customVars[varKey] !== undefined) targetVal = customVars[varKey];
             }
 
-            // Log action
-            if (isManualTask) {
-                logTerm(`✋ [${i + 1}/${total}] MANUAL TASK: ${title}`, "pause");
-            } else if (act.includes("navigate") || (i === 0 && step.url)) {
-                logTerm(`🌐 [${i + 1}/${total}] Navigate: ${step.url || "target app"}`, "info");
-            } else if (["input", "change", "textarea_input", "type"].includes(act)) {
-                logTerm(`⌨️ [${i + 1}/${total}] Type "${targetVal.slice(0, 25)}" ➔ ${title}`, "info");
-            } else if (["select", "dropdown"].includes(act)) {
-                logTerm(`🔽 [${i + 1}/${total}] Select Option "${targetVal}" ➔ ${title}`, "info");
-            } else if (act.includes("click")) {
-                logTerm(`🖱️ [${i + 1}/${total}] Click: ${title}`, "info");
-            } else {
-                logTerm(`▶️ [${i + 1}/${total}] ${act}: ${title}`, "info");
-            }
-
             // Forward to In-Page Extension Runner
             if (selectedEngine === "browser" && window.chrome && chrome.runtime) {
                 try {
@@ -12545,6 +12702,7 @@ function initProcBotRunner() {
             if (step._breakpoint && execMode === "breakpoint") {
                 logTerm(`🔴 Breakpoint hit at step ${i + 1}. Paused.`, "pause");
                 if (statusText) statusText.textContent = `PAUSED at breakpoint (Step ${i + 1})`;
+                if (statusPill) { statusPill.textContent = "PAUSED"; statusPill.style.color = "#fbbf24"; statusPill.style.background = "rgba(251,191,36,0.15)"; }
                 isProcBotPaused = true;
                 if (pauseBtn) pauseBtn.classList.add("hidden"); if (resumeBtn) resumeBtn.classList.remove("hidden");
                 while (isProcBotPaused && isProcBotRunning) { await new Promise(r => setTimeout(r, 200)); }
