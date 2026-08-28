@@ -1175,6 +1175,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true });
         return true;
     }
+
+    if (message.type === "PROCBOT_EXECUTE_STEP") {
+        chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+            if (tabs[0]?.id) {
+                chrome.tabs.sendMessage(tabs[0].id, message).catch(() => {});
+                setTimeout(() => {
+                    try {
+                        chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
+                            if (!chrome.runtime.lastError && dataUrl) {
+                                chrome.tabs.query({}).then(allTabs => {
+                                    for (const t of allTabs) {
+                                        chrome.tabs.sendMessage(t.id, {
+                                            type: "PROCSNAP_LIVE_STEP_SCREENSHOT",
+                                            stepIndex: message.step?.index,
+                                            dataUrl: dataUrl
+                                        }).catch(() => {});
+                                    }
+                                });
+                            }
+                        });
+                    } catch (_) {}
+                }, 300);
+            }
+        });
+        sendResponse({ success: true });
+        return true;
+    }
 });
 
 /* =========================================================

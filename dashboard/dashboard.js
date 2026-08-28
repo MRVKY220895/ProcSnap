@@ -11882,6 +11882,12 @@ function initProcBotRunner() {
         });
 
         // Tab specific refreshes
+        if (tabName === "monitor") {
+            const wf = getActiveWorkflow();
+            if (wf && wf.steps && wf.steps.length) {
+                showLiveScreenshot(wf, 0);
+            }
+        }
         if (tabName === "history") loadHistoryLogs();
         if (tabName === "code") renderExportCode(procBotCurrentCodeLang);
         if (tabName === "batch") renderBatchPreview();
@@ -11920,18 +11926,138 @@ function initProcBotRunner() {
 
     function getActiveWorkflow() { return procBotTargetWorkflow || workflow; }
 
-    function showLiveScreenshot(wf, stepIdx) {
+    // Inject custom animation styles for virtual browser simulator
+    if (!document.getElementById("procbot-anim-styles")) {
+        const style = document.createElement("style");
+        style.id = "procbot-anim-styles";
+        style.textContent = `
+            @keyframes procbotPulse {
+                0% { transform: scale(1); box-shadow: 0 0 20px rgba(99,102,241,0.2); }
+                50% { transform: scale(1.015); box-shadow: 0 0 35px rgba(99,102,241,0.45); }
+                100% { transform: scale(1); box-shadow: 0 0 20px rgba(99,102,241,0.2); }
+            }
+            @keyframes procbotBlink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.3; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function showLiveScreenshot(wf, stepIdx, overrideVal) {
         if (!liveScreenshot || !liveOverlay) return;
         const activeWf = wf || getActiveWorkflow();
         if (!activeWf || !activeWf.steps || !activeWf.steps[stepIdx]) return;
         const step = activeWf.steps[stepIdx];
-        const path = step.screenshot_path || `screenshots/${activeWf.id}/step-${String(stepIdx + 1).padStart(3, "0")}.png`;
-        liveScreenshot.src = `${API_BASE}/${path}?t=${Date.now()}`;
-        liveScreenshot.style.display = "block";
-        liveScreenshot.onerror = () => { liveScreenshot.style.display = "none"; };
-        liveOverlay.textContent = `Step ${stepIdx + 1}: ${step.edited_title || step.title || ""}`;
-        liveOverlay.style.cssText = "position:absolute;bottom:0;left:0;right:0;padding:6px 12px;font-size:11px;font-weight:800;background:rgba(11,15,25,0.85);color:#38bdf8;text-align:center;backdrop-filter:blur(4px);border-top:1px solid rgba(255,255,255,0.08);";
+        const act = (step.action || "click").toLowerCase();
+        const title = step.edited_title || step.title || `Step ${stepIdx + 1}`;
+        const targetVal = overrideVal !== undefined ? overrideVal : (step.value || "");
+        const targetUrl = step.url || (activeWf.steps[0] ? activeWf.steps[0].url : "") || "https://google.com";
+        const customSel = step.custom_selector || (step.element ? (step.element.cssSelector || step.element.xpath || (step.element.id ? `#${step.element.id}` : "")) : "");
+        const isInput = ["input", "change", "textarea_input", "type"].includes(act);
+        const isSelect = ["select", "dropdown"].includes(act);
+        const isNav = act.includes("navigate") || act.includes("page_load");
+        const isAssert = act.startsWith("assert") || act === "verify" || act === "check";
+        const isExtract = act === "extract";
+        const isManualTask = act === "manual_pause" || act === "manual_task" || step.manual_pause || step._manualPause;
+
         if (stepSeqIndicator) stepSeqIndicator.textContent = `Step ${stepIdx + 1} of ${activeWf.steps.length}`;
+
+        // Action visual badges
+        let actIcon = "🖱️";
+        let actBadge = "CLICK ELEMENT";
+        let actColor = "#818cf8";
+        let actBg = "rgba(99,102,241,0.15)";
+        if (isNav) { actIcon = "🌐"; actBadge = "NAVIGATE URL"; actColor = "#60a5fa"; actBg = "rgba(59,130,246,0.15)"; }
+        else if (isInput) { actIcon = "⌨️"; actBadge = "TYPE / INPUT"; actColor = "#34d399"; actBg = "rgba(16,185,129,0.15)"; }
+        else if (isSelect) { actIcon = "🔽"; actBadge = "SELECT DROPDOWN"; actColor = "#fbbf24"; actBg = "rgba(245,158,11,0.15)"; }
+        else if (isExtract) { actIcon = "📥"; actBadge = "EXTRACT DATA"; actColor = "#c084fc"; actBg = "rgba(168,85,247,0.15)"; }
+        else if (isAssert) { actIcon = "🔍"; actBadge = "ASSERT CHECK"; actColor = "#22d3ee"; actBg = "rgba(6,182,212,0.15)"; }
+        else if (isManualTask) { actIcon = "✋"; actBadge = "HUMAN ACTION"; actColor = "#fbbf24"; actBg = "rgba(251,191,36,0.15)"; }
+
+        // Function to render the Virtual Browser Simulator Canvas
+        const renderVirtualSimulator = () => {
+            liveScreenshot.style.display = "none";
+            liveOverlay.style.cssText = "position:absolute;inset:0;display:flex;flex-direction:column;background:#090d16;overflow:hidden;";
+            liveOverlay.innerHTML = `
+                <!-- Virtual Browser Chrome Bar -->
+                <div style="background: #111827; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                    </div>
+                    <!-- Address Bar -->
+                    <div style="flex: 1; max-width: 480px; background: #080c14; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 10px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <span style="color: #10b981; font-size: 10px;">🔒</span>
+                        <span style="color: #f8fafc; font-weight: 600;">${esc(targetUrl)}</span>
+                    </div>
+                    <span style="font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: ${actBg}; color: ${actColor}; border: 1px solid ${actColor}40;">${actIcon} ${actBadge}</span>
+                </div>
+
+                <!-- Virtual Page Viewport & Active Step Stage -->
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; gap: 14px; position: relative; background: radial-gradient(circle at center, rgba(99,102,241,0.08) 0%, transparent 70%);">
+                    <!-- Wireframe Header Placeholder -->
+                    <div style="position: absolute; top: 12px; left: 16px; right: 16px; display: flex; justify-content: space-between; opacity: 0.25;">
+                        <div style="width: 80px; height: 10px; background: #94a3b8; border-radius: 4px;"></div>
+                        <div style="display: flex; gap: 8px;">
+                            <div style="width: 40px; height: 10px; background: #94a3b8; border-radius: 4px;"></div>
+                            <div style="width: 40px; height: 10px; background: #94a3b8; border-radius: 4px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Centered High-Contrast Active Target Box -->
+                    <div style="background: rgba(17,24,39,0.85); border: 2px solid ${actColor}; border-radius: 12px; padding: 20px 24px; width: 90%; max-width: 420px; box-shadow: 0 0 35px ${actColor}25, 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; backdrop-filter: blur(8px); animation: procbotPulse 2s infinite ease-in-out;">
+                        <div style="width: 52px; height: 52px; border-radius: 14px; background: ${actBg}; border: 1px solid ${actColor}50; display: flex; align-items: center; justify-content: center; font-size: 26px;">
+                            ${actIcon}
+                        </div>
+                        <div>
+                            <div style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-bottom: 3px;">${esc(title)}</div>
+                            <div style="font-size: 11px; color: #94a3b8;">${isNav ? 'Navigating to target URL' : isInput ? 'Entering value into form field' : isSelect ? 'Selecting dropdown option' : isExtract ? 'Extracting live page data' : isAssert ? 'Validating page content' : 'Executing mouse click'}</div>
+                        </div>
+
+                        ${customSel ? `
+                        <div style="width: 100%; background: #080c14; border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 5px 8px; font-family: monospace; font-size: 10.5px; color: #38bdf8; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${esc(customSel)}">
+                            <span style="color: #64748b;">Target:</span> ${esc(customSel)}
+                        </div>` : ''}
+
+                        ${(isInput || isSelect || isExtract || isAssert) && targetVal ? `
+                        <div style="width: 100%; background: #080c14; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+                            <span style="color: #94a3b8; font-weight: 700;">${isAssert ? 'Expected:' : isExtract ? 'Save to:' : 'Value:'}</span>
+                            <span style="color: ${actColor}; font-weight: 800; font-family: monospace;">"${esc(targetVal)}"</span>
+                        </div>` : ''}
+                    </div>
+
+                    <!-- Bottom Step Sequence Pill -->
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: #64748b;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: procbotBlink 1.2s infinite;"></span>
+                        <span>EXECUTING STEP ${stepIdx + 1} OF ${activeWf.steps.length}</span>
+                    </div>
+                </div>
+            `;
+        };
+
+        const path = step.screenshot_path || (step.screenshotUrl ? step.screenshotUrl.replace(/^\//, '') : `screenshots/${activeWf.id}/step-${String(stepIdx + 1).padStart(3, "0")}.png`);
+        
+        // Attempt loading physical screenshot
+        const testImg = new Image();
+        testImg.onload = () => {
+            liveScreenshot.src = testImg.src;
+            liveScreenshot.style.display = "block";
+            liveOverlay.style.cssText = "position:absolute;bottom:0;left:0;right:0;padding:8px 14px;font-size:11.5px;font-weight:800;background:rgba(11,15,25,0.88);color:#38bdf8;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,0.1);";
+            liveOverlay.innerHTML = `
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span>${actIcon}</span>
+                    <span style="color:#fff;">Step ${stepIdx + 1}:</span>
+                    <span>${esc(title)}</span>
+                </div>
+                <span style="font-size:10px;color:#94a3b8;font-family:monospace;">${customSel ? esc(customSel.slice(0, 30)) : ''}</span>
+            `;
+        };
+        testImg.onerror = () => {
+            renderVirtualSimulator();
+        };
+        testImg.src = `${API_BASE}/${path}?t=${Date.now()}`;
     }
 
     // ── Render Step Sequence Cards with High-Contrast UI/UX ───────────────────
@@ -13180,13 +13306,6 @@ function initProcBotRunner() {
                 activeCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
             }
 
-            showLiveScreenshot(activeWf, realIdx);
-
-            const pct = Math.round(((i + 1) / total) * 100);
-            if (progressBar) progressBar.style.width = `${pct}%`;
-            if (progressPercent) progressPercent.textContent = `${pct}%`;
-            if (statusText) statusText.textContent = `Step ${i + 1}/${total}: ${title}`;
-
             // Resolve dynamic value & variables interpolation
             let targetVal = step.value || "";
             const varKey = `var_${(title || `step_${i + 1}`).toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 24)}`;
@@ -13197,6 +13316,13 @@ function initProcBotRunner() {
                 const pat = new RegExp(`\\{\\{${k}\\}\\}`, 'g');
                 targetVal = String(targetVal).replace(pat, runtimeVars[k]);
             });
+
+            showLiveScreenshot(activeWf, realIdx, targetVal);
+
+            const pct = Math.round(((i + 1) / total) * 100);
+            if (progressBar) progressBar.style.width = `${pct}%`;
+            if (progressPercent) progressPercent.textContent = `${pct}%`;
+            if (statusText) statusText.textContent = `Step ${i + 1}/${total}: ${title}`;
 
             // Log action
             if (isManualTask) {
