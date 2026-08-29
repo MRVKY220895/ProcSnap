@@ -1259,6 +1259,7 @@ function renderLibraryHub() {
     gridEl.innerHTML = filtered.map(w => {
         const timeStr = formatRelativeTime(w.created_at || w.createdAt || w.startedAt || w.updated_at);
         const coverUrl = w.coverScreenshot ? normalizeImageUrl(w.coverScreenshot) : `${API_BASE}/sessions/${encodeURIComponent(w.id)}/cover?t=${Date.now()}`;
+        const isBot = (w.id && w.id.startsWith("bot_")) || (w.tags && w.tags.toLowerCase().includes("bot")) || (w.name && w.name.toLowerCase().includes("bot"));
         const tagBadges = (w.tags || "").split(",").map(t => t.trim()).filter(Boolean).map(t => `
             <span class="hub-card-tag">${esc(t)}</span>
         `).join("");
@@ -1268,10 +1269,12 @@ function renderLibraryHub() {
                 <div class="hub-card-thumb-wrap" onclick="openWorkflow('${esc(w.id)}')">
                     <img class="hub-card-thumb" src="${coverUrl}" alt="Cover screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                     <div class="hub-card-placeholder" style="display: none;">
-                        <span style="font-size: 28px;">📄</span>
-                        <span style="font-size: 11px; font-weight: 600;">ProcSnap SOP</span>
+                        <span style="font-size: 26px;">${isBot ? '🤖' : '📄'}</span>
+                        <span style="font-size: 10.5px; font-weight: 700; color: #a5b4fc;">${isBot ? 'ProcBot RPA' : 'ProcSnap SOP'}</span>
                     </div>
-                    <span class="hub-card-badge-app">${esc(w.application || 'App')}</span>
+                    <span class="hub-card-badge-app" style="${isBot ? 'border-color: rgba(99,102,241,0.4); color: #c7d2fe;' : ''}">
+                        ${isBot ? '🤖 RPA Bot' : esc(w.application || 'Web/Desktop')}
+                    </span>
                     <span class="hub-card-badge-steps">${w.stepCount || 0} Step${w.stepCount === 1 ? '' : 's'}</span>
                 </div>
                 <div class="hub-card-body" onclick="openWorkflow('${esc(w.id)}')">
@@ -1279,7 +1282,7 @@ function renderLibraryHub() {
                     <div class="hub-card-meta">
                         <span>🕒 ${timeStr}</span>
                         <span>•</span>
-                        <span style="color: #10b981; font-weight: 600;">${esc(w.status || 'Active')}</span>
+                        <span style="color: #10b981; font-weight: 600;">${esc(w.status || 'Ready')}</span>
                     </div>
                     ${tagBadges ? `<div class="hub-card-tags">${tagBadges}</div>` : ''}
                 </div>
@@ -1287,9 +1290,12 @@ function renderLibraryHub() {
                     <button class="hub-card-btn primary" onclick="openWorkflow('${esc(w.id)}')">
                         ✏️ Edit SOP
                     </button>
-                    <div style="display: flex; gap: 4px;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <button class="hub-card-btn" onclick="openProcBotStudio('${esc(w.id)}', event)" title="Open ProcBot RPA Runner" style="color: #818cf8; background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.2);">
+                            ▶️ Run
+                        </button>
                         <button class="hub-card-btn" onclick="triggerGuideMeForWorkflow('${esc(w.id)}', event)" title="Start interactive Guide Me beacon">
-                            🎯 Guide Me
+                            🎯 Guide
                         </button>
                         <button class="hub-card-btn" onclick="deleteWorkflowFromHub('${esc(w.id)}', event)" title="Delete workflow" style="color: var(--danger);">
                             🗑️

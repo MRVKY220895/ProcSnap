@@ -158,62 +158,61 @@
                 <div id="libraryHubView" class="library-hub-view">
                     <!-- Hub Hero Banner with Quick Actions -->
                     <div class="hub-hero">
-                        <div class="hub-hero-header-row">
+                        <div class="hub-hero-header-row" style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
                             <div>
-                                <h2 class="hub-hero-title">Standard Operating Procedures Hub</h2>
-                                <p class="hub-hero-sub">Create, organize, and export interactive step-by-step guides for any web or desktop application.</p>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                    <h2 class="hub-hero-title" style="margin: 0;">ProcSnap Automation &amp; SOP Studio</h2>
+                                    <span style="font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);">ENTERPRISE LOCAL</span>
+                                </div>
+                                <p class="hub-hero-sub">Capture desktop and browser workflows, generate intelligent SOP documentation, and execute self-healing RPA automations.</p>
+                            </div>
+                            <!-- Quick Utility Actions -->
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <button id="hubActionVideoSOP" class="btn btn-secondary btn-sm" style="font-weight: 700; color: #c084fc; border-color: rgba(168,85,247,0.3); background: rgba(168,85,247,0.06);" title="Convert MP4, Loom & GIF to SOP">
+                                    🪄 Video to SOP
+                                </button>
+                                <label class="btn btn-secondary btn-sm" style="cursor: pointer; font-weight: 600;" title="Restore workflow from JSON backup">
+                                    📥 Import JSON
+                                    <input type="file" id="hubImportJsonInput" accept=".json,.procsnap.json" style="display: none;">
+                                </label>
+                                <label class="btn btn-secondary btn-sm" style="cursor: pointer; font-weight: 600;" title="Restore full .procsnap.zip package">
+                                    📦 Import Package
+                                    <input type="file" id="importPackageFileInput" accept=".zip,.procsnap.zip" style="display: none;">
+                                </label>
                             </div>
                         </div>
+
+                        <!-- 4 Core Primary Action Cards -->
                         <div class="hub-hero-actions-grid">
-                            <div class="hub-action-card" id="hubActionRecordWeb">
-                                <div class="hub-action-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">🔴</div>
+                            <div class="hub-action-card" id="hubActionRecordWeb" style="border-left: 3px solid #f43f5e;">
+                                <div class="hub-action-icon" style="background: rgba(244, 63, 94, 0.12); color: #fb7185;">🔴</div>
                                 <div class="hub-action-content">
                                     <div class="hub-action-title">Record Web App</div>
                                     <div class="hub-action-desc">Live capture with Chrome Extension</div>
                                 </div>
                             </div>
-                            <div class="hub-action-card" id="hubActionVideoSOP">
-                                <div class="hub-action-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">🪄</div>
-                                <div class="hub-action-content">
-                                    <div class="hub-action-title">Video to SOP</div>
-                                    <div class="hub-action-desc">Convert MP4, Loom &amp; GIF to steps</div>
-                                </div>
-                            </div>
-                            <div class="hub-action-card" id="hubActionDesktop">
-                                <div class="hub-action-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">🖥️</div>
+
+                            <div class="hub-action-card" id="hubActionDesktop" style="border-left: 3px solid #10b981;">
+                                <div class="hub-action-icon" style="background: rgba(16, 185, 129, 0.12); color: #34d399;">🖥️</div>
                                 <div class="hub-action-content">
                                     <div class="hub-action-title">Capture Desktop</div>
-                                    <div class="hub-action-desc">Full screen capture for native apps</div>
+                                    <div class="hub-action-desc">Full screen capture for native desktop apps</div>
                                 </div>
                             </div>
-                            <label class="hub-action-card" style="cursor: pointer;">
-                                <div class="hub-action-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">📦</div>
+
+                            <div class="hub-action-card" id="hubActionProcBot" style="border-left: 3px solid #6366f1;">
+                                <div class="hub-action-icon" style="background: rgba(99, 102, 241, 0.12); color: #818cf8;">🤖</div>
                                 <div class="hub-action-content">
-                                    <div class="hub-action-title">Import Package</div>
-                                    <div class="hub-action-desc">Restore .procsnap.zip archive</div>
-                                </div>
-                                <input type="file" onclick="document.getElementById('importPackageFileInput').click(); return false;" style="display: none;">
-                            </label>
-                            <label class="hub-action-card" style="cursor: pointer;">
-                                <div class="hub-action-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">📥</div>
-                                <div class="hub-action-content">
-                                    <div class="hub-action-title">Import JSON</div>
-                                    <div class="hub-action-desc">Restore .procsnap.json backup</div>
-                                </div>
-                                <input type="file" id="hubImportJsonInput" accept=".json,.procsnap.json" style="display: none;">
-                            </label>
-                            <div class="hub-action-card" id="hubActionProcBot" style="cursor: pointer; border: 1px solid rgba(99,102,241,0.3); background: rgba(99,102,241,0.06);">
-                                <div class="hub-action-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">🤖</div>
-                                <div class="hub-action-content">
-                                    <div class="hub-action-title">ProcBot RPA</div>
-                                    <div class="hub-action-desc">Automate & replay any recorded SOP</div>
+                                    <div class="hub-action-title">ProcBot RPA Studio</div>
+                                    <div class="hub-action-desc">Replay, automate &amp; parameterize workflows</div>
                                 </div>
                             </div>
-                            <div class="hub-action-card" id="hubActionCreateBot" style="cursor: pointer; border: 1px solid rgba(168,85,247,0.3); background: rgba(168,85,247,0.06);">
-                                <div class="hub-action-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">✨</div>
+
+                            <div class="hub-action-card" id="hubActionCreateBot" style="border-left: 3px solid #a855f7;">
+                                <div class="hub-action-icon" style="background: rgba(168, 85, 247, 0.12); color: #c084fc;">🪄</div>
                                 <div class="hub-action-content">
-                                    <div class="hub-action-title">Create New Bot</div>
-                                    <div class="hub-action-desc">Build custom automation from scratch (No SOP)</div>
+                                    <div class="hub-action-title">AI Prompt to Bot</div>
+                                    <div class="hub-action-desc">Synthesize automation sequence from prompt</div>
                                 </div>
                             </div>
                         </div>
