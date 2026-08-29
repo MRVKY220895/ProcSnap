@@ -64,17 +64,28 @@
 }
 
 [data-theme="light"] {
-    --bg-app: #f1f5f9;
+    --bg-app: #f8fafc;
+    --canvas: #f8fafc;
     --bg-surface: #ffffff;
-    --bg-surface-elevated: #f8fafc;
+    --surface-1: #ffffff;
+    --bg-surface-elevated: #ffffff;
+    --surface-2: #f1f5f9;
+    --surface-3: #e2e8f0;
+    --surface-elevated: #ffffff;
     --bg-surface-hover: #f1f5f9;
+    
     --border-color: #e2e8f0;
+    --border-subtle: #f1f5f9;
+    --border-strong: #cbd5e1;
     --border-hover: #6366f1;
+    --hairline: #e2e8f0;
+    --hairline-strong: #cbd5e1;
     
     --text-main: #0f172a;
     --text-primary: #0f172a;
-    --text-secondary: #475569;
+    --text-secondary: #334155;
     --text-muted: #64748b;
+    --text-subtle: #94a3b8;
     
     --light-surface: #ffffff;
     --light-border: #e2e8f0;
@@ -4106,7 +4117,7 @@ textarea {
     font-size: 21px;
     font-weight: 800;
     letter-spacing: -0.03em;
-    color: #ffffff;
+    color: var(--text-main);
     margin: 0 0 5px 0;
 }
 
@@ -4473,24 +4484,68 @@ textarea {
     box-shadow: 0 0 12px -2px rgba(99, 102, 241, 0.5);
 }
 
-/* Light Theme Overrides for Hub */
+/* Light Theme Overrides for Hub & Navigation */
 [data-theme="light"] .library-hub-view {
     background-color: #f8fafc !important;
 }
+[data-theme="light"] .topbar {
+    background: rgba(255, 255, 255, 0.94) !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+[data-theme="light"] .topbar-search-input {
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .topbar-search-icon {
+    color: #64748b !important;
+}
+[data-theme="light"] .topbar-search-shortcut {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #64748b !important;
+}
+[data-theme="light"] .sidebar-panel,
+[data-theme="light"] .quick-library-sidebar {
+    background: #ffffff !important;
+    border-right: 1px solid #e2e8f0 !important;
+}
 [data-theme="light"] .hub-hero {
-    background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%) !important;
-    border-color: #e2e8f0 !important;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(168, 85, 247, 0.04) 100%), #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.04) !important;
+}
+[data-theme="light"] .hub-hero-title {
+    color: #0f172a !important;
+}
+[data-theme="light"] .hub-hero-sub {
+    color: #475569 !important;
 }
 [data-theme="light"] .hub-action-card {
     background: #ffffff !important;
-    border-color: #e2e8f0 !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 [data-theme="light"] .hub-action-card:hover {
     border-color: #6366f1 !important;
-    box-shadow: 0 8px 20px -6px rgba(99, 102, 241, 0.18) !important;
+    box-shadow: 0 8px 24px -4px rgba(99, 102, 241, 0.15) !important;
 }
 [data-theme="light"] .hub-action-title {
     color: #0f172a !important;
+}
+[data-theme="light"] .hub-action-desc {
+    color: #64748b !important;
+}
+[data-theme="light"] .hub-search-input {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .hub-search-input::placeholder {
+    color: #94a3b8 !important;
+}
+[data-theme="light"] .hub-search-icon {
+    color: #64748b !important;
 }
 [data-theme="light"] .hub-card {
     background: #ffffff !important;
@@ -4508,6 +4563,9 @@ textarea {
 [data-theme="light"] .hub-card-title {
     color: #0f172a !important;
 }
+[data-theme="light"] .hub-card-meta {
+    color: #64748b !important;
+}
 [data-theme="light"] .hub-card-footer {
     background: #f8fafc !important;
     border-top-color: #e2e8f0 !important;
@@ -4519,6 +4577,21 @@ textarea {
 [data-theme="light"] .hub-tag-pill {
     background: #ffffff !important;
     border-color: #e2e8f0 !important;
+    color: #475569 !important;
+}
+[data-theme="light"] .hub-tag-pill:hover {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+}
+[data-theme="light"] .hub-tag-pill.active {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+    border-color: #6366f1 !important;
+}
+[data-theme="light"] .hub-view-mode-pill {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
     color: #475569 !important;
 }
 /* =========================================================
