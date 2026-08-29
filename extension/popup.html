@@ -1,166 +1,364 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ProcSnap — Workflow Companion</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcSnap Extension</title>
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Top Bar Header -->
-        <header class="header">
-            <div class="brand">
-                <img src="icons/icon48.png" alt="ProcSnap" class="brand-logo">
-                <div class="brand-info">
-                    <span class="logo-text">ProcSnap</span>
-                    <span class="logo-sub">Local SOP Studio</span>
-                </div>
-            </div>
-            <div class="header-actions">
-                <div id="api-status-pill" class="api-status offline" title="Click to test API connectivity">
-                    <span class="status-indicator"></span>
-                    <span id="apiStatusText">OFFLINE</span>
-                </div>
-                <button id="btnToggleApiConnect" class="btn-power" title="Connect or Disconnect local server">
-                    <span id="toggleApiIcon">⚡</span>
-                    <span id="toggleApiText">Connect</span>
+    <div class="ext-app-shell">
+        <!-- Left Vertical Navigation Rail -->
+        <nav class="ext-nav-rail" aria-label="Extension Navigation">
+            <div class="rail-group rail-group-top">
+                <!-- 1. Capture Studio Tab (with live recording badge) -->
+                <button class="rail-btn active" data-tab="capture" title="Capture Studio (Record SOP)">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+                    <span id="railRecordDot" class="rail-record-dot hidden"></span>
+                </button>
+
+                <!-- 2. ProcBot RPA Tab -->
+                <button class="rail-btn" data-tab="procbot" title="ProcBot RPA & Automations">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7H8V5.73C7.4 5.39 7 4.74 7 4a2 2 0 0 1 2-2h3zM9 11a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>
+                </button>
+
+                <!-- 3. Privacy & Security Tab -->
+                <button class="rail-btn" data-tab="privacy" title="Privacy & PII Redaction">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                </button>
+
+                <!-- 4. Diagnostics & Troubleshooting Tab -->
+                <button class="rail-btn" data-tab="diagnostics" title="Diagnostics & System Status">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/></svg>
                 </button>
             </div>
-        </header>
 
-        <!-- Backend Offline Assistant (shown when API is not reachable) -->
-        <div id="api-offline-banner" class="api-offline-card hidden">
-            <div class="api-offline-header">
-                <span class="offline-icon">⚠️</span>
-                <div>
-                    <div class="api-offline-title">Backend Server Offline</div>
-                    <div class="api-offline-desc">ProcSnap local engine is not active on ports 8000-8005.</div>
-                </div>
-            </div>
-            <div class="api-offline-actions">
-                <button id="btnRetryApi" class="btn btn-xs btn-primary">⚡ 1-Click Reconnect</button>
-                <button id="btnCopyStartCmd" class="btn btn-xs btn-secondary">📋 Copy Launch Command</button>
-            </div>
-        </div>
+            <div class="rail-group rail-group-bottom">
+                <!-- 5. Support & Help Center Tab (active pill styling) -->
+                <button class="rail-btn" data-tab="support" title="Support & Help Center">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+                </button>
 
-        <!-- Setup Form (shown when not recording) -->
-        <div id="setup-panel" class="panel">
-            <div class="field">
-                <div class="field-header">
-                    <label for="workflow-name">Workflow Name</label>
-                    <span class="field-hint">e.g. Standard SOP</span>
-                </div>
-                <input type="text" id="workflow-name" placeholder="e.g. How to Approve Expense Report" value="">
+                <!-- 6. Workspace / Library Tab -->
+                <button class="rail-btn" data-tab="workspace" title="Workspaces & SOP Library">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                </button>
+
+                <!-- 7. Settings Tab -->
+                <button class="rail-btn" data-tab="settings" title="Settings & Preferences">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                </button>
             </div>
-            <div class="field">
-                <div class="field-header">
-                    <label for="application-name">Application / System</label>
-                    <div class="app-presets">
-                        <span class="app-preset-chip active" data-app="Chrome">Chrome</span>
-                        <span class="app-preset-chip" data-app="Desktop">Desktop</span>
-                        <span class="app-preset-chip" data-app="Salesforce">Salesforce</span>
+        </nav>
+
+        <!-- Right Main Panel Container -->
+        <main class="ext-main-panel">
+            <!-- ═════════════════════════════════════════════════════════════════
+                 PANEL 1: CAPTURE STUDIO (RECORD SOP)
+            ═════════════════════════════════════════════════════════════════ -->
+            <section id="pane-capture" class="tab-pane active">
+                <header class="pane-header">
+                    <div class="brand-row">
+                        <img src="icons/icon48.png" alt="ProcSnap" class="brand-logo">
+                        <div>
+                            <div class="pane-title">Capture Studio</div>
+                            <div class="pane-sub">Local SOP Creator</div>
+                        </div>
+                    </div>
+                    <div id="api-status-pill" class="api-status offline" title="Click to test local API">
+                        <span class="status-indicator"></span>
+                        <span id="apiStatusText">OFFLINE</span>
+                    </div>
+                </header>
+
+                <!-- Offline Alert Banner -->
+                <div id="api-offline-banner" class="api-offline-card hidden">
+                    <div class="api-offline-header">
+                        <span class="offline-icon">⚠️</span>
+                        <div>
+                            <div class="api-offline-title">Localhost Offline</div>
+                            <div class="api-offline-desc">ProcSnap backend is not responding on 8000-8005.</div>
+                        </div>
+                    </div>
+                    <div class="api-offline-actions">
+                        <button id="btnRetryApi" class="btn btn-xs btn-primary">⚡ Reconnect</button>
+                        <button id="btnCopyStartCmd" class="btn btn-xs btn-secondary">📋 Copy Launch Command</button>
                     </div>
                 </div>
-                <input type="text" id="application-name" placeholder="e.g. Chrome, Salesforce, Jira" value="Chrome">
-            </div>
-            <button id="start" class="btn btn-primary btn-start">
-                <span>🚀</span> Start Capture
-            </button>
-        </div>
 
-        <!-- Extension Unified 1-Click Control Toolbar -->
-        <div class="ext-utility-toolbar">
-            <div class="ext-toolbar-header">
-                <span class="ext-toolbar-title">⚡ Quick Controls &amp; Engine</span>
-                <span id="latencyBadge" class="latency-badge hidden">--ms</span>
-            </div>
-            <div class="ext-util-row">
-                <button id="btnExtDebug" class="btn-util" title="Run 1-click comprehensive system diagnostics">
-                    <span>🐞</span> Debug
-                </button>
-                <button id="btnExtReconnect" class="btn-util" title="Probe ports and reconnect to engine">
-                    <span>🔄</span> Reconnect
-                </button>
-                <button id="btnExtGitPull" class="btn-util" title="Pull latest updates from GitHub">
-                    <span>⬇️</span> Git Pull
-                </button>
-                <button id="btnExtReinstall" class="btn-util" title="Re-install Python dependencies">
-                    <span>📦</span> Pip Update
-                </button>
-            </div>
-            <div id="extUtilStatus" class="ext-util-status hidden"></div>
-        </div>
-
-        <!-- Active Session Panel (shown when recording) -->
-        <div id="active-panel" class="panel hidden">
-            <div class="status-box">
-                <div id="pulse-dot" class="pulse-dot"></div>
-                <div class="status-content">
-                    <span id="active-status-title" class="status-title">Capturing...</span>
-                    <span id="step-counter" class="status-subtitle">0 steps recorded</span>
-                </div>
-                <div id="step-count-badge" class="step-badge-hero">0</div>
-            </div>
-            <div class="active-wf-info">
-                <div class="wf-label">Active Workflow</div>
-                <div id="active-wf-name" class="wf-val">Untitled Workflow</div>
-            </div>
-            <div class="action-buttons-group">
-                <button id="pause" class="btn btn-secondary">Pause Capture</button>
-                <button id="capture-manual" class="btn btn-secondary">Instant Capture</button>
-            </div>
-            <button id="btnCaptureDesktopPopup" class="btn btn-secondary" style="width:100%; margin-top:6px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:6px; background:rgba(99,102,241,0.15); border-color:rgba(99,102,241,0.4); color:#818cf8;">
-                📸 Capture Desktop / File Dialog
-            </button>
-            <button id="stop" class="btn btn-danger" style="margin-top:6px;">Complete Capture</button>
-        </div>
-
-        <!-- Diagnostic & GPT Troubleshooting Hub -->
-        <div id="diagnostic-hub" class="diagnostic-hub">
-            <div class="diagnostic-header">
-                <button id="btnToggleDiagnostic" class="btn-toggle-diag">
-                    <span>💻</span> Diagnostic Console
-                </button>
-                <div style="display: flex; gap: 4px;">
-                    <button id="btnExtAutoFix" class="btn btn-xs btn-primary" style="background: #10b981; border: none; font-weight: 700;" title="1-Click Auto-Repair Connection and Reset Server State">
-                        ⚡ Auto-Fix
-                    </button>
-                    <button id="btnCopyGptPrompt" class="btn btn-xs btn-secondary" title="Copy full debug info for ChatGPT / Claude">
-                        📋 GPT Log
+                <!-- Setup Form (shown when idle) -->
+                <div id="setup-panel" class="setup-form">
+                    <div class="field">
+                        <label for="workflow-name" class="field-label">Workflow Title</label>
+                        <input type="text" id="workflow-name" placeholder="e.g. Approve Purchase Order" class="field-input">
+                    </div>
+                    <div class="field">
+                        <div class="field-label-row">
+                            <label for="application-name" class="field-label">Target System</label>
+                            <div class="app-presets">
+                                <span class="app-preset-chip active" data-app="Chrome">Chrome</span>
+                                <span class="app-preset-chip" data-app="Desktop">Desktop</span>
+                                <span class="app-preset-chip" data-app="Salesforce">Salesforce</span>
+                            </div>
+                        </div>
+                        <input type="text" id="application-name" placeholder="e.g. Chrome, Salesforce, Jira" value="Chrome" class="field-input">
+                    </div>
+                    <button id="start" class="btn btn-primary btn-record-action">
+                        <span>🔴</span> Start Capture
                     </button>
                 </div>
-            </div>
-            <div id="diagnosticBody" class="diagnostic-body hidden">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
-                    <button id="btnExtSelfTest" class="btn btn-xs btn-secondary" style="font-weight: 700; padding: 4px 6px;">
-                        🩺 Run Self-Test
+
+                <!-- Active Recording Card (shown during capture) -->
+                <div id="active-panel" class="active-recording-card hidden">
+                    <div class="active-status-bar">
+                        <div id="pulse-dot" class="pulse-dot"></div>
+                        <div class="active-status-meta">
+                            <span id="active-status-title" class="status-title">Capturing Live...</span>
+                            <span id="step-counter" class="status-subtitle">0 steps recorded</span>
+                        </div>
+                        <div id="step-count-badge" class="step-count-badge">0</div>
+                    </div>
+                    <div class="active-wf-display">
+                        <span class="active-wf-label">SOP:</span>
+                        <span id="active-wf-name" class="active-wf-val">Untitled Workflow</span>
+                    </div>
+                    <div class="active-btn-grid">
+                        <button id="pause" class="btn btn-secondary btn-sm">⏸️ Pause</button>
+                        <button id="capture-manual" class="btn btn-secondary btn-sm">📸 Snapshot</button>
+                    </div>
+                    <button id="btnCaptureDesktopPopup" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 6px; color: #818cf8; border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.08);">
+                        🖥️ Capture Desktop Window
                     </button>
-                    <button id="btnExtResetStorage" class="btn btn-xs btn-secondary" style="font-weight: 700; padding: 4px 6px;">
-                        🧹 Reset Cache
+                    <button id="stop" class="btn btn-danger" style="margin-top: 6px; width: 100%;">
+                        ⏹️ Complete &amp; View in Studio
                     </button>
                 </div>
+
+                <!-- Bottom Quick Links -->
+                <div class="pane-footer-links">
+                    <a id="openStudioLink" href="http://127.0.0.1:8000/dashboard/dashboard.html" target="_blank" class="pane-link">
+                        <span>📚</span> Open SOP Studio
+                    </a>
+                    <button id="popout-btn" class="pane-link-btn" title="Pin into separate pop-out window">📌 Pin</button>
+                </div>
+            </section>
+
+            <!-- ═════════════════════════════════════════════════════════════════
+                 PANEL 2: PROCBOT RPA AUTOMATIONS
+            ═════════════════════════════════════════════════════════════════ -->
+            <section id="pane-procbot" class="tab-pane">
+                <header class="pane-header">
+                    <div>
+                        <div class="pane-title">ProcBot RPA</div>
+                        <div class="pane-sub">Self-Healing Automation</div>
+                    </div>
+                    <span class="pane-badge">AI RPA</span>
+                </header>
+
+                <div class="menu-list-group">
+                    <div class="menu-group-header">RPA Controls</div>
+                    <div class="menu-action-item" id="extOpenProcBotStudio">
+                        <div class="item-left">
+                            <span class="item-icon">🤖</span>
+                            <div>
+                                <div class="item-title">Launch ProcBot Studio</div>
+                                <div class="item-desc">Interactive RPA runner &amp; parameters</div>
+                            </div>
+                        </div>
+                        <span class="item-arrow">↗</span>
+                    </div>
+                    <div class="menu-action-item" id="extRunAiPrompt">
+                        <div class="item-left">
+                            <span class="item-icon">🪄</span>
+                            <div>
+                                <div class="item-title">AI Prompt to Bot</div>
+                                <div class="item-desc">Synthesize RPA flow from prompt</div>
+                            </div>
+                        </div>
+                        <span class="item-arrow">></span>
+                    </div>
+
+                    <div class="menu-group-header">Script Generators</div>
+                    <div class="menu-action-item" id="extDownloadPlaywright">
+                        <div class="item-left">
+                            <span class="item-icon">🐍</span>
+                            <div>
+                                <div class="item-title">Playwright Python Script</div>
+                                <div class="item-desc">Export current workflow as Playwright</div>
+                            </div>
+                        </div>
+                        <span class="item-arrow">⬇</span>
+                    </div>
+                    <div class="menu-action-item" id="extDownloadSelenium">
+                        <div class="item-left">
+                            <span class="item-icon">🧪</span>
+                            <div>
+                                <div class="item-title">Selenium Python Script</div>
+                                <div class="item-desc">Export current workflow as Selenium</div>
+                            </div>
+                        </div>
+                        <span class="item-arrow">⬇</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═════════════════════════════════════════════════════════════════
+                 PANEL 3: PRIVACY & SECURITY
+            ═════════════════════════════════════════════════════════════════ -->
+            <section id="pane-privacy" class="tab-pane">
+                <header class="pane-header">
+                    <div>
+                        <div class="pane-title">Privacy &amp; Security</div>
+                        <div class="pane-sub">Local PII Masking Engine</div>
+                    </div>
+                    <span class="pane-badge" style="background: rgba(16,185,129,0.15); color: #34d399;">100% LOCAL</span>
+                </header>
+
+                <div class="menu-list-group">
+                    <div class="menu-group-header">Automated Redaction</div>
+                    <label class="toggle-setting-item">
+                        <div>
+                            <div class="item-title">Auto-Mask Passwords</div>
+                            <div class="item-desc">Blackout password &amp; secret fields in screenshots</div>
+                        </div>
+                        <input type="checkbox" id="chkAutoMaskPasswords" checked class="toggle-checkbox">
+                    </label>
+                    <label class="toggle-setting-item">
+                        <div>
+                            <div class="item-title">Credit Card &amp; SSN Detection</div>
+                            <div class="item-desc">Blur financial tokens automatically</div>
+                        </div>
+                        <input type="checkbox" id="chkAutoMaskCards" checked class="toggle-checkbox">
+                    </label>
+                    <div class="menu-action-item" id="extTriggerPiiScanner">
+                        <div class="item-left">
+                            <span class="item-icon">🛡️</span>
+                            <div>
+                                <div class="item-title">Run PII Deep Scan</div>
+                                <div class="item-desc">Scan library for sensitive data</div>
+                            </div>
+                        </div>
+                        <span class="item-arrow">↗</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═════════════════════════════════════════════════════════════════
+                 PANEL 4: DIAGNOSTICS & ENGINE CONTROL
+            ═════════════════════════════════════════════════════════════════ -->
+            <section id="pane-diagnostics" class="tab-pane">
+                <header class="pane-header">
+                    <div>
+                        <div class="pane-title">Diagnostics</div>
+                        <div class="pane-sub">Engine &amp; Port Monitor</div>
+                    </div>
+                    <span id="latencyBadge" class="latency-badge hidden">--ms</span>
+                </header>
+
+                <div class="diag-action-grid">
+                    <button id="btnExtAutoFix" class="btn btn-xs btn-primary" style="background: #10b981; border: none; font-weight: 700;">
+                        ⚡ 1-Click Auto-Fix
+                    </button>
+                    <button id="btnExtReconnect" class="btn btn-xs btn-secondary">
+                        🔄 Reconnect
+                    </button>
+                    <button id="btnExtDebug" class="btn btn-xs btn-secondary">
+                        🐞 Diagnostics
+                    </button>
+                    <button id="btnCopyGptPrompt" class="btn btn-xs btn-secondary">
+                        📋 Copy GPT Log
+                    </button>
+                </div>
+
                 <div class="diag-cmd-box">
-                    <span class="diag-cmd-label"># Launch Server Command:</span>
+                    <span class="diag-cmd-label"># Manual Launch Command:</span>
                     <code class="diag-cmd-text">powershell -File .\install.ps1</code>
                 </div>
-                <div id="diagnosticLogs" class="diag-logs">Ready. Click Auto-Fix or Run Self-Test to verify and repair system.</div>
-            </div>
-        </div>
 
-        <!-- Footer -->
-        <footer class="footer">
-            <a id="openStudioLink" href="http://127.0.0.1:8000/dashboard/dashboard.html" target="_blank" class="dashboard-link">
-                <svg class="icon" viewBox="0 0 24 24" width="14" height="14">
-                    <path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                </svg>
-                Studio
-            </a>
-            <a id="extFeedbackLink" href="mailto:Vickykalam34@gmail.com?subject=ProcSnap%20Feedback" target="_blank" class="dashboard-link" title="Send feedback to Vickykalam34@gmail.com" style="color: #818cf8; font-weight: 700;">
-                💬 Feedback
-            </a>
-            <button id="popout-btn" class="popout-btn" title="Pop out into separate window so it stays open">📌 Pin</button>
-            <div class="version">v0.2.1</div>
-        </footer>
+                <div id="diagnosticLogs" class="diag-logs-container">
+                    System ready. Ports 8000-8005 monitored.
+                </div>
+            </section>
+
+            <!-- ═════════════════════════════════════════════════════════════════
+                 PANEL 5: SUPPORT & HELP CENTER (EXACT SCREENSHOT MATCH)
+            ═════════════════════════════════════════════════════════════════ -->
+            <section id="pane-support" class="tab-pane">
+                <header class="pane-header-center">
+                    <h2 class="support-main-title">Support</h2>
+                </header>
+
+                <div class="menu-list-group">
+                    <div class="menu-group-header">Help Center</div>
+                    <a id="supportContactLink" href="mailto:Vickykalam34@gmail.com?subject=ProcSnap%20Support%20Request" target="_blank" class="menu-action-item">
+                        <span class="item-title-plain">Contact support</span>
+                        <svg class="item-external-icon" viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                    </a>
+                    <a id="supportArticlesLink" href="http://127.0.0.1:8000/dashboard/dashboard.html" target="_blank" class="menu-action-item">
+                        <span class="item-title-plain">Help articles</span>
+                        <svg class="item-external-icon" viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                    </a>
+
+                    <div class="menu-group-header">Troubleshooting</div>
+                    <div class="menu-action-item" id="supportRefreshExtension">
+                        <span class="item-title-plain">Refresh extension ⓘ</span>
+                        <svg class="item-chevron-icon" viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                    </div>
+                    <div class="menu-action-item" id="supportOpenDashboard">
+                        <span class="item-title-plain">Open Studio Dashboard</span>
+                        <svg class="item-external-icon" viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═════════════════════════════════════════════════════════════════
+                 PANEL 6: WORKSPACES & LIBRARY
+            ═════════════════════════════════════════════════════════════════ -->
+            <section id="pane-workspace" class="tab-pane">
+                <header class="pane-header">
+                    <div>
+                        <div class="pane-title">SOP Workspaces</div>
+                        <div class="pane-sub">Local Workflow Library</div>
+                    </div>
+                    <span id="workspaceCountBadge" class="pane-badge">0 Workflows</span>
+                </header>
+
+                <div id="extRecentWorkflowsList" class="workspace-list-container">
+                    <div class="loading-state">Loading library...</div>
+                </div>
+            </section>
+
+            <!-- ═════════════════════════════════════════════════════════════════
+                 PANEL 7: SETTINGS & CONFIG
+            ═════════════════════════════════════════════════════════════════ -->
+            <section id="pane-settings" class="tab-pane">
+                <header class="pane-header">
+                    <div>
+                        <div class="pane-title">Preferences</div>
+                        <div class="pane-sub">Engine &amp; Connection Config</div>
+                    </div>
+                    <span class="pane-badge">v0.2.1</span>
+                </header>
+
+                <div class="setup-form">
+                    <div class="field">
+                        <label for="extBackendUrlInput" class="field-label">Backend Host URL</label>
+                        <input type="text" id="extBackendUrlInput" value="http://127.0.0.1:8000" class="field-input">
+                    </div>
+                    <div class="field">
+                        <label for="extCountdownDelay" class="field-label">Recording Countdown Delay</label>
+                        <select id="extCountdownDelay" class="field-input">
+                            <option value="0">Instant (No delay)</option>
+                            <option value="3" selected>3 Seconds</option>
+                            <option value="5">5 Seconds</option>
+                        </select>
+                    </div>
+                    <button id="btnSaveExtSettings" class="btn btn-primary btn-sm" style="width: 100%;">
+                        💾 Save Settings
+                    </button>
+                </div>
+            </section>
+        </main>
     </div>
     <script src="popup.js"></script>
 </body>
