@@ -1260,6 +1260,14 @@ function renderLibraryHub() {
         const timeStr = formatRelativeTime(w.created_at || w.createdAt || w.startedAt || w.updated_at);
         const coverUrl = w.coverScreenshot ? normalizeImageUrl(w.coverScreenshot) : `${API_BASE}/sessions/${encodeURIComponent(w.id)}/cover?t=${Date.now()}`;
         const isBot = (w.id && w.id.startsWith("bot_")) || (w.tags && w.tags.toLowerCase().includes("bot")) || (w.name && w.name.toLowerCase().includes("bot"));
+        const sc = w.stepCount || 0;
+        let complexityBadge = `<span style="color:#10b981; font-size:10px; font-weight:700; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); padding:2px 6px; border-radius:4px;">🟢 Quick (~1m)</span>`;
+        if (sc > 10) {
+            complexityBadge = `<span style="color:#f43f5e; font-size:10px; font-weight:700; background:rgba(244,63,94,0.1); border:1px solid rgba(244,63,94,0.25); padding:2px 6px; border-radius:4px;">🔴 Complex (~${Math.ceil(sc * 0.4)}m)</span>`;
+        } else if (sc > 4) {
+            complexityBadge = `<span style="color:#fbbf24; font-size:10px; font-weight:700; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.25); padding:2px 6px; border-radius:4px;">🟡 Moderate (~${Math.ceil(sc * 0.3)}m)</span>`;
+        }
+
         const tagBadges = (w.tags || "").split(",").map(t => t.trim()).filter(Boolean).map(t => `
             <span class="hub-card-tag">${esc(t)}</span>
         `).join("");
@@ -1275,14 +1283,14 @@ function renderLibraryHub() {
                     <span class="hub-card-badge-app" style="${isBot ? 'border-color: rgba(99,102,241,0.4); color: #c7d2fe;' : ''}">
                         ${isBot ? '🤖 RPA Bot' : esc(w.application || 'Web/Desktop')}
                     </span>
-                    <span class="hub-card-badge-steps">${w.stepCount || 0} Step${w.stepCount === 1 ? '' : 's'}</span>
+                    <span class="hub-card-badge-steps">${sc} Step${sc === 1 ? '' : 's'}</span>
                 </div>
                 <div class="hub-card-body" onclick="openWorkflow('${esc(w.id)}')">
                     <div class="hub-card-title">${esc(w.name || 'Untitled Workflow')}</div>
                     <div class="hub-card-meta">
                         <span>🕒 ${timeStr}</span>
                         <span>•</span>
-                        <span style="color: #10b981; font-weight: 600;">${esc(w.status || 'Ready')}</span>
+                        ${complexityBadge}
                     </div>
                     ${tagBadges ? `<div class="hub-card-tags">${tagBadges}</div>` : ''}
                 </div>
@@ -8131,75 +8139,192 @@ function toggleCommandPalette(forceOpen = null) {
 }
 
 async function searchCommandPalette(query) {
-    const q = (query || "").trim();
+    const q = (query || "").trim().toLowerCase();
     const resultsEl = $("cmdPaletteResults");
     const countEl = $("cmdPaletteCount");
     if (!resultsEl) return;
-    
+
+    // Define Global Action Registry
+    const ALL_ACTIONS = [
+        {
+            title: "Record Web Application",
+            sub: "Start live capture with Chrome Extension",
+            icon: "🔴",
+            badge: "Alt+W",
+            keywords: "record web chrome extension capture",
+            run: () => { $("startExtensionTopbarBtn")?.click() || $("btnUnifiedRecord")?.click(); }
+        },
+        {
+            title: "Capture Desktop SOP",
+            sub: "Full-screen native Windows application recorder",
+            icon: "🖥️",
+            badge: "Alt+D",
+            keywords: "record desktop windows screen native capture",
+            run: () => { $("btnRecordDesktopApp")?.click(); }
+        },
+        {
+            title: "ProcBot RPA Studio",
+            sub: "Automate, replay & export Playwright/Selenium scripts",
+            icon: "🤖",
+            badge: "Alt+R",
+            keywords: "procbot rpa automate bot replay playwright selenium runner",
+            run: () => { window.openProcBotStudio ? window.openProcBotStudio() : $("btnOpenProcBot")?.click(); }
+        },
+        {
+            title: "AI Prompt to Bot",
+            sub: "Synthesize complete RPA bot sequence from natural language prompt",
+            icon: "🪄",
+            badge: "Alt+A",
+            keywords: "ai prompt generate bot synthesis ollama nlp",
+            run: () => {
+                const modal = $("procbotAIPromptModal");
+                if (modal) { modal.classList.remove("hidden"); modal.style.display = "block"; $("procbotAIPromptInput")?.focus(); }
+            }
+        },
+        {
+            title: "Video to SOP Converter",
+            sub: "Convert Loom, MP4, WebM, or GIF into step-by-step documentation",
+            icon: "🎬",
+            badge: "Video",
+            keywords: "video loom mp4 gif convert sop steps",
+            run: () => { $("btnOpenVideoImportModal")?.click(); }
+        },
+        {
+            title: "Stitch & Merge Workflows",
+            sub: "Combine multiple SOP recordings into one cohesive master guide",
+            icon: "🔗",
+            badge: "Merge",
+            keywords: "merge stitch combine join master workflow",
+            run: () => { $("btnOpenMergeModal")?.click(); }
+        },
+        {
+            title: "Run PII Privacy & Redaction Scanner",
+            sub: "Scan and blur sensitive passwords, emails, and financial tokens",
+            icon: "🛡️",
+            badge: "Privacy",
+            keywords: "pii privacy scan blur redact security password credit card",
+            run: () => { $("btnOpenPiiModal")?.click(); }
+        },
+        {
+            title: "Toggle Light / Dark Mode",
+            sub: "Switch dashboard appearance theme",
+            icon: "☀️",
+            badge: "Theme",
+            keywords: "theme light dark mode appearance color",
+            run: () => { $("themeToggleBtn")?.click(); }
+        },
+        {
+            title: "Export Master PDF Guide",
+            sub: "Generate formatted printable SOP documentation",
+            icon: "📄",
+            badge: "PDF",
+            keywords: "export pdf print document download",
+            run: () => { $("btnExportPdf")?.click(); }
+        },
+        {
+            title: "Import JSON Backup",
+            sub: "Restore workflow from .procsnap.json backup file",
+            icon: "📥",
+            badge: "Import",
+            keywords: "import json upload backup restore",
+            run: () => { $("importJsonInput")?.click() || $("hubImportJsonInput")?.click(); }
+        }
+    ];
+
+    cmdPaletteItems = [];
+    let html = "";
+
+    // 1. Filtered or Default Quick Actions
+    const matchingActions = q 
+        ? ALL_ACTIONS.filter(a => a.title.toLowerCase().includes(q) || a.keywords.includes(q))
+        : ALL_ACTIONS.slice(0, 5);
+
+    if (matchingActions.length > 0) {
+        html += `<div class="cmd-palette-category">⚡ Quick Actions</div>`;
+        matchingActions.forEach(a => {
+            const itemIndex = cmdPaletteItems.length;
+            cmdPaletteItems.push({ type: "action", run: a.run });
+            html += `
+                <div class="cmd-palette-item ${itemIndex === 0 ? 'active' : ''}" data-index="${itemIndex}">
+                    <div class="cmd-palette-item-left">
+                        <span class="cmd-palette-item-icon">${a.icon}</span>
+                        <div class="cmd-palette-item-info">
+                            <div class="cmd-palette-item-title">${esc(a.title)}</div>
+                            <div class="cmd-palette-item-sub">${esc(a.sub)}</div>
+                        </div>
+                    </div>
+                    <span class="cmd-palette-badge" style="background: rgba(99,102,241,0.15); color: #a5b4fc;">${esc(a.badge)}</span>
+                </div>
+            `;
+        });
+    }
+
+    // 2. If no query, also show Recent Workflows
     if (!q) {
-        resultsEl.innerHTML = `
-            <div style="padding: 28px; text-align: center; color: var(--text-muted); font-size: 13px;">
-                Type a keyword to search across all workflows, steps, actions, URLs, and notes in your library...
-            </div>
-        `;
-        if (countEl) countEl.textContent = "0 results";
-        cmdPaletteItems = [];
+        const recentWfs = (workflows || []).slice(0, 6);
+        if (recentWfs.length > 0) {
+            html += `<div class="cmd-palette-category">📚 Recent Workflows &amp; Bots</div>`;
+            recentWfs.forEach(wf => {
+                const itemIndex = cmdPaletteItems.length;
+                const isBot = (wf.id && wf.id.startsWith("bot_")) || (wf.name && wf.name.toLowerCase().includes("bot"));
+                cmdPaletteItems.push({ type: "workflow", id: wf.id });
+                html += `
+                    <div class="cmd-palette-item ${itemIndex === 0 ? 'active' : ''}" data-index="${itemIndex}">
+                        <div class="cmd-palette-item-left">
+                            <span class="cmd-palette-item-icon">${isBot ? '🤖' : '📁'}</span>
+                            <div class="cmd-palette-item-info">
+                                <div class="cmd-palette-item-title">${esc(wf.name || 'Untitled Workflow')}</div>
+                                <div class="cmd-palette-item-sub">${isBot ? 'ProcBot RPA' : esc(wf.application || 'App')} • ${wf.stepCount || 0} steps</div>
+                            </div>
+                        </div>
+                        <span class="cmd-palette-badge">${isBot ? 'RPA Bot' : 'SOP'}</span>
+                    </div>
+                `;
+            });
+        }
+        if (countEl) countEl.textContent = `${cmdPaletteItems.length} actions & guides`;
+        resultsEl.innerHTML = html;
+        cmdPaletteActiveIndex = 0;
+        resultsEl.querySelectorAll(".cmd-palette-item").forEach(el => {
+            el.onclick = () => selectCommandPaletteItem(parseInt(el.dataset.index, 10));
+        });
         return;
     }
-    
-    resultsEl.innerHTML = `
-        <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
-            <span>⏳ Searching library...</span>
-        </div>
-    `;
-    
+
+    // 3. Search API for Workflows & Steps
     try {
         const res = await api(`/search?q=${encodeURIComponent(q)}`);
         const wfs = res.workflows || [];
         const steps = res.steps || [];
-        const total = (res.totalMatches !== undefined) ? res.totalMatches : (wfs.length + steps.length);
-        if (countEl) countEl.textContent = `${total} match${total === 1 ? '' : 'es'}`;
-        
-        if (wfs.length === 0 && steps.length === 0) {
-            resultsEl.innerHTML = `
-                <div style="padding: 28px; text-align: center; color: var(--text-muted); font-size: 13px;">
-                    No results found for "<strong>${esc(q)}</strong>".
-                </div>
-            `;
-            cmdPaletteItems = [];
-            return;
-        }
-        
-        cmdPaletteItems = [];
-        let html = "";
-        
+
         if (wfs.length > 0) {
             html += `<div class="cmd-palette-category">Workflows (${wfs.length})</div>`;
             wfs.forEach(wf => {
                 const itemIndex = cmdPaletteItems.length;
+                const isBot = (wf.id && wf.id.startsWith("bot_")) || (wf.name && wf.name.toLowerCase().includes("bot"));
                 cmdPaletteItems.push({ type: "workflow", id: wf.id });
                 html += `
-                    <div class="cmd-palette-item ${itemIndex === 0 ? 'active' : ''}" data-index="${itemIndex}" data-type="workflow" data-id="${wf.id}">
+                    <div class="cmd-palette-item ${itemIndex === 0 ? 'active' : ''}" data-index="${itemIndex}">
                         <div class="cmd-palette-item-left">
-                            <span class="cmd-palette-item-icon">📁</span>
+                            <span class="cmd-palette-item-icon">${isBot ? '🤖' : '📁'}</span>
                             <div class="cmd-palette-item-info">
                                 <div class="cmd-palette-item-title">${esc(wf.name || 'Untitled Workflow')}</div>
                                 <div class="cmd-palette-item-sub">${esc(wf.application || 'Chrome')} • Started ${fmt(wf.startedAt)}</div>
                             </div>
                         </div>
-                        <span class="cmd-palette-badge">Workflow</span>
+                        <span class="cmd-palette-badge">${isBot ? 'RPA Bot' : 'Workflow'}</span>
                     </div>
                 `;
             });
         }
-        
+
         if (steps.length > 0) {
             html += `<div class="cmd-palette-category">Steps (${steps.length})</div>`;
             steps.forEach(st => {
                 const itemIndex = cmdPaletteItems.length;
                 cmdPaletteItems.push({ type: "step", id: st.workflowId, sequence: st.sequence });
                 html += `
-                    <div class="cmd-palette-item ${itemIndex === 0 ? 'active' : ''}" data-index="${itemIndex}" data-type="step" data-id="${st.workflowId}" data-sequence="${st.sequence}">
+                    <div class="cmd-palette-item ${itemIndex === 0 ? 'active' : ''}" data-index="${itemIndex}">
                         <div class="cmd-palette-item-left">
                             <span class="cmd-palette-item-icon">🎯</span>
                             <div class="cmd-palette-item-info">
@@ -8212,21 +8337,26 @@ async function searchCommandPalette(query) {
                 `;
             });
         }
-        
+
+        if (cmdPaletteItems.length === 0) {
+            html = `
+                <div style="padding: 28px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                    No commands, workflows, or steps matching "<strong>${esc(q)}</strong>".
+                </div>
+            `;
+        }
+
+        if (countEl) countEl.textContent = `${cmdPaletteItems.length} match${cmdPaletteItems.length === 1 ? '' : 'es'}`;
         resultsEl.innerHTML = html;
         cmdPaletteActiveIndex = 0;
-        
-        // Click handlers
+
         resultsEl.querySelectorAll(".cmd-palette-item").forEach(el => {
             el.onclick = () => selectCommandPaletteItem(parseInt(el.dataset.index, 10));
         });
-        
     } catch (e) {
-        resultsEl.innerHTML = `
-            <div style="padding: 20px; text-align: center; color: var(--danger); font-size: 13px;">
-                Error searching library: ${esc(e.message)}
-            </div>
-        `;
+        if (cmdPaletteItems.length === 0) {
+            resultsEl.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--danger); font-size: 13px;">Search error: ${esc(e.message)}</div>`;
+        }
     }
 }
 
@@ -8234,8 +8364,10 @@ async function selectCommandPaletteItem(index) {
     if (index < 0 || index >= cmdPaletteItems.length) return;
     const item = cmdPaletteItems[index];
     toggleCommandPalette(false);
-    
-    if (item.type === "workflow") {
+
+    if (item.type === "action" && typeof item.run === "function") {
+        item.run();
+    } else if (item.type === "workflow") {
         await openWorkflow(item.id);
     } else if (item.type === "step") {
         await openWorkflow(item.id);
